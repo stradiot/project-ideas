@@ -1,0 +1,83 @@
+---
+tags: [project, embedded, freertos, esp32]
+status: idea
+created: 2026-08-07
+---
+
+# FreeRTOS Pocket Console
+
+## Goal
+
+Get real fluency with RTOS tasks, priorities and inter-task communication by
+building something where scheduling mistakes are immediately visible: a
+handheld console that must never drop a keypress or stutter the UI.
+
+Learning goals:
+- FreeRTOS tasks, priorities, and what starvation looks like
+- Queues, semaphores and mutexes used for their actual purpose
+- Keeping a rendering loop smooth while other work happens
+
+Deliberately out of scope: a custom PCB or enclosure — breadboard and
+protoboard are fine.
+
+## Architecture
+
+| Task | Priority | Responsibility |
+| --- | --- | --- |
+| Input | High | Button scanning and debouncing, never blocked by rendering |
+| Logic | Medium | Game / application state machine |
+| Display | Low–medium | Renders the current frame to the SPI OLED |
+
+Tasks never touch each other's state directly. Input pushes key events into
+a queue; logic consumes them and pushes render commands or a frame buffer
+to the display task; the SPI bus is guarded by a mutex.
+
+The design goal is stated as a testable property: switching between apps
+must not lose game state, and no button press may be dropped even while the
+display is mid-refresh.
+
+### Applications
+
+- Tetris — continuous timing pressure, makes any scheduling glitch obvious
+- Calculator — trivial logic, but exercises the menu and input paths
+- Menu system on top, switching between them without tearing anything down
+
+## Tools
+
+| Purpose | Tool | Note |
+| --- | --- | --- |
+| MCU | ESP32 | FreeRTOS is built into ESP-IDF |
+| Display | SPI OLED (SSD1306 / SH1106) | Small, cheap, fast enough |
+| Input | Matrix keypad or discrete buttons | Debounced in software |
+| Debug | ESP-IDF monitor, FreeRTOS trace facility | Task stats to catch starvation |
+
+## Budget
+
+Rough estimates.
+
+| Item | Cost |
+| --- | --- |
+| ESP32 dev board | 6–12 € |
+| SPI OLED | 5–10 € |
+| Buttons / keypad, protoboard | 5–10 € |
+| Battery + charger (optional) | 10 € |
+
+## Software / firmware
+
+- ESP-IDF project, tasks created explicitly with chosen stack sizes and
+  priorities
+- Queues for key events and render requests, mutex for the SPI bus
+- Display driver — either a minimal one written by hand, or an existing one
+  wrapped so all access goes through the display task
+
+## Next steps
+
+- [ ] OLED over SPI, draw something static
+- [ ] Debounced button reading in its own task, events into a queue
+- [ ] Display task with a fixed frame rate, fed only from a queue
+- [ ] Tetris logic as a separate task, state kept private
+- [ ] Calculator app, sharing the same input and render contracts
+- [ ] Menu and app switching with state preserved
+- [ ] Deliberately overload a task and watch the priorities behave
+
+## Build log
