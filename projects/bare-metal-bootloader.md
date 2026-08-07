@@ -54,6 +54,31 @@ it at the application base address.
 - Simple integrity check (CRC or magic word) before jumping
 - Never let the update path overwrite the bootloader itself
 
+### Phase 3 — A/B slots and rollback
+
+A single application region means a bad image bricks the board until a
+programmer is attached. That is the difference between an exercise and
+something I would actually deploy, so it gets fixed:
+
+| Element | Behaviour |
+| --- | --- |
+| Two slots | New image is written to the inactive slot; the running one is never touched |
+| Trial boot | After an update, the new slot is marked "on trial" and booted once |
+| Confirmation | The application sets a confirmed flag once it is healthy |
+| Rollback | Reboot without confirmation → the bootloader reverts to the previous slot |
+
+The cost is flash: two application slots plus the bootloader. On a small
+part that is the real constraint, and deciding whether to pay it is part of
+the exercise.
+
+### Where to stop
+
+Writing this from scratch is worth doing once, for the understanding.
+Deploying it forever is not — for anything nRF-based, MCUboot already does
+all of the above, signed, with a much larger set of eyes on it. The honest
+plan is to build this one, then use MCUboot on [[ble-sensor-node-pcb]] and
+[[thread-matter-smart-planter]] knowing exactly what it is doing.
+
 ## Tools
 
 | Purpose | Tool | Note |
@@ -78,6 +103,7 @@ Rough estimates.
 - `startup.s` — vector table and reset handler
 - `linker.ld` — memory regions and section placement, one per image
 - Bootloader in C: UART, XMODEM receiver, flash driver, jump logic
+- Slot metadata in flash — which slot is active, which is on trial, CRCs
 - Trivial application image (blink at a distinctive rate) to prove the jump
 
 ## Next steps
@@ -89,9 +115,13 @@ Rough estimates.
 - [ ] XMODEM receive into RAM, then into flash
 - [ ] Jump into the application, confirm interrupts work there (VTOR)
 - [ ] Integrity check and the "no valid app" path
+- [ ] A/B slots, trial boot and confirmation flag
+- [ ] Flash a deliberately broken image, watch it roll back on its own
 
 Result: my own firmware update mechanism, no external programmer needed
-after the first flash. Directly useful for [[freertos-pocket-console]] and
-any custom board.
+after the first flash. Its first real user is [[freertos-pocket-console]] —
+updating that handheld over its own serial link, in the field, with a
+rollback if the new build is broken, is the test of whether this is
+genuinely finished.
 
 ## Build log

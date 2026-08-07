@@ -79,6 +79,17 @@ Rough estimates.
 Hardware carries over from [[ble-sensor-node-pcb]] — same SoC, same SDK, so
 a custom carrier board is a natural second revision.
 
+A device sealed next to a water reservoir needs updates over the air rather
+than over SWD, which means MCUboot. [[bare-metal-bootloader]] covers what
+it is actually doing underneath.
+
+The Border Router built here is infrastructure, not a one-off — the second
+device to join it is [[thread-matter-noise-sensor]], which reaches the same
+Matter data model from ESP-IDF instead of Zephyr and is worth building
+afterwards for exactly that contrast. Once there are several such devices,
+[[home-assistant-rotary-controller]] is how they get driven without
+reaching for a phone.
+
 ## Next steps
 
 - [ ] Zephyr blink and RTT logging on the DK

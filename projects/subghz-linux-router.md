@@ -39,7 +39,20 @@ Custom character driver that initialises the radio and pushes raw frames
 through it. Success criterion is physical: the blinds actually go down when
 the cloned frame is transmitted.
 
+This is where the practical value lands, so it does not stop at a working
+`ioctl`: a small userspace service exposes the blinds to Home Assistant as
+a `cover` entity. At that point the flat has scheduled blinds, and the
+project has paid for itself even if Phase 3 never happens.
+
+If the problem turns out to be range rather than control, the standalone
+answer is [[subghz-fixed-code-repeater]] — an always-on box that extends
+the original remote without a Linux host in the path.
+
 ### Phase 3 — Network stack
+
+Openly the education-only phase. There is no practical need for IP over a
+CC1101 — WiFi exists, and it is better in every measurable way. The point
+is to touch the Linux networking subsystem from underneath.
 
 Extend the driver from a char device into a proper network device. The
 radio shows up in Linux as a standard interface — `rf0` — with netlink used
@@ -88,6 +101,7 @@ power limits, and only ever targeting my own devices.
 - [ ] Decode the payload by hand, then automate it in C
 - [ ] Wire CC1101 over SPI, get the chip ID back — proof the bus works
 - [ ] Char driver: raw TX, replay the captured frame, move the blinds
+- [ ] Expose the blinds to Home Assistant as a `cover` — schedule them
 - [ ] Convert to `net_device`, ping across two CC1101 nodes
 - [ ] Netlink configuration interface
 

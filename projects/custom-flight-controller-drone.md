@@ -20,6 +20,19 @@ Learning goals:
 Deliberately out of scope: GPS hold, autonomous flight, and anything beyond
 attitude stabilisation. Hover is the bar.
 
+### Order of spend
+
+The airframe, LiPo, ESCs and radio are the expensive, breakable part, and
+none of them are needed to find out whether the control loop works. So they
+are bought last.
+
+The radio link, failsafe, ESC signalling and PID tuning are all learned on
+[[rc-car-custom-controller]] first, where a mistuned loop makes a car surge
+instead of destroying a set of props. What remains genuinely new here is
+the attitude loop — the IMU, the filter, and closing a loop around an angle
+rather than a speed. That part gets proven on a bench rig before anything
+flies.
+
 ## Architecture
 
 | Block | Implementation |
@@ -65,8 +78,11 @@ Rough estimates.
 | MCU board | 10–20 € |
 | IMU | 3–10 € |
 | LiPo + charger | 30–50 € |
-| Radio TX/RX | 40–80 € |
+| Radio TX/RX | 0–80 € |
 | Spare props and one spare frame | 20 € |
+
+The radio set is zero if [[rc-car-custom-controller]] came first — it is
+the same transmitter and receiver.
 
 Budget for crashes. The first hover attempt rarely leaves the props intact.
 
@@ -79,12 +95,19 @@ Budget for crashes. The first hover attempt rarely leaves the props intact.
 
 ## Next steps
 
-- [ ] Read raw IMU data, calibrate bias
+Nothing on the airframe is bought until step 6.
+
+- [ ] Read raw IMU data, calibrate bias — MCU board only
 - [ ] Complementary filter, validate attitude by tilting the board by hand
 - [ ] 1 kHz timer loop, measure jitter on a scope
-- [ ] ESC calibration and motor mixing, props off
-- [ ] Single-axis test on a gimbal or tether — tune roll PID alone
+- [ ] Single-axis rig — one arm on a hinge, two motors, tune roll PID alone
+- [ ] Confirm the loop holds angle against a shove, and recovers
+- [ ] Only now: frame, ESCs, LiPo, props — motor mixing with props off
 - [ ] All axes, tethered
 - [ ] Free hover
+
+Once attitude control works, the same loop plus the servo experience from
+[[rc-car-custom-controller]] is most of a fixed-wing controller — the
+eventual RC plane, where the airframe is built rather than bought.
 
 ## Build log

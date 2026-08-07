@@ -40,7 +40,24 @@ display is mid-refresh.
 
 - Tetris — continuous timing pressure, makes any scheduling glitch obvious
 - Calculator — trivial logic, but exercises the menu and input paths
+- Ground station — the app that gives the device a reason to exist
 - Menu system on top, switching between them without tearing anything down
+
+### The app that keeps it alive
+
+A console with two toy apps ends up in a drawer. The third app is the one
+that matters: bolt a LoRa module on and it becomes the field handheld for
+[[lora-dog-collar-telemetry]] — a screen showing the collar's position,
+activity class and battery while out walking.
+
+That also makes it a better RTOS exercise than the games do. Packets arrive
+whenever the collar decides to send, asynchronously and at low priority,
+while the UI must stay responsive — a fourth task, another queue, and a
+real reason for the priorities to be right.
+
+The same split — input task, state, render task, asynchronous events
+arriving from outside — scales up to [[home-assistant-rotary-controller]],
+where the event stream comes from the network rather than a radio.
 
 ## Tools
 
@@ -60,7 +77,8 @@ Rough estimates.
 | ESP32 dev board | 6–12 € |
 | SPI OLED | 5–10 € |
 | Buttons / keypad, protoboard | 5–10 € |
-| Battery + charger (optional) | 10 € |
+| Battery + charger | 10 € |
+| LoRa module for the ground-station app | 10–15 € |
 
 ## Software / firmware
 
@@ -79,5 +97,7 @@ Rough estimates.
 - [ ] Calculator app, sharing the same input and render contracts
 - [ ] Menu and app switching with state preserved
 - [ ] Deliberately overload a task and watch the priorities behave
+- [ ] LoRa receive task, ground-station app — take it on an actual walk
+- [ ] Stretch: field firmware updates over the [[bare-metal-bootloader]] path
 
 ## Build log

@@ -53,6 +53,18 @@ approaches zero.
 A systemd watchdog (`WatchdogSec` plus `sd_notify` pings from the daemon)
 restarts the service if it freezes — and, escalated, reboots the board.
 
+### Where it ends up
+
+D-Bus is the right local IPC layer, but a `busctl` session is a demo, not a
+deployment. A small bridge subscribes to the daemon's D-Bus signals and
+republishes them over MQTT, so the node appears in Home Assistant as motion
+and temperature entities and the board goes on the wall.
+
+That bridge is deliberately the last thing built. Everything below it —
+overlay, driver, interrupt split, socket activation, watchdog — has to work
+first, and the bridge is what stops the whole thing from being switched off
+after the demo.
+
 ## Tools
 
 | Purpose | Tool | Note |
@@ -79,6 +91,7 @@ Rough estimates.
 - Daemon in C: reads the char device, exposes readings over D-Bus,
   answers the socket-activated network request, pings the watchdog
 - systemd unit files: `.socket` + `.service` with cgroup limits
+- D-Bus → MQTT bridge, so the node lands in Home Assistant
 
 ## Next steps
 
@@ -90,5 +103,6 @@ Rough estimates.
 - [ ] Socket activation + cgroup limits in the unit file
 - [ ] D-Bus interface, verify with `busctl`
 - [ ] Watchdog — deliberately hang the daemon and watch it come back
+- [ ] Bridge D-Bus to MQTT, mount the board, see it live in Home Assistant
 
 ## Build log

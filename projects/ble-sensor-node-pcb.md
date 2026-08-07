@@ -19,6 +19,22 @@ Learning goals:
 Practical output: a usable BLE sensor plus a custom dev board for further
 experiments.
 
+### Its first job
+
+A board without a job becomes a board in a drawer, so the first revision
+gets deployed rather than shelved: room climate — temperature, humidity,
+pressure from the I2C sensor — logged to the SPI flash and advertised over
+BLE, picked up by Home Assistant. Battery powered, no wires, left in a room
+for weeks.
+
+That deployment is also the only honest test of the power path and the
+sleep current, because a bench measurement will not catch a board that dies
+after nine days.
+
+Its second job is [[usb-device-and-linux-driver]] — the nRF52840's native
+USB is already routed on this board, so it doubles as the device end of
+that project with no new hardware.
+
 Deliberately out of scope: anything requiring surgical precision (antenna,
 RF matching, crystals, DRAM) is avoided by using a pre-certified module.
 
@@ -166,5 +182,7 @@ See [[zephyr-devicetree]] for notes on devicetree itself.
 - [ ] Hand-solder the THT parts
 - [ ] Zephyr board definition, first blink
 - [ ] BLE advertising, then I2C sensor and logging to flash
+- [ ] Measure sleep current, size the battery against a realistic interval
+- [ ] Into Home Assistant, board left in a room — first real deployment
 
 ## Build log
