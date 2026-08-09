@@ -131,8 +131,10 @@ property as a clickable link. `github:` is optional and decorative — add it on
 to notes that already carry `repo:`, since a note with no code has no remote to
 point at.
 
-The machinery lives **outside this repo**, in three scripts wired into
-`~/.claude/settings.json`:
+The machinery lives **outside this repo**, in three scripts under
+`~/.local/bin`, which is its own git repo so they have a history. They are
+wired by absolute path into **both** `~/.claude/settings.json` and
+`~/.claude-personal/settings.json`:
 
 - `~/.local/bin/claude-personal-project-lib.sh` — `personal_repo_from_cwd` (maps a
   cwd under `~/Documents/personal` to a repo name, excluding the vault itself) and
@@ -165,8 +167,12 @@ rest under `~/Documents/personal` — `fire-housing-sim`, `homepage`, `office_cl
 — are deliberately not vault projects and journal under their own names.
 
 Only `journal/` and `projects/` are staged — never `git add -A` here, which would
-sweep in unrelated Obsidian edits. A conflicting pull leaves the commit local and
-unresolved on purpose.
+sweep in unrelated Obsidian edits. Because of that the pull is
+`--rebase --autostash`: the hook ignores everything outside those two paths, so
+unrelated dirty files must not be able to abort the rebase. Without it they did,
+and the commit was stranded silently — that is what happened on 2026-08-09. A
+genuinely *conflicting* pull still leaves the commit local and unresolved on
+purpose, and is never force-pushed.
 
 ## Working in this repository
 
@@ -175,10 +181,14 @@ Sessions started *in this vault* are excluded from the automation
 pushed on your behalf here — commit deliberately.
 
 When editing from a session in some other personal repo, do not touch the vault
-mid-session; the SessionEnd hook owns those writes and only appends to `## Build
-log` and the daily note. Frontmatter, Goal, Architecture and the `Next steps`
-checkboxes are never rewritten by automation — a change to those is a deliberate
-human (or explicitly requested) edit.
+mid-session; the SessionEnd hook owns those writes, and they are limited to the
+log file, `## Now`, plan ticks and the daily note. Frontmatter, Goal,
+Architecture and the *wording* of plan items are never rewritten by automation —
+a change to those is a deliberate human (or explicitly requested) edit.
 
-Automation activity is logged to `~/.claude/.session-notes-state/log.txt`; check
-it when a journal entry or push seems to have gone missing.
+Automation activity is logged to `$CLAUDE_CONFIG_DIR/.session-notes-state/log.txt`.
+Everything here is a personal project, so in practice that is
+**`~/.claude-personal/.session-notes-state/log.txt`** — not `~/.claude/`, which is
+the wrong place to look and is empty. Check it when a journal entry or a push
+seems to have gone missing; the failure is silent from the phone's side, since a
+stranded commit looks exactly like a session that wrote nothing.
