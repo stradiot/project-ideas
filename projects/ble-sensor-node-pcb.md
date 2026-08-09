@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, ble]
 status: planning
+depends: [freertos-pocket-console]
 created: 2026-08-07
 ---
 
 # BLE Sensor Node — Custom PCB
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -34,6 +40,14 @@ after nine days.
 Its second job is [[usb-device-and-linux-driver]] — the nRF52840's native
 USB is already routed on this board, so it doubles as the device end of
 that project with no new hardware.
+
+Its third is a UWB radio, as a second board rather than a revision of this
+one. [[uwb-precision-locator]] proves the ranging on bought modules first;
+what comes back here afterwards is a small extension carrying a DWM3000 —
+SPI, IRQ, reset, power, and nothing else. The antenna is inside that module
+exactly as it is inside the Raytac, so the rule below holds unchanged. It
+is a deliberately easy second PCB: no power path, no USB, no charger, just
+interconnects onto a header this board already has.
 
 Deliberately out of scope: anything requiring surgical precision (antenna,
 RF matching, crystals, DRAM) is avoided by using a pre-certified module.
@@ -172,7 +186,7 @@ No need to write from scratch, but the goal is understanding every line.
 
 See [[zephyr-devicetree]] for notes on devicetree itself.
 
-## Next steps
+## Plan
 
 - [ ] Get the Raytac MDBT50Q-1MV2 hardware/layout guide and KiCad footprint
 - [ ] Order an SMD practice board, practise drag soldering with the Pinecil
@@ -186,3 +200,5 @@ See [[zephyr-devicetree]] for notes on devicetree itself.
 - [ ] Into Home Assistant, board left in a room — first real deployment
 
 ## Build log
+
+Session entries live in [[ble-sensor-node-pcb-log]].

@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, esp32, home-assistant, ui]
 status: idea
+depends: [freertos-pocket-console]
 created: 2026-08-07
 ---
 
 # Home Assistant Rotary Controller
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -25,6 +31,14 @@ Deliberately out of scope: the board's CC1101, IR and NFC. Everything goes
 through Home Assistant, which already owns these devices. Also out of
 scope: a general-purpose dashboard — this controls a handful of things
 well.
+
+Leaving the CC1101 unused on a board named after it is a deliberate call,
+not an oversight. That radio is the whole subject of
+[[subghz-linux-router]] and [[subghz-fixed-code-repeater]], and it is worth
+more there — attacked properly, from the samples up — than as a second way
+to reach a `cover` entity this controller can already command over Wi-Fi.
+Two projects on one board would also mean neither can be reflashed without
+losing the other.
 
 ## Architecture
 
@@ -117,7 +131,7 @@ of parts here.
 - LVGL screens, redrawn from the cache rather than from events directly
 - Reconnect with backoff, and stale marking while disconnected
 
-## Next steps
+## Plan
 
 - [ ] Drive the display and encoder, LVGL hello world on the panel
 - [ ] Talk to the HA WebSocket API from `websocat` — learn auth and
@@ -137,3 +151,5 @@ game logic. The devices at the other end include
 [[thread-matter-smart-planter]] and [[thread-matter-noise-sensor]].
 
 ## Build log
+
+Session entries live in [[home-assistant-rotary-controller-log]].

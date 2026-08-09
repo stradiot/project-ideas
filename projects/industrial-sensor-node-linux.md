@@ -1,10 +1,16 @@
 ---
 tags: [project, embedded, linux, kernel, systemd]
 status: idea
+depends: []
 created: 2026-08-07
 ---
 
 # Industrial Sensor Node on Embedded Linux
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -93,7 +99,7 @@ Rough estimates.
 - systemd unit files: `.socket` + `.service` with cgroup limits
 - D-Bus → MQTT bridge, so the node lands in Home Assistant
 
-## Next steps
+## Plan
 
 - [ ] Wire the PIR, confirm edges with the logic analyzer
 - [ ] Write and load the Device Tree Overlay
@@ -105,4 +111,17 @@ Rough estimates.
 - [ ] Watchdog — deliberately hang the daemon and watch it come back
 - [ ] Bridge D-Bus to MQTT, mount the board, see it live in Home Assistant
 
+This is the note the other kernel-side work leans on. The char device and
+its `file_operations` reappear in [[usb-device-and-linux-driver]], where the
+data source is a USB peripheral of my own rather than a GPIO pin, and the
+device tree work reappears in [[beaglebone-pru-realtime]] as pin muxing for
+a PRU. [[zephyr-devicetree]] is the same syntax on the other side of the
+fence — resolved at build time, with no tree left at runtime — and the
+contrast is worth seeing having written an overlay here first.
+[[beaglebone-green-case]] is where the physical end of this lands if the
+board turns out to be the BeagleBone Green: mounting the node on a wall is
+the requirement that decides what the full case has to be.
+
 ## Build log
+
+Session entries live in [[industrial-sensor-node-linux-log]].

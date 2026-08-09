@@ -1,10 +1,16 @@
 ---
 tags: [project, embedded, linux, beaglebone, realtime]
-status: idea
+status: deferred
+depends: [industrial-sensor-node-linux]
 created: 2026-08-07
 ---
 
 # BeagleBone PRU — Nanosecond-Precision I/O
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -67,9 +73,27 @@ Rough estimates.
 - Userspace control app over `rpmsg`, feeding frames or draining samples
 
 Shares the device-tree and driver ground covered in
-[[industrial-sensor-node-linux]].
+[[industrial-sensor-node-linux]], which is the prerequisite: pin muxing and
+overlays are assumed here rather than taught.
 
-## Next steps
+Work like this is the reason [[beaglebone-green-case]] stays an open tray:
+proving the jitter claim means a scope probe on the header while the board
+runs, which no closed enclosure allows.
+
+### Why this one is deferred
+
+It is the only project in the vault that fails its own second test. The
+learning is real — deterministic timing outside the kernel's reach is not
+something the other projects go near — but neither candidate application is
+something the flat needs. A logic analyzer is an instrument that already
+exists on the bench for €10, and an LED strip is a demo. Nothing here ends
+up mounted and used, which is the definition of a drawer project.
+
+It also needs a board bought for this and nothing else. So it waits until
+either a real timing problem turns up in another project, or the WS2812
+strip acquires an actual job.
+
+## Plan
 
 - [ ] Load a trivial PRU firmware, toggle a pin, measure the period
 - [ ] Compare against a userspace GPIO toggle on a scope — quantify jitter
@@ -79,3 +103,5 @@ Shares the device-tree and driver ground covered in
 - [ ] Stretch: sampling mode — the logic analyzer variant
 
 ## Build log
+
+Session entries live in [[beaglebone-pru-realtime-log]].

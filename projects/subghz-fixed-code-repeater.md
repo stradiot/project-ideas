@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, rf, subghz]
 status: idea
+depends: [subghz-collar-remote-clone]
 created: 2026-08-07
 ---
 
 # Sub-GHz Fixed-Code Repeater
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -34,6 +40,12 @@ One radio or two is the first real design decision. One CC1101 is cheaper
 and simpler but must switch RX→TX, which means a gap where frames are
 missed. Two lets the repeat start while the original is still in the air,
 at the cost of desensitising the receiver. Start with one.
+
+The whitelist is what separates this from
+[[subghz-collar-remote-clone]], which transmits a stored capture blind. A
+repeater has to *recognise* a frame before it repeats it, so the decoder is
+not optional here the way it was skippable there — and the same CC1101 and
+the same 868 MHz bring-up work carries straight over from that build.
 
 ### What stops it misbehaving
 
@@ -94,7 +106,7 @@ Legal note: 868 MHz ISM duty-cycle and power limits apply, and a repeater
 doubles the airtime for every button press. The repeat budget is not
 optional.
 
-## Next steps
+## Plan
 
 - [ ] CC1101 receiving, print raw frames — confirm the remote is decoded
 - [ ] Whitelist match against the known payload, LED on recognition
@@ -105,3 +117,5 @@ optional.
 - [ ] Measure the actual coverage gain, remote in hand
 
 ## Build log
+
+Session entries live in [[subghz-fixed-code-repeater-log]].

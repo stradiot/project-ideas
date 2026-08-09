@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, zephyr, thread, matter, iot]
 status: idea
+depends: [ble-sensor-node-pcb]
 created: 2026-08-07
 ---
 
 # Thread / Matter Smart Planter
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -90,7 +96,7 @@ afterwards for exactly that contrast. Once there are several such devices,
 [[home-assistant-rotary-controller]] is how they get driven without
 reaching for a phone.
 
-## Next steps
+## Plan
 
 - [ ] Zephyr blink and RTT logging on the DK
 - [ ] Read the moisture sensor over ADC, calibrate dry vs. wet
@@ -101,3 +107,5 @@ reaching for a phone.
 - [ ] Stretch: CC1101 → Matter bridge for a legacy sensor
 
 ## Build log
+
+Session entries live in [[thread-matter-smart-planter-log]].

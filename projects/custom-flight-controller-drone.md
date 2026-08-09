@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, control, imu]
 status: idea
+depends: [rc-car-custom-controller]
 created: 2026-08-07
 ---
 
 # Custom Flight Controller — Drone That Hovers
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -93,7 +99,7 @@ Budget for crashes. The first hover attempt rarely leaves the props intact.
 - Complementary filter, then PID, then motor mixing
 - Telemetry stream for offline tuning
 
-## Next steps
+## Plan
 
 Nothing on the airframe is bought until step 6.
 
@@ -111,3 +117,5 @@ Once attitude control works, the same loop plus the servo experience from
 eventual RC plane, where the airframe is built rather than bought.
 
 ## Build log
+
+Session entries live in [[custom-flight-controller-drone-log]].

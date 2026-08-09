@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, linux, kernel, rf]
 status: idea
+depends: [subghz-collar-remote-clone, analog-am-transmitter-receiver]
 created: 2026-08-07
 ---
 
 # Sub-GHz Linux Router & RF Cloner
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -31,6 +37,19 @@ Capture the blinds remote with a cheap SDR (RTL-SDR). Write the decoder
 myself in C: from raw samples to symbol timing to the binary payload.
 No `rtl_433`, no ready-made decoders — the whole point is knowing what the
 preamble, the sync word and the payload actually look like.
+
+[[analog-am-transmitter-receiver]] is the same signal chain done in
+hardware — envelope detection built from a diode and an earpiece instead of
+written in C. Having demodulated something by hand once makes the sample
+maths here read as familiar rather than abstract, which is a reason to
+build that one first even though it shares no components with this.
+
+The case for doing it this way is not theoretical: it is
+[[subghz-collar-remote-clone]], which took the other route. That one
+captured a frame, replayed the raw timings without decoding anything, and
+had a working device in days — then spent far longer stuck at 70%
+reliability with no model of the frame to debug against. Skipping the
+decoder is genuinely faster right up to the first thing that goes wrong.
 
 ### Phase 2 — Kernel and low-level
 
@@ -95,7 +114,7 @@ Rough estimates.
 Legal note: transmitting on 868 MHz means staying inside ISM duty-cycle and
 power limits, and only ever targeting my own devices.
 
-## Next steps
+## Plan
 
 - [ ] Capture the blinds remote, identify modulation and symbol rate
 - [ ] Decode the payload by hand, then automate it in C
@@ -106,3 +125,5 @@ power limits, and only ever targeting my own devices.
 - [ ] Netlink configuration interface
 
 ## Build log
+
+Session entries live in [[subghz-linux-router-log]].

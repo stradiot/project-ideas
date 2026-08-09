@@ -1,10 +1,16 @@
 ---
 tags: [project, embedded, arm, bare-metal]
 status: idea
+depends: []
 created: 2026-08-07
 ---
 
 # Bare-metal Bootloader from Scratch
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -106,7 +112,7 @@ Rough estimates.
 - Slot metadata in flash — which slot is active, which is on trial, CRCs
 - Trivial application image (blink at a distinctive rate) to prove the jump
 
-## Next steps
+## Plan
 
 - [ ] Blink with no SDK — startup code and linker script written by hand
 - [ ] Verify `.data` and `.bss` handling with an initialised global
@@ -125,3 +131,5 @@ rollback if the new build is broken, is the test of whether this is
 genuinely finished.
 
 ## Build log
+
+Session entries live in [[bare-metal-bootloader-log]].

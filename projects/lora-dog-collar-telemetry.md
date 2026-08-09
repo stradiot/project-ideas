@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, lora, gps, imu]
 status: idea
+depends: [freertos-pocket-console]
 created: 2026-08-07
 ---
 
 # LoRa Telemetry Collar for Working Dogs
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -23,6 +29,11 @@ to my own receiving station.
 The indoor counterpart is [[thread-matter-noise-sensor]] — same dog, same
 question of what he is doing unsupervised, answered with a microphone
 instead of a radio link.
+
+GPS is also useless the moment he is indoors, where its error is larger
+than the flat. [[uwb-precision-locator]] covers that range at centimetre
+scale, and the collar is the obvious place to carry both tags — same
+strap, same charging problem, entirely different physics.
 
 ## Architecture
 
@@ -119,7 +130,7 @@ Rough estimates.
 Legal note: 868 MHz ISM duty cycle limits apply to the collar as well —
 the adaptive interval has to respect them.
 
-## Next steps
+## Plan
 
 - [ ] LoRa point-to-point link between two modules, measure real range
 - [ ] GPS fix, parse NMEA, sanity-check coordinates
@@ -131,3 +142,5 @@ the adaptive interval has to respect them.
 - [ ] Enclosure and collar mount, survive rain and mud
 
 ## Build log
+
+Session entries live in [[lora-dog-collar-telemetry-log]].

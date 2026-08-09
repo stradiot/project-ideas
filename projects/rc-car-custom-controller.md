@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, control, rc]
 status: idea
+depends: []
 created: 2026-08-07
 ---
 
 # RC Car on My Own Firmware
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -98,7 +104,7 @@ The radio set is the largest line and is bought once — the drone reuses it.
 Telemetry packing carries over to [[lora-dog-collar-telemetry]] once it
 moves off UART onto a radio link.
 
-## Next steps
+## Plan
 
 - [ ] Capture the receiver's PPM output on the logic analyzer, decode by hand
 - [ ] Input capture in firmware, print channel values
@@ -111,3 +117,5 @@ moves off UART onto a radio link.
 - [ ] Stretch: telemetry back to the transmitter or a separate receiver
 
 ## Build log
+
+Session entries live in [[rc-car-custom-controller-log]].

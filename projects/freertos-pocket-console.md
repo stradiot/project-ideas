@@ -1,10 +1,16 @@
 ---
 tags: [project, embedded, freertos, esp32]
 status: idea
+depends: [bare-metal-bootloader]
 created: 2026-08-07
 ---
 
 # FreeRTOS Pocket Console
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -41,6 +47,7 @@ display is mid-refresh.
 - Tetris — continuous timing pressure, makes any scheduling glitch obvious
 - Calculator — trivial logic, but exercises the menu and input paths
 - Ground station — the app that gives the device a reason to exist
+- Finder — distance and bearing to a UWB tag, for [[uwb-precision-locator]]
 - Menu system on top, switching between them without tearing anything down
 
 ### The app that keeps it alive
@@ -58,6 +65,12 @@ real reason for the priorities to be right.
 The same split — input task, state, render task, asynchronous events
 arriving from outside — scales up to [[home-assistant-rotary-controller]],
 where the event stream comes from the network rather than a radio.
+
+The finder app is the same shape again with the timing turned up: ranging
+exchanges for [[uwb-precision-locator]] complete on millisecond deadlines,
+and a display task that blocks the radio task is not a dropped frame but a
+wrong distance. It is also the app that gets carried into a car park and
+either works or does not.
 
 ## Tools
 
@@ -88,7 +101,7 @@ Rough estimates.
 - Display driver — either a minimal one written by hand, or an existing one
   wrapped so all access goes through the display task
 
-## Next steps
+## Plan
 
 - [ ] OLED over SPI, draw something static
 - [ ] Debounced button reading in its own task, events into a queue
@@ -101,3 +114,5 @@ Rough estimates.
 - [ ] Stretch: field firmware updates over the [[bare-metal-bootloader]] path
 
 ## Build log
+
+Session entries live in [[freertos-pocket-console-log]].

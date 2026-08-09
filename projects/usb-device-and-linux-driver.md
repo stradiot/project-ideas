@@ -1,10 +1,16 @@
 ---
 tags: [project, embedded, linux, kernel, usb]
 status: idea
+depends: [industrial-sensor-node-linux]
 created: 2026-08-07
 ---
 
 # Custom USB Device and Its Linux Driver
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -101,7 +107,7 @@ that board has the USB-C connector, ESD protection and the nRF52840 on it.
 - Userspace tool over the char device, plus a udev rule so the node appears
   with sane permissions rather than requiring root
 
-## Next steps
+## Plan
 
 - [ ] Firmware enumerates as a vendor-specific device, verify with `lsusb -v`
 - [ ] Capture enumeration in Wireshark, read my own descriptors off the wire
@@ -113,3 +119,5 @@ that board has the USB-C connector, ESD protection and the nRF52840 on it.
 - [ ] udev rule, then actually use it as a desk peripheral
 
 ## Build log
+
+Session entries live in [[usb-device-and-linux-driver-log]].

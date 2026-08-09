@@ -1,10 +1,15 @@
 ---
 tags: [project]
-status: planning
+status: idea
+depends: []
 created: {{date}}
 ---
 
 # {{title}}
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole of it.
 
 ## Goal
 
@@ -26,11 +31,13 @@ behind where that line sits.
 
 ## Software / firmware
 
-## Next steps
+## Plan
+
+The whole arc, in build order. Ticked as the automation finishes each one —
+so an unticked box means not done, not merely unrecorded.
 
 - [ ] 
 
 ## Build log
 
-Append as I go — what broke, what surprised me, what to do differently
-in the next revision.
+Session entries live in [[{{title}}-log]].

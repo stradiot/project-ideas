@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, analog, rf]
 status: idea
+depends: []
 created: 2026-08-07
 ---
 
 # Analog AM — From Crystal Set to Walkie-Talkie
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -141,7 +147,7 @@ specification rather than pulled from a library. Same instinct as the
 hand-written decoder in [[subghz-linux-router]], one band lower and far
 simpler.
 
-## Next steps
+## Plan
 
 - [ ] Wind a coil, build the crystal set, sweep the band after dark
 - [ ] Hear a real station — first proof the physics works
@@ -164,3 +170,5 @@ antennas on [[subghz-linux-router]] and [[lora-dog-collar-telemetry]] —
 where the antenna is bought, but the reason it works is identical.
 
 ## Build log
+
+Session entries live in [[analog-am-transmitter-receiver-log]].

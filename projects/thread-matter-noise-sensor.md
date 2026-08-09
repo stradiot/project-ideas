@@ -1,10 +1,16 @@
 ---
 tags: [project, hardware, embedded, esp32, thread, matter, audio]
 status: idea
+depends: [thread-matter-smart-planter]
 created: 2026-08-07
 ---
 
 # Thread / Matter Noise Sensor
+
+## Now
+
+Not started. Nothing here is in progress — the plan below is the whole
+of it.
 
 ## Goal
 
@@ -146,7 +152,7 @@ daily.
 - Mode manager: Thread up, Wi-Fi up, teardown, rejoin — the part most
   likely to be subtly wrong
 
-## Next steps
+## Plan
 
 - [ ] I2S capture from the INMP441, dump raw samples and confirm they move
 - [ ] RMS → dBFS, serve the running level on an HTTP endpoint
@@ -164,4 +170,12 @@ this one listens indoors. The listening switch is also reachable from
 [[home-assistant-rotary-controller]], which is the fastest way to mute it
 on the way out of the door.
 
+A noise event says something happened, but not where he was when it did.
+[[uwb-precision-locator]] answers the other half: a single anchor in the
+same room reports his position, so a bark at three in the morning comes
+with whether he was on his bed or standing at the door. Neither number
+means much alone; together they are close to an answer.
+
 ## Build log
+
+Session entries live in [[thread-matter-noise-sensor-log]].
