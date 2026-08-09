@@ -132,7 +132,10 @@ to notes that already carry `repo:`, since a note with no code has no remote to
 point at.
 
 The machinery lives **outside this repo**, in three scripts under
-`~/.local/bin`, which is its own git repo so they have a history. They are wired
+`~/.local/bin`, which is its own git repo — <https://github.com/stradiot/claude-hooks>,
+private — so they have a history. Read it there when the behaviour described
+below and the behaviour you observe disagree; the scripts are the authority and
+this section is a description of them. They are wired
 by absolute path into `~/.claude-personal/settings.json` — the config dir the
 `claude-personal` alias selects. There is no default `~/.claude` dir and there
 should never be one; `~/.zshrc` aliases bare `claude` to a warning precisely so
