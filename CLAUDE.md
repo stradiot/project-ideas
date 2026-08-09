@@ -139,9 +139,8 @@ this section is a description of them. They are wired
 by absolute path into `~/.claude-personal/settings.json` — the config dir the
 `claude-personal` alias selects. There is no default `~/.claude` dir and there
 should never be one; `~/.zshrc` aliases bare `claude` to a warning precisely so
-nothing lands there. (`~/.claude-work` also calls `claude-session-notes.sh` on
-SessionEnd, but a work cwd is outside `~/Documents/personal`, so
-`personal_repo_from_cwd` rejects it and no vault write happens.)
+nothing lands there. A session whose cwd is outside `~/Documents/personal` is
+rejected by `personal_repo_from_cwd` and no vault write happens.
 
 - `~/.local/bin/claude-personal-project-lib.sh` — `personal_repo_from_cwd` (maps a
   cwd under `~/Documents/personal` to a repo name, excluding the vault itself) and
