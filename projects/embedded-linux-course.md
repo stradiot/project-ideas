@@ -348,9 +348,11 @@ milestones from it.
 - [ ] Reproducible from a clean checkout with one command
 - [ ] Submit one patch upstream — a binding fix or a documentation correction counts
 
-That last box is deliberate. A mailing-list thread with a maintainer is the
-most credible thing there is on an embedded Linux CV, it is the only item
-here that cannot be self-assessed, and it costs nothing but nerve.
+That last box is deliberate. It is the only item here that cannot be
+self-assessed: a patch is either correct enough for a maintainer to take or
+it is not, and the person deciding has no idea who I am and no reason to be
+kind. Every other box can be ticked by convincing myself. This one costs
+nothing but nerve, and it is the only external check in the whole course.
 
 Because this note carries `repo: embedded-linux-course`, the boxes above are
 ticked by the SessionEnd hook — which only fires for sessions started in
