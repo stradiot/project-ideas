@@ -37,6 +37,7 @@ Everything whose prerequisites are already built. Derived from `depends:` and
 - `analog-am-transmitter-receiver` — RF, no prerequisites
 - `subghz-fixed-code-repeater` — unblocked by the collar remote being built
 - `bare-metal-bootloader` — the root of the whole firmware track
+- `embedded-linux-course` — the course, on hardware already owned
 - `industrial-sensor-node-linux` — the root of the Linux track
 - `rc-car-custom-controller` — the root of the control track
 
@@ -61,13 +62,14 @@ unless marked otherwise. Status in brackets.
 
 - `bare-metal-bootloader` *[idea, ready]* — ARM startup by hand, then a serial bootloader with A/B rollback
 - `freertos-pocket-console` *[idea]* — RTOS tasks and queues; ends up as the collar's ground station
-- `ble-sensor-node-pcb` *[idea]* — custom nRF52840 carrier board in KiCad, Zephyr board port
+- `ble-sensor-node-pcb` *[planning]* — custom nRF52840 carrier board in KiCad, Zephyr board port
 - `thread-matter-smart-planter` *[idea]* — Zephyr, Thread Border Router, Matter into Home Assistant
 - `thread-matter-noise-sensor` *[idea]* — I2S mic on ESP32-C6, noise events over Thread, live listen over Wi-Fi
 - `home-assistant-rotary-controller` *[idea]* — T-Embed as a physical HA controller, encoder + display
 
 **Embedded Linux**
 
+- `embedded-linux-course` *[idea, ready]* — the whole field in fourteen modules, on the BeagleBone already owned
 - `industrial-sensor-node-linux` *[idea, ready]* — device tree, IRQ driver, systemd, D-Bus, into Home Assistant
 - `usb-device-and-linux-driver` *[idea]* — own USB peripheral and the kernel driver that claims it
 - `beaglebone-pru-realtime` *[deferred]* — PRU timing; parked, and the note says why

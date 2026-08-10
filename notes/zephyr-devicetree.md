@@ -31,6 +31,10 @@ overlay compiled to a `.dtbo` and loaded against a running kernel. Same
 language, entirely different lifecycle. Worth doing both before deciding
 that either one is "how devicetree works".
 
+[[linux-devicetree]] is the other half of that comparison written out —
+bindings, phandles, `pinctrl` and the board-file history that produced the
+whole idea. The two notes are meant to be read against each other.
+
 ## Files, and which one to actually edit
 
 | File | Owner | Purpose |

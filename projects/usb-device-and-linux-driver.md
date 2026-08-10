@@ -118,6 +118,13 @@ that board has the USB-C connector, ESD protection and the nRF52840 on it.
 - [ ] `disconnect()` under load — unplug mid-transfer, confirm clean teardown
 - [ ] udev rule, then actually use it as a desk peripheral
 
+USB is a bus like any other, so the host side of this assumes the driver
+model — `probe()`, match tables, `devm_` and deferred probe — plus the
+buffer and DMA handling that URBs sit on top of. Both are modules 6 and 7 of
+[[embedded-linux-course]], and attempting this without them means learning
+the driver model and USB simultaneously, which is what makes USB drivers
+look harder than they are.
+
 ## Build log
 
 Session entries live in [[usb-device-and-linux-driver-log]].

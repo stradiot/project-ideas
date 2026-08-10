@@ -76,6 +76,13 @@ Shares the device-tree and driver ground covered in
 [[industrial-sensor-node-linux]], which is the prerequisite: pin muxing and
 overlays are assumed here rather than taught.
 
+The deferral gets decided rather than assumed in module 11 of
+[[embedded-linux-course]], which measures what a tuned PREEMPT_RT kernel can
+actually hold on this board and then measures the same GPIO toggle on a PRU.
+Two numbers and a ratio are what should settle whether this project is worth
+un-deferring, and reaching for a real-time core before taking that
+measurement is the wrong order.
+
 Work like this is the reason [[beaglebone-green-case]] stays an open tray:
 proving the jitter claim means a scope probe on the header while the board
 runs, which no closed enclosure allows.

@@ -73,6 +73,12 @@ Openly the education-only phase. There is no practical need for IP over a
 CC1101 — WiFi exists, and it is better in every measurable way. The point
 is to touch the Linux networking subsystem from underneath.
 
+Phases 2 and 3 are modules 6 and 10 of [[embedded-linux-course]], using this
+same CC1101: the SPI driver with GDO0 as a threaded IRQ, then the
+`net_device` on top of it. The course also insists on measuring what the
+resulting link can actually carry, which is the honest version of the
+argument this section is already making.
+
 Extend the driver from a char device into a proper network device. The
 radio shows up in Linux as a standard interface — `rf0` — with netlink used
 to configure radio parameters (frequency, data rate, modulation) from

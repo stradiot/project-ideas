@@ -111,6 +111,13 @@ Rough estimates.
 - [ ] Watchdog — deliberately hang the daemon and watch it come back
 - [ ] Bridge D-Bus to MQTT, mount the board, see it live in Home Assistant
 
+[[embedded-linux-course]] builds every piece of this in isolation first —
+the overlay, the threaded IRQ driver, the socket-activated daemon with its
+watchdog, the D-Bus interface and the MQTT bridge are its modules 4, 5, 6
+and 9. Doing the course first turns this project into assembly rather than
+learning, and the course's exercises deliberately use this device as their
+worked example.
+
 This is the note the other kernel-side work leans on. The char device and
 its `file_operations` reappear in [[usb-device-and-linux-driver]], where the
 data source is a USB peripheral of my own rather than a GPIO pin, and the
