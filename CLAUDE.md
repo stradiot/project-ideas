@@ -114,6 +114,61 @@ education-only phase"). Suggestions that optimise away the hard part are
 usually the wrong advice here; alternatives belong in the note as rejected
 options with reasons.
 
+## How contributions are written
+
+Write for the person who has forgotten the context, because within a few
+months that is who reads this. Everything below follows from that. A note or
+a log entry earns its place if it would save that person an hour, or stop
+them repeating a dead end. Nothing else is a reason to add text.
+
+**Record the reasoning, not just the conclusion.** A decision without its
+alternatives is unreviewable later — the reader cannot tell whether the
+other option was considered and rejected or never seen. Rejected options
+go in with the reason they lost, which is the habit the existing notes
+already have and the thing most worth protecting.
+
+**Failure and negative results are content, not embarrassment.** The most
+useful page in the vault is a log entry recording that five line encodings
+were tested against a payload and *none* of them fit — that ruled out a
+whole category and pointed at capture damage. Write the dead end, what it
+eliminated, and what it cost. A log that only contains successes is a log
+that will be re-read by someone about to repeat the failure.
+
+**Name the gap in plain words.** "I do not know how X works yet" is a
+sentence that belongs in the note, not a thing to write around. It is the
+only way the vault stays an accurate map of where the work actually is, and
+`notes/embedded-learning-curriculum.md` is where those gaps get collected
+into an order worth closing them in. Vagueness is the failure mode to watch
+for: a sentence that avoids admitting the gap will also fail to describe it.
+
+**Be concrete or say nothing.** Numbers carry units and where they came
+from — measured, from a datasheet, or estimated, and which. Commands,
+register names and pin numbers as actually run, not paraphrased. "869.525
+MHz, OOK, 200 µs base tick" is worth a paragraph of prose about radios.
+
+**Study notes in `notes/` teach the mechanism, not the API surface.** The
+reference manual already documents the call; what it does not say is why the
+abstraction exists and what breaks without it. So: start from one concrete
+instance and generalise from it afterwards, name the misconception the note
+exists to correct, and carry one worked example with real values all the way
+through. Where a topic is a standard interview question, saying so is
+useful — several notes already do, and it marks what has to be explainable
+out loud rather than merely recognised.
+
+**Register.** Plain sentences, first person or no subject, past tense in
+logs. No marketing adjectives — nothing is robust, powerful, seamless or
+leveraged. No achievement framing; describe what was done and let it stand.
+No second person lecturing in a log entry, and no third person either: the
+entry is written by the person who did the work, not as a report about
+someone else. Do not pad to look thorough. `## Now` stays one short
+paragraph because it is read first and on a phone.
+
+**Never claim progress that did not happen.** Do not tick a `## Plan` item
+that was not finished, do not promote `status:`, and do not describe a
+half-working thing as working. An unticked box means not done rather than
+merely unrecorded, and that guarantee is worth more than any individual
+entry — one inflated tick makes every other box unreliable.
+
 ## The repo ↔ note link, and the journaling automation
 
 A project note whose code lives in a sibling repo under `~/Documents/personal`

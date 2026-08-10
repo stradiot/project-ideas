@@ -3,3 +3,7 @@
 .obsidian/cache
 .trash/
 .DS_Store
+
+# Local Claude guidance. Loaded into sessions, never published.
+CLAUDE.local.md
+.claude/
