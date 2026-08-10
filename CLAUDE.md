@@ -19,7 +19,8 @@ workspace/cache files listed in `.gitignore`.
 - `projects/` — one note per project, from `templates/project.md`. Frontmatter is
   `tags: [project, …]`, `status:`, `depends:`, `created:` (ISO date), and
   optionally `repo:` / `github:` (see below). Body sections in order: Now, Goal,
-  Architecture, Tools, Budget, Software / firmware, Plan, Build log.
+  Learning value, Practical value, Architecture, Tools, Budget,
+  Software / firmware, Plan, Build log.
 - `projects/logs/` — one `<slug>-log.md` per project, holding the dated session
   entries. Frontmatter is `tags: [log, <slug>]` and `project: <slug>`. Every
   project has one, created empty, so the pointer in the note never dangles and
@@ -113,6 +114,19 @@ optimal transport) and `subghz-linux-router` (Phase 3 is "openly the
 education-only phase"). Suggestions that optimise away the hard part are
 usually the wrong advice here; alternatives belong in the note as rejected
 options with reasons.
+
+Both halves of that are explicit sections in every project note rather than
+something a reader has to infer from the prose. `## Learning value` is why
+the project exists and is the section to write first. `## Practical value`
+is what the finished thing is actually for, and **several projects have
+none** — `bare-metal-bootloader`, `beaglebone-pru-realtime` and
+`custom-flight-controller-drone` say so in those words, and
+`subghz-linux-router` says its third phase runs out of it. That is the
+point of the section: a stated "none" is what makes the claim in
+`home-assistant-rotary-controller` or `subghz-collar-remote-clone` worth
+believing. Never invent a use to fill the space — naming what would be
+bought instead is the more useful sentence, and the note usually already
+argues it (Betaflight, Tractive, a €10 logic analyzer).
 
 ## How contributions are written
 

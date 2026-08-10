@@ -18,11 +18,6 @@ Write a flight controller from scratch instead of flashing Betaflight: read
 the IMU, filter it, close a PID loop, and generate PWM for the ESCs at a
 steady 1 kHz. Success is a drone that holds a stable hover.
 
-Learning goals:
-- Real-time control loops with hard timing requirements
-- Sensor filtering — complementary filter against vibration noise
-- PID tuning on a system that punishes mistakes immediately
-
 Deliberately out of scope: GPS hold, autonomous flight, a camera, and
 anything beyond attitude stabilisation. Hover is the bar.
 
@@ -73,6 +68,25 @@ the attitude loop — the IMU, the filter, and closing a loop around an angle
 rather than a speed. That part gets proven on a bench rig before anything
 flies, and by then [[printed-rc-plane]] has already flown one in an aircraft
 that glides when the loop is wrong.
+
+## Learning value
+
+- Real-time control loops with hard timing requirements
+- Sensor filtering — complementary filter against vibration noise
+- PID tuning on a system that punishes mistakes immediately
+
+## Practical value
+
+None, and the note argues that at length under *Why not Betaflight*.
+Betaflight is free, better than anything written here will be, and would
+have this airframe flying in an afternoon. Nothing about the finished
+aircraft is worth having on its own terms.
+
+The deliverable is understanding, and the honest measure of success is
+being able to read Betaflight's source afterwards and recognise every part
+of it. The hover is the proof rather than the product. If a flying machine
+that works well is ever the actual want, the answer is to flash Betaflight
+onto this same airframe and enjoy it.
 
 ## Architecture
 

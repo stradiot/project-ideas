@@ -40,6 +40,40 @@ bare-metal and RTOS firmware, hardware design, control systems — are mapped
 in [[embedded-learning-curriculum]] along with what each would need when its
 turn comes.
 
+## Learning value
+
+The whole of it — this is a course, so there is nothing else here. Fourteen
+modules, each with its own note in `notes/`:
+
+- The boot chain end to end: ROM, SPL, U-Boot, and what hands control to
+  what
+- Describing hardware to a kernel — devicetree, and why a bus that cannot
+  enumerate needs one
+- Drivers as a subsystem rather than a file: the driver model, character
+  devices, interrupts split top and bottom half, DMA and the memory API
+- Building the userspace deliberately — cross-toolchains and ELF, Buildroot
+  against Yocto, systemd and D-Bus as architecture
+- Shipping: reproducible images, signed A/B updates that roll back, and
+  measuring latency rather than asserting it
+
+The test it is aimed at is stated in the goal above: an unfamiliar board
+with a supported SoC and no BSP, brought up to a booting mainline kernel
+with drivers for whatever is hanging off it.
+
+## Practical value
+
+None directly, and that is structural rather than a shortcoming. A course
+produces a skill, not an artifact — which is exactly why no project in the
+vault carries a course in its `depends:`, and why putting one there would
+park half the vault behind a syllabus.
+
+What it does produce indirectly is real. The capstone builds
+[[industrial-sensor-node-linux]], which is a deployed device rather than an
+exercise. The BeagleBone Green stops being a board that was bought and
+becomes a board that is used, which is also what makes
+[[beaglebone-green-case]] worth having. And the cost is the reason it went
+first: 58 €, on hardware already owned.
+
 ## Architecture
 
 The board is the [[beaglebone-green-case|BeagleBone Green]] already on the

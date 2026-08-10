@@ -19,16 +19,32 @@ microphone node that reports noise events into Home Assistant, can be
 switched off from there, and can be listened to live when a notification
 arrives and I want to know what is actually going on.
 
-Learning goals:
+Deliberately out of scope: identifying *what* made the noise. No
+classification, no machine learning. The dog normally sleeps when left
+alone, so a level and a duration answer the actual question.
+
+## Learning value
+
 - I2S audio capture, and turning a stream of samples into a usable level
 - ESP-IDF and esp-matter, against the Zephyr / nRF Connect experience from
   [[thread-matter-growbox]] — same protocol, entirely different SDK
 - Sharing one radio between two network stacks
 - Designing a privacy boundary deliberately rather than by accident
 
-Deliberately out of scope: identifying *what* made the noise. No
-classification, no machine learning. The dog normally sleeps when left
-alone, so a level and a duration answer the actual question.
+## Practical value
+
+Real, and it answers a question that currently has no answer at all:
+whether the dog is distressed when left alone, or whether he sleeps through
+it as assumed. There is no way to know that from inside the flat, and the
+alternative — a commercial pet camera — means a cloud account, a
+subscription and a microphone in the flat owned by someone else.
+
+The live-listen path is what makes it useful rather than merely
+informative. A notification saying the level crossed a threshold at 14:20
+raises a question; being able to listen to what is happening answers it.
+
+Paired with [[uwb-precision-locator]] it gets better still — a noise event
+that also carries a position says where in the room he was.
 
 ## Architecture
 

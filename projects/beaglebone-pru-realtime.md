@@ -18,14 +18,27 @@ Use the BeagleBone's programmable real-time units — cores that run
 independently of the Linux kernel and its scheduler — to do timing that
 Linux fundamentally cannot do without tearing.
 
-Learning goals:
+Deliberately out of scope: doing this on a Raspberry Pi with DMA tricks.
+The PRU is the subject.
+
+## Learning value
+
 - PRU architecture, its own instruction set and deterministic timing
 - Sharing memory and signalling between Linux userspace and a PRU
 - Where the boundary between "fast enough on Linux" and "needs real-time
   hardware" actually sits
 
-Deliberately out of scope: doing this on a Raspberry Pi with DMA tricks.
-The PRU is the subject.
+## Practical value
+
+None. A €10 logic analyzer does the job the PRU would be doing here, better
+and immediately, and that is a large part of why this one is deferred rather
+than queued.
+
+The last of the three learning goals is the one that survives without the
+build: knowing where the line between a userspace loop and dedicated
+real-time hardware actually falls is worth having before it is needed in
+anger, and it is the sort of judgement that is normally acquired by getting
+it wrong on something that mattered.
 
 ## Architecture
 

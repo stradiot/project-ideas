@@ -39,7 +39,8 @@ Two, and the second one is smaller than it sounds. Both are in use.
 
 ## Structure
 
-- `projects/` — one note per project: what it is, why, and the plan
+- `projects/` — one note per project: what it is, what it teaches, what it
+  is for, and the plan
 - `projects/logs/` — one build log per project, appended per session
 - `notes/` — reference notes, deep dives, linked from projects
 - `journal/` — daily notes
@@ -155,6 +156,13 @@ Practical use is the second constraint rather than the point. Deployment
 target for most of the connected ones is the local Home Assistant
 instance. A project that does not end up as something used is a project
 that ends up in a drawer.
+
+Both are stated outright: every note carries a `## Learning value` and a
+`## Practical value` section, and several of the second ones say *none*.
+The bootloader, the PRU project and the drone all admit that a better
+version of the artifact already exists and can be bought or downloaded —
+they are there for what building them teaches. Notes that do claim a use
+are worth reading precisely because the others do not.
 
 ## Workflow
 

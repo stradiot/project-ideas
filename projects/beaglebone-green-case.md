@@ -24,7 +24,12 @@ lid. That is the shape a board still being probed needs. The full case —
 walls, lid, considered openings — comes when the board stops being a
 prototype and goes somewhere.
 
-Learning goals:
+Deliberately out of scope: designing the board's mechanical drawing myself.
+The BeagleBone Green's outline and hole pattern come from the vendor model,
+and the case is built against it.
+
+## Learning value
+
 - Parametric CAD as a discipline: the model driven by named parameters, so
   a changed board dimension propagates instead of being re-drawn
 - Print-tolerance work on parts that have to fit a real object — standoff
@@ -32,9 +37,16 @@ Learning goals:
 - Where the source of truth lives when the CAD tool is cloud-hosted and
   git only ever sees exports
 
-Deliberately out of scope: designing the board's mechanical drawing myself.
-The BeagleBone Green's outline and hole pattern come from the vendor model,
-and the case is built against it.
+## Practical value
+
+Real and already collected. The tray is on the bench holding the board for
+[[embedded-linux-course]], which is the whole of what a board being probed
+daily needs — nothing shorts against the desk and every header stays
+reachable.
+
+The full case is worth less until the board stops being a prototype, which
+is why it is not built yet. An enclosure designed around connectors whose
+use has not been decided is an enclosure that gets reprinted.
 
 ## Architecture
 

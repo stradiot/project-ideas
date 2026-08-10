@@ -18,14 +18,28 @@ Take a cheap RC chassis, throw away whatever electronics came with it, and
 drive it on firmware I wrote — radio link decoded by hand, steering and
 throttle driven directly, speed held by a control loop that I tuned.
 
-Learning goals:
+Deliberately out of scope: autonomy, obstacle avoidance, anything with a
+camera. A car that drives well under my control is the whole target.
+
+## Learning value
+
 - Decoding an RC receiver protocol from the timing up — PPM, then SBUS
 - Servo and ESC control, and what those signals actually are
 - A real PID loop, with a measurement, a setpoint and consequences
 - Failsafe design where losing the link matters
 
-Deliberately out of scope: autonomy, obstacle avoidance, anything with a
-camera. A car that drives well under my control is the whole target.
+## Practical value
+
+Almost none as a vehicle. The chassis arrived with electronics that already
+drove it, and those get thrown away here in order to arrive back at roughly
+the same behaviour by a much longer route.
+
+The value is that it is the cheapest possible place to be wrong about a
+control loop and a failsafe. A mistuned PID makes a car surge into a wall
+at walking pace; the same mistake on [[custom-flight-controller-drone]]
+destroys a set of props and possibly the airframe. Everything learned here
+about the radio link, ESC signalling and what to do when the link drops is
+carried into that project, where it is no longer cheap to discover.
 
 ## Architecture
 

@@ -18,13 +18,26 @@ Understand exactly what happens between power-on and `main()` — by writing
 every step of it myself, then turning that knowledge into a bootloader that
 can flash new firmware over a serial line.
 
-Learning goals:
+Deliberately out of scope: vendor HAL, CMSIS startup files, any SDK. That
+is the entire point.
+
+## Learning value
+
 - Reset handler, vector table, linker script, memory map
 - What the startup code in every vendor SDK is actually doing
 - Flash writing from running code, and jumping into a second image
 
-Deliberately out of scope: vendor HAL, CMSIS startup files, any SDK. That
-is the entire point.
+## Practical value
+
+None, and it would be dishonest to claim otherwise. Every MCU ecosystem
+already ships a bootloader better than this one will be, MCUboot is free
+and audited, and nothing else in the vault is going to depend on the
+artifact this produces.
+
+What it produces instead is the ability to read a linker script without
+flinching and to know what the SDK startup file was doing all along —
+which turns up in every firmware project here, none of which would teach
+it, because using a bootloader teaches nothing about writing one.
 
 ## Architecture
 

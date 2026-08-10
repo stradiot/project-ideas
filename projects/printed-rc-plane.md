@@ -18,7 +18,13 @@ Design, print and fly a fixed-wing model — airframe first, electronics
 second, and firmware not at all to begin with. The first version flies on
 servos and a receiver, exactly as a model aircraft has for fifty years.
 
-Learning goals:
+Deliberately out of scope for the first airframe: any autopilot, any
+stabilisation, any telemetry. A plane that flies well on manual sticks is
+the whole target, and adding electronics to an airframe that does not fly
+well only hides the problem.
+
+## Learning value
+
 - Aerodynamics as something built rather than read: wing section, incidence,
   dihedral, control surface throw
 - Centre of gravity, and why it is the one number that decides whether a
@@ -26,10 +32,17 @@ Learning goals:
 - Parametric CAD for parts that have to be light, stiff and printable
 - Trimming an aircraft — reading what it does and changing the model
 
-Deliberately out of scope for the first airframe: any autopilot, any
-stabilisation, any telemetry. A plane that flies well on manual sticks is
-the whole target, and adding electronics to an airframe that does not fly
-well only hides the problem.
+## Practical value
+
+An aircraft that flies, which is worth having for its own sake and is the
+one project here whose output is simply enjoyable. A printed airframe is
+also genuinely cheaper to keep flying than a bought one — a broken wing is
+a reprint rather than a replacement order.
+
+It is the safe place to be wrong about a control loop, which is why it sits
+ahead of [[custom-flight-controller-drone]]. A plane with a badly tuned
+wing leveller glides; a quadcopter with a badly tuned attitude loop falls
+out of the air and takes its motors with it.
 
 ## Architecture
 

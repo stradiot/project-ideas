@@ -18,11 +18,6 @@ A rugged, battery-powered, long-range tracker for the wolfdog. Not just
 position — also what the dog is actually doing: running, walking, or lying
 down.
 
-Learning goals:
-- LoRa link budget and what "long range" costs in throughput
-- Sensor fusion on an IMU — orientation and activity classification
-- Bit-level binary protocol design under a hard payload limit
-
 Deliberately out of scope: LoRaWAN and any public network. Point-to-point
 to my own receiving station.
 
@@ -52,6 +47,25 @@ GPS is also useless the moment he is indoors, where its error is larger
 than the flat. [[uwb-precision-locator]] covers that range at centimetre
 scale, and the collar is the obvious place to carry both tags — same
 strap, same charging problem, entirely different physics.
+
+## Learning value
+
+- LoRa link budget and what "long range" costs in throughput
+- Sensor fusion on an IMU — orientation and activity classification
+- Bit-level binary protocol design under a hard payload limit
+
+## Practical value
+
+Partial, and the note is explicit about which part. As a tracker it loses:
+Tractive, Garmin Alpha and Astro track a dog better than this will,
+immediately, with a warranty, and if tracking were the goal that is what
+should be bought.
+
+What it does that they do not is report what the dog is *doing* — running,
+walking, lying down — classified on the collar rather than shipped as raw
+samples, with no subscription and no cellular network needing to be in
+range. That is a genuine gap in the commercial products rather than a
+rationalisation, and it is also the half that carries the learning.
 
 ## Architecture
 

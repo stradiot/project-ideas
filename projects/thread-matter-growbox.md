@@ -18,14 +18,6 @@ End-to-end development of modern IoT devices — Zephyr firmware on an nRF
 chip, Matter over Thread, showing up natively in Home Assistant. No WiFi on
 the device, no cloud, no vendor app.
 
-Learning goals:
-- Zephyr RTOS and the nRF Connect SDK on a board of my own
-- Matter data model — clusters, endpoints, attributes — and what happens
-  when a device needs more than one of each
-- Thread as an IPv6 mesh, and both device roles in it: a battery sleepy end
-  device and a mains-powered router
-- Low-power design where the battery figure is measured, not claimed
-
 Deliberately out of scope: commercial certification, and switching mains
 from anything I designed. Everything the box drives is low voltage.
 
@@ -70,6 +62,31 @@ has.
 PWM rather than a relay is a deliberate choice: dimming means the Level
 Control cluster on top of On/Off, which is a materially richer piece of the
 Matter data model than a switch, and it costs a MOSFET.
+
+## Learning value
+
+- Zephyr RTOS and the nRF Connect SDK on a board of my own
+- Matter data model — clusters, endpoints, attributes — and what happens
+  when a device needs more than one of each
+- Thread as an IPv6 mesh, and both device roles in it: a battery sleepy end
+  device and a mains-powered router
+- Low-power design where the battery figure is measured, not claimed
+
+## Practical value
+
+Modest in phase 1 and substantial in phase 2, which is why they are split
+and why each is a finished device on its own.
+
+The planter tells me a pot has dried out, and watering stays manual — that
+is a notification, not an automation, and a person walking past the plant
+would notice the same thing eventually. The growbox is the one that
+actually earns its keep: lighting, ventilation and irrigation from a
+reservoir, closed around its own sensing, so a plant survives a fortnight
+without anyone in the flat.
+
+Both run with no cloud, no vendor app and no Wi-Fi on the device, which is
+worth something on its own — nothing here stops working when a company
+turns off a server.
 
 ## Architecture
 

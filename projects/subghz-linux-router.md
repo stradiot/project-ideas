@@ -18,14 +18,29 @@ Build a network bridge between the Linux world and the non-standard sub-GHz
 RF devices around the flat — starting with the blinds remote, ending with a
 real network interface that speaks my own protocol.
 
-Learning goals:
+Deliberately out of scope: any attempt at a fast or spectrally polite
+protocol. The result is allowed to be an extremely slow link — the point is
+the stack, not the throughput.
+
+## Learning value
+
 - Demodulating a raw OOK/FSK signal down to its binary payload
 - Writing a Linux character driver for an SPI peripheral
 - Hooking a driver into the Linux networking subsystem (`netdev`, netlink)
 
-Deliberately out of scope: any attempt at a fast or spectrally polite
-protocol. The result is allowed to be an extremely slow link — the point is
-the stack, not the throughput.
+## Practical value
+
+Front-loaded, and it runs out on purpose. Phase 1 ends with the blinds
+remote decoded properly rather than replayed, which puts the blinds into
+Home Assistant as something that can be commanded and understood. That is a
+real device doing a real job.
+
+Phase 3 is openly the education-only phase. An `rf0` interface carrying my
+own L2 under the IP stack is slower and less reliable than the Wi-Fi
+already in the flat, and nothing will be run over it once it works. It is
+kept because writing a network interface is the only way to find out what a
+network interface is, and the note would rather say that than dress it up
+as infrastructure.
 
 ## Architecture
 

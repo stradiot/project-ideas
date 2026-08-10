@@ -20,12 +20,20 @@ into a position accurate enough to be worth trusting. Light covers about
 a €25 part — and about all the ways that measurement lies until it is
 calibrated.
 
-Learning goals:
+Deliberately out of scope: designing any UWB antenna or its matching. The
+radio arrives as a pre-certified module with its antennas already on it,
+exactly as in [[ble-sensor-node-pcb]]. Also out of scope: anything
+resembling a commercial RTLS — no site survey, no ceiling grid.
+
+## Learning value
+
 - Time-of-flight ranging, and why single-sided two-way ranging fails
 - Antenna delay calibration — the step that separates ±10 cm from ±3 m
 - Phase-difference-of-arrival: recovering a bearing from two antennas
 - Turning a noisy range and a noisy angle into a filtered position
 - Non-line-of-sight detection — knowing when the measurement is a lie
+
+## Practical value
 
 Two things it ends up doing, both of which have been actual annoyances:
 
@@ -35,10 +43,10 @@ Two things it ends up doing, both of which have been actual annoyances:
 2. Finding the car in an underground garage, where GPS is gone and the
    only current method is walking around listening for the horn.
 
-Deliberately out of scope: designing any UWB antenna or its matching. The
-radio arrives as a pre-certified module with its antennas already on it,
-exactly as in [[ble-sensor-node-pcb]]. Also out of scope: anything
-resembling a commercial RTLS — no site survey, no ceiling grid.
+Both are places GPS simply does not reach, indoors or underground, where
+its error is larger than the space being searched. That is the honest
+argument for UWB here: it is not a better version of something already
+owned, it is the only thing that answers the question at all.
 
 ## Architecture
 

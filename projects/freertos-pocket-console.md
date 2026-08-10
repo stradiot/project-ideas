@@ -20,12 +20,6 @@ turn it into a device that actually gets carried: a handheld that must never
 drop a keypress or stutter the UI, on dog walks, in the underground garage,
 and in the forest.
 
-Learning goals:
-- FreeRTOS tasks, priorities, and what starvation looks like
-- Queues, semaphores and mutexes used for their actual purpose
-- Keeping a rendering loop smooth while other work happens
-- Taking firmware that works on a bench and making it survive being carried
-
 Deliberately out of scope: cellular, GPS on the handheld itself, and any
 kind of certification.
 
@@ -61,6 +55,28 @@ The enclosure is not cosmetic. A flexing protoboard joint produces
 intermittent faults that look exactly like task starvation — which is the
 bug class this whole project exists to teach me to find. Field equipment
 that fails ambiguously teaches nothing.
+
+## Learning value
+
+- FreeRTOS tasks, priorities, and what starvation looks like
+- Queues, semaphores and mutexes used for their actual purpose
+- Keeping a rendering loop smooth while other work happens
+- Taking firmware that works on a bench and making it survive being carried
+
+## Practical value
+
+Split across the two revisions, which is the reason they are separate.
+
+v1 has none. A protoboard with a display that does not stutter is a test
+rig, and it stays on the bench.
+
+v2 is a device that gets carried — on dog walks, in the underground garage,
+in the forest — and everything that separates it from v1 is practical
+rather than educational: a sealed enclosure, a fuel gauge that does not lie
+at 20%, a real power switch, ESD on anything a pocket can reach, and OTA so
+it updates without being opened. It is also the ground station for
+[[lora-dog-collar-telemetry]], which is the job that decides whether it
+was worth building.
 
 ## Architecture
 

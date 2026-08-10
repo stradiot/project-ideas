@@ -24,14 +24,6 @@ Two things get kept at the end, and they are both receivers: a regenerative
 shortwave set in a box that gets listened to, and a DCF77 clock that sets
 itself and lives on the office desk.
 
-Learning goals:
-- Resonance in practice — winding a coil and tuning a tank until a station
-  appears
-- Amplitude modulation and envelope detection, built from parts
-- Gain, selectivity and why a crystal set needs neither a battery nor an
-  amplifier to work
-- Harmonic filtering on a transmitter output, and why it is mandatory
-
 Deliberately out of scope: precision, audio quality, and anything needing
 an instrument I do not own. No crystal ovens, no impedance-controlled
 boards, no surface mount.
@@ -54,6 +46,28 @@ What still exists, and what this project actually targets:
 
 The night-time-only behaviour of mediumwave is not a disappointment. It is
 the single most direct demonstration of propagation there is.
+
+## Learning value
+
+- Resonance in practice — winding a coil and tuning a tank until a station
+  appears
+- Amplitude modulation and envelope detection, built from parts
+- Gain, selectivity and why a crystal set needs neither a battery nor an
+  amplifier to work
+- Harmonic filtering on a transmitter output, and why it is mandatory
+
+## Practical value
+
+Split, and only the receiving half has any. The regenerative shortwave set
+is a radio that gets listened to, and the DCF77 clock sets itself off a
+transmitter in Mainflingen and sits on the office desk — both are things
+that stay in use after the learning is done.
+
+The transmitting half has none and is not pretending otherwise. Two 27 MHz
+handsets that reach across a street are worse in every way than the phones
+already in both pockets. That stage exists because building a transmitter
+is the only way to be made to care about harmonic filtering and duty cycle,
+and it is kept deliberately small for the same reason.
 
 ## Architecture
 

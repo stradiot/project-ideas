@@ -27,17 +27,30 @@ instead of only from the original handheld remote. The beep is a recall
 signal — the useful half of that device — and having it reachable from
 automation means it works when the remote is on the kitchen table.
 
-Learning goals:
+Deliberately out of scope: the shock function. Capturing that button press
+would work identically and it is not being done. Also out of scope: a
+universal remote — each handheld carries its own identifier, so this is a
+structural template that happens to be loaded with mine.
+
+## Learning value
+
 - Capturing a real transmission on an SDR and turning IQ into timings
 - Driving a CC1101 by bit-banging OOK, with no formal protocol decode
 - ESPHome as an integration path, against bare PlatformIO firmware
 - Keeping a captured signal out of a public repo without breaking the build
 - Taking one thing all the way: firmware, PCB, enclosure, deployed
 
-Deliberately out of scope: the shock function. Capturing that button press
-would work identically and it is not being done. Also out of scope: a
-universal remote — each handheld carries its own identifier, so this is a
-structural template that happens to be loaded with mine.
+## Practical value
+
+Real, collected, and in daily use — the only project here that can say all
+three. The recall beep now fires from Home Assistant, which means it works
+when the handheld remote is on the kitchen table, and that was the entire
+premise.
+
+It is worth being precise about the remaining gap: the beep fires about 70%
+of the time, so in practice it is retried. A device that works most of the
+time is genuinely useful and genuinely not finished, and calling it either
+one alone would be wrong.
 
 ## Architecture
 

@@ -19,14 +19,6 @@ Pick a device with the encoder, push to enter it, and the knob then means
 whatever that device needs — volume for the TV, temperature for the AC,
 brightness for a light. One control, different meaning per device.
 
-Learning goals:
-- The Home Assistant WebSocket API written by hand — authentication, event
-  subscription, a local state cache
-- Designing a usable interface where the only input is one knob and one
-  button
-- LVGL on a colour display, driven from ESP-IDF
-- Keeping a networked UI honest when the connection is not there
-
 Deliberately out of scope: the board's CC1101, IR and NFC. Everything goes
 through Home Assistant, which already owns these devices. Also out of
 scope: a general-purpose dashboard — this controls a handful of things
@@ -57,6 +49,28 @@ not an oversight. That radio is the whole subject of
 from the samples up — than as a second way to reach a `cover` entity this
 controller can already command over Wi-Fi. Two projects on one board would
 also mean neither can be reflashed without losing the other.
+
+## Learning value
+
+- The Home Assistant WebSocket API written by hand — authentication, event
+  subscription, a local state cache
+- Designing a usable interface where the only input is one knob and one
+  button
+- LVGL on a colour display, driven from ESP-IDF
+- Keeping a networked UI honest when the connection is not there
+
+## Practical value
+
+High, and unusually easy to state: it removes about eight seconds and all
+of the attention from actions taken several times a day. Unlocking a phone,
+finding the app, waiting for it to connect and locating the control is the
+current cost; reaching out and turning something is one second. It also
+works with wet hands, in the dark, while carrying something, and for anyone
+else in the flat who has installed nothing.
+
+The narrow scope is what protects that. A controller that does four domains
+instantly beats a dashboard that does everything slowly, and the moment it
+needs a menu tree it has lost the argument it was built on.
 
 ## Architecture
 

@@ -18,16 +18,29 @@ Build a monitoring device that behaves like a professional embedded Linux
 product rather than a hobby script — robust, resource-constrained,
 supervised, and correct all the way from the interrupt to the D-Bus message.
 
-Learning goals:
+Deliberately out of scope: the sensing itself is trivial on purpose. A PIR
+and a USB thermometer are enough — the interesting part is everything
+around them.
+
+## Learning value
+
 - Device Tree overlays for pin configuration on a real board
 - Interrupt handling in a driver, split into top half and bottom half
 - systemd as an architecture, not just an init system: cgroup limits,
   socket activation, watchdog
 - D-Bus as the local IPC layer
 
-Deliberately out of scope: the sensing itself is trivial on purpose. A PIR
-and a USB thermometer are enough — the interesting part is everything
-around them.
+## Practical value
+
+Low, and deliberately so. What it produces is a box that notices motion and
+reports a temperature, which a 15 € ESP32 already does better, cheaper and
+on a battery. Nobody should build this to get the measurement.
+
+Its actual output is a specification. This note is what
+[[embedded-linux-course]] builds as its capstone, and the reason the sensing
+was chosen to be trivial is that every interesting decision then lives in
+the plumbing — the interrupt path, the supervision, the IPC boundary —
+where the course needs them to be.
 
 ## Architecture
 

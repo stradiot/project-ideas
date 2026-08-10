@@ -18,14 +18,6 @@ Understand USB properly — not one peripheral, but the subsystem: how a
 device describes itself, how a host claims it, how Linux presents both roles,
 and how power is negotiated on a wire that also carries data.
 
-Learning goals:
-- USB descriptors, endpoints and transfer types, written by hand
-- The Linux USB driver model — `usb_driver`, probe/disconnect, URBs
-- Asynchronous I/O in kernel space: submit, complete, resubmit
-- Linux as a USB *device* — the gadget framework, configfs, FunctionFS
-- Dual-role: one port, both directions, and what negotiates that
-- USB Power Delivery, which is a separate protocol on separate wires
-
 Deliberately out of scope: writing a class driver for a class that already
 has one, and SuperSpeed — nothing available here does 5 Gbps.
 
@@ -125,6 +117,30 @@ I²C is the hackable one, and it is supported by Linux's **Type-C/TCPM**
 subsystem — a real, readable in-kernel state machine implementing the PD
 specification. Source capabilities, sink requests, PDOs and RDOs,
 explicit contracts, and what happens when a negotiation fails.
+
+## Learning value
+
+- USB descriptors, endpoints and transfer types, written by hand
+- The Linux USB driver model — `usb_driver`, probe/disconnect, URBs
+- Asynchronous I/O in kernel space: submit, complete, resubmit
+- Linux as a USB *device* — the gadget framework, configfs, FunctionFS
+- Dual-role: one port, both directions, and what negotiates that
+- USB Power Delivery, which is a separate protocol on separate wires
+
+## Practical value
+
+Small, and the note says as much in the same breath as describing the
+device: a desk peripheral with an encoder, a few buttons and a display,
+deliberately mundane, because the value is in the plumbing. It will end up
+controlling volume or switching workspaces, which is a thing a 20 € macro
+pad already does.
+
+The exception is the cost side. All three vehicles are hardware that
+already exists here or costs about 5 €, so this project buys a whole
+subsystem's worth of understanding for essentially nothing — and USB is the
+one bus that turns up on every piece of hardware in the vault, so the
+plumbing knowledge does get spent elsewhere even though the peripheral
+does not.
 
 ## Tools
 

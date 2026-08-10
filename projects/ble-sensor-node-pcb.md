@@ -17,14 +17,6 @@ of it.
 Custom carrier board around a certified nRF52840 module. BLE sensor with
 USB, battery power and SPI flash for data logging.
 
-Learning goals:
-- PCB schematic and layout in KiCad from scratch
-- Power management — LiPo charging, power path, LDO
-- Zephyr board porting (custom devicetree, out-of-tree board)
-
-Practical output: a usable BLE sensor plus a custom dev board for further
-experiments.
-
 ### Its first job
 
 A board without a job becomes a board in a drawer, so the first revision
@@ -58,6 +50,26 @@ interconnects onto a header this board already has.
 
 Deliberately out of scope: anything requiring surgical precision (antenna,
 RF matching, crystals, DRAM) is avoided by using a pre-certified module.
+
+## Learning value
+
+- PCB schematic and layout in KiCad from scratch
+- Power management — LiPo charging, power path, LDO
+- Zephyr board porting (custom devicetree, out-of-tree board)
+
+## Practical value
+
+The highest of any unbuilt project here, because the output is a board that
+three other projects consume rather than a demonstration that gets put in a
+drawer.
+
+Directly: a battery room-climate sensor left in a room for weeks and read by
+Home Assistant. Indirectly, and worth more — it is the device end of
+[[usb-device-and-linux-driver]] with no new hardware, the target
+[[thread-matter-growbox]] runs on instead of a development kit, and the
+carrier the DWM3000 extension for [[uwb-precision-locator]] plugs into. The
+deliverable that gets reused most is the out-of-tree Zephyr board
+definition, not the PCB.
 
 ## Architecture
 
