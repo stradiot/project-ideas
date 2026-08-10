@@ -1,6 +1,41 @@
 # Project Ideas
 
-Personal vault for hardware, embedded and infrastructure projects.
+Personal vault for hardware, embedded and RF projects — what to build, why
+that one rather than an easier one, and what each is for learning.
+
+Most of what follows is a plan rather than a finished thing, and `status:`
+on every note says which is which: of nineteen projects, two are built, one
+is being designed, one is parked with the reason written down, and the rest
+are specified and waiting. The spec comes before the build deliberately.
+Deciding where the build-it/buy-it line sits, and how far a project should
+go before it stops teaching anything, is most of the thinking — so it gets
+written down where it can be argued with later, including by me.
+
+The notes are equally deliberate about the gaps. Where a project needs
+something I cannot do yet, the note says so plainly, and
+`notes/embedded-learning-curriculum.md` collects those gaps into the order
+they are worth closing in. A vault that only recorded what already works
+would be a worse map of where the work actually is.
+
+Written by automation as much as by hand — see *The vault maintains itself*
+at the bottom. Working on one of the linked repos is what updates the
+project note, its log and the daily journal.
+
+## Built
+
+Two, and the second one is smaller than it sounds. Both are in use.
+
+- `subghz-collar-remote-clone` — an ESP32-C3 and a CC1101 that replay a
+  captured 869.525 MHz frame to beep a dog collar from Home Assistant.
+  Firmware, own PCB, printed case, deployed. It is also the most honest
+  thing here: the signal is replayed rather than decoded, the note says
+  what that costs, and the open bug — the beep fires ~70% of the time — is
+  traced in `projects/logs/subghz-collar-remote-clone-log.md` down to a
+  damaged capture rather than a wrong encoding. That log is the best
+  evidence in the vault of how a problem here actually gets worked.
+- `beaglebone-green-case` — a parametric printed mounting tray for the
+  BeagleBone Green, on the bench and holding the board. Walls and a lid
+  wait until the board has a job that decides which connectors matter.
 
 ## Structure
 

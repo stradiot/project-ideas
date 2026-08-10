@@ -32,9 +32,9 @@ directly at capture damage.
 
 Made the decision to refactor signal.h from absolute microseconds to
 run-length ticks plus a BASE_TICK_US constant. This trades complexity (now
-the payload is `tick × {1,2}` plus one scalar) for tractability (the user
-can sweep the scalar at runtime without reflashing, which is the only way
-to find whether 200 µs is actually wrong). Verified the refactor lossless
+the payload is `tick × {1,2}` plus one scalar) for tractability (the scalar
+can be swept at runtime without reflashing, which is the only way to find
+whether 200 µs is actually wrong). Verified the refactor lossless
 by round-trip and added a serial calibration mode to src/main.cpp. Both
 builds pass.
 
@@ -46,10 +46,10 @@ caught three bugs: false clamping warnings on healthy PWM data, run
 clustering that collapsed 4+5 ticks into a bogus "4.44x" group, and frame
 splitting that invented phantom frames on an 8-tick gap.
 
-Decided to have the user do the measurements by hand first — capture with
-rtl_sdr, measure individual pulses in URH, calculate the mean of each
-cluster — then validate with the script. This is worth more than just
-running the tool, since they're building SDR expertise.
+Decided to do the measurements by hand first — capture with rtl_sdr,
+measure individual pulses in URH, calculate the mean of each cluster — then
+validate with the script. That is worth more than just running the tool,
+since the point of this one is building SDR expertise.
 
 Chose GNU Radio (via UTM Linux VM) + URH for the SDR work. Inspectrum was
 skipped (URH's signal view covers what you'd need it for). Nothing was
@@ -59,7 +59,7 @@ uninstalled from the Mac; the "cleanup" premise didn't hold because
 Still outstanding: signal.h is plaintext in the working tree and needs
 `sops -e -i include/signal.h` before any commit.
 
-Next step is the user's manual capture at 869.275 MHz (250 kHz low to avoid
+Next step is the manual capture at 869.275 MHz (250 kHz low to avoid
 the RTL2832U's DC spike), measurement of 10–20 short and long pulses in
 URH, and then running the script to validate whether the clamping
 hypothesis holds.
