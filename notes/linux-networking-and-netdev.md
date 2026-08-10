@@ -109,7 +109,7 @@ samples.
 **Regulatory domain** is not optional and is genuinely enforced: allowed
 channels and power limits by country, from CRDA and the device's own
 regulatory hints. `iw reg get`. The same class of constraint as the 868 MHz
-duty-cycle limits in [[subghz-fixed-code-repeater]] — a legal boundary
+duty-cycle limits that bound [[subghz-linux-router]] — a legal boundary
 enforced partly by the stack and partly by the engineer.
 
 ## Userspace, and what to run on a device
@@ -209,5 +209,5 @@ Specifically probed:
 - [[subghz-linux-router]] — phase 3, reached
 - [[subghz-collar-remote-clone]] — monitor mode is the same idea as an SDR
   capture, one abstraction layer higher
-- [[subghz-fixed-code-repeater]] — duty cycle as the same species of legal
-  constraint as the regulatory domain
+- [[analog-am-transmitter-receiver]] — transmit power and filtering as the
+  same species of legal constraint as the regulatory domain, one layer down

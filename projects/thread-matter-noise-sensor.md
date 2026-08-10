@@ -1,7 +1,7 @@
 ---
 tags: [project, hardware, embedded, esp32, thread, matter, audio]
 status: idea
-depends: [thread-matter-smart-planter]
+depends: [thread-matter-growbox]
 created: 2026-08-07
 ---
 
@@ -22,7 +22,7 @@ arrives and I want to know what is actually going on.
 Learning goals:
 - I2S audio capture, and turning a stream of samples into a usable level
 - ESP-IDF and esp-matter, against the Zephyr / nRF Connect experience from
-  [[thread-matter-smart-planter]] — same protocol, entirely different SDK
+  [[thread-matter-growbox]] — same protocol, entirely different SDK
 - Sharing one radio between two network stacks
 - Designing a privacy boundary deliberately rather than by accident
 
@@ -127,7 +127,7 @@ up, so the stream does not depend on a pinned address.
 | MCU | ESP32-C6 DevKit | The 802.15.4 radio is the reason for this part |
 | Microphone | INMP441 module | I2S, 24-bit, cheap and well documented |
 | Firmware | ESP-IDF + esp-matter | Deliberately not Zephyr — the comparison is the point |
-| Border Router | Existing OpenThread BR | Already built for [[thread-matter-smart-planter]] |
+| Border Router | Existing OpenThread BR | Already built for [[thread-matter-growbox]] |
 | Debug | `ot-ctl`, Thread sniffer, Wireshark | Mesh on one side, stream on the other |
 
 ## Budget

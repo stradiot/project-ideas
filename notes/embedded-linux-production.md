@@ -249,6 +249,6 @@ what "production ready" actually means.
 - [[bare-metal-bootloader]] — A/B slots, trial boot and rollback on a
   microcontroller, which is the same design at a hundredth of the scale and
   a good way to see the idea clearly
-- [[thread-matter-smart-planter]] — MCUboot OTA for a sealed device, the same
+- [[thread-matter-growbox]] — MCUboot OTA for a sealed device, the same
   argument in the firmware world: once it is potted next to water, the update
   path is the only way in

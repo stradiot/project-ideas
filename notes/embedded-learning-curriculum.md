@@ -7,32 +7,43 @@ created: 2026-08-10
 
 Reference note. The map of five courses, of which
 [[embedded-linux-course]] is the first one written. It exists because
-eighteen project notes describe *what* to build and none of them describe
+nineteen project notes describe *what* to build and none of them describe
 what has to be learned first, and it turned out that gap was mostly in the
 same four or five places every time.
 
 ## The five courses
 
 Each one is a project note when it gets written, with subject deep-dives in
-`notes/` and exercises reusing hardware from the projects it unblocks.
+`notes/` and exercises reusing hardware from the projects it feeds.
 
-| Course | Arc | Unblocks | New hardware |
+| Course | Arc | Projects it feeds | New hardware |
 | --- | --- | --- | --- |
-| **Embedded Linux** — written | Boot ROM → drivers → Yocto BSP → signed A/B updates | 4 projects | ~58 € |
-| **RF and wireless** | Radio as physics → DSP and IQ → modulation and coding → own PHY and MAC | 6 projects | ~150 € instruments, plus an optional TX-capable SDR |
-| **Bare-metal and RTOS** | Reset vector → drivers by datasheet → FreeRTOS → Zephyr → OTA | 7 projects | ~35 € |
-| **Hardware design** | Datasheets → KiCad → layout and SI → fab and assembly → bring-up | 2 projects | ~120 € plus fab runs |
-| **Control and real-time** | Sensors → filtering → PID → state estimation → sensor fusion | 2 projects | shares the RC gear |
+| **Embedded Linux** — written | Boot ROM → drivers → Yocto BSP → signed A/B updates | 4 | ~58 € |
+| **RF and wireless** | Radio as physics → DSP and IQ → modulation and coding → own PHY and MAC | 5 | ~150 € instruments, plus a TX-capable SDR |
+| **Bare-metal and RTOS** | Reset vector → drivers by datasheet → FreeRTOS → Zephyr → OTA | 6 | ~35 € |
+| **Hardware design** | Datasheets → KiCad → layout and SI → fab and assembly → bring-up | 3 | ~120 € plus fab runs |
+| **Control and real-time** | Sensors → filtering → PID → state estimation → sensor fusion | 3 | shares the RC gear |
+
+"Feeds" is not a dependency. No project in the vault has a course in its
+`depends:`, and none should — a course is where a skill is learned, not an
+artifact another project consumes. Putting one in the graph would park half
+the vault behind a fourteen-module syllabus, which is exactly the shape the
+dependency graph was pruned to remove.
 
 ### Which one to do second
 
-The honest answer is bare-metal and RTOS, and it is not close. Seven of
-eighteen projects sit behind [[bare-metal-bootloader]] and
-[[freertos-pocket-console]] — the whole firmware track, both Thread and
-Matter projects, the LoRa collar, the UWB locator and the HA controller.
-Nothing in that half of the vault is reachable until those two exist. The
-RF course is the more interesting one to read and the firmware course is the
-one that unblocks the vault.
+Bare-metal and RTOS, and the reason has changed since this note was first
+written. It used to be "it unblocks the vault" — back when a chain of
+questionable dependencies put seven projects behind
+[[bare-metal-bootloader]] and [[freertos-pocket-console]]. That chain is
+gone: nothing depends on the bootloader at all now, and only the LoRa collar
+waits on the console.
+
+The real argument is simpler and better. Cortex-M firmware is the most
+*reused* skill in the vault — it turns up in the bootloader, the console, the
+custom board, the growbox, the car, the plane and the drone — and it is the
+one where I currently have nothing. Learning it early makes seven projects
+easier rather than possible, which is a weaker claim but a true one.
 
 Embedded Linux went first anyway, for a reason that stands: the board was
 already owned, the course costs 58 €, and it is the half of the field the
@@ -53,10 +64,35 @@ It also finishes the open problem in [[subghz-collar-remote-clone]]
 properly, since the encoding that fits none of the standard schemes is
 exactly what the receive-chain and coding modules are for.
 
+**The capture-and-replay module**, which absorbed a project that used to
+stand on its own. Take an arbitrary signal off the air with the RTL-SDR,
+analyse it down to symbols, and transmit it back — validated against the
+blinds remote, because a slat that moves is an unambiguous answer. Then
+repeat across modulations: OOK, 2-FSK, 4-FSK, GFSK, MSK, and the encodings
+on top of them — Manchester, PWM, PPM, and the whitening and CRCs that hide
+underneath. The CC1101 already on the bench transmits all of those, and its
+raw async mode bit-bangs arbitrary OOK timing, so most of this module costs
+nothing.
+
+The repeater-shaped problems come with it: matching a frame against a
+whitelist before acting on it, suppressing the loop when a transmitter hears
+its own output, and budgeting an 868 MHz duty cycle that a repeat spends
+twice. Those were worth learning; a box in the hallway that repeats a remote
+whose blinds already reach Home Assistant through their own gateway was not.
+
 Instruments are the real cost: a NanoVNA and a TinySA are what turn antenna
-work from guessing into measuring, and a TX-capable SDR is what makes
-building an own PHY possible at all. An oscilloscope belongs to this course
-rather than the Linux one.
+work from guessing into measuring, and a **TX-capable SDR** is what makes
+building an own PHY possible at all — an ADALM-Pluto at around 230 € (full
+duplex, 70 MHz–6 GHz, Analog Devices' own teaching platform) or a HackRF at
+around 150 € (half duplex, 8-bit, wider but coarser). Bought when the PHY
+module is reached, not before: everything up to that point runs on the
+RTL-SDR and the CC1101. An oscilloscope belongs to this course rather than
+the Linux one.
+
+The PHY module is also the other half of a split that starts in
+[[subghz-linux-router]]: a MAC and an L2 of mine on someone else's
+modulation there, a modulation of mine here, and a comparison between them
+that neither project could produce alone.
 
 ### Bare-metal and RTOS, in outline
 
@@ -82,7 +118,9 @@ project.
 Sensor characterisation and noise, filtering, PID properly — including
 anti-windup and derivative kick, which is where hand-tuned loops actually
 fail — then state estimation and complementary filters, then sensor fusion.
-[[rc-car-custom-controller]] and [[custom-flight-controller-drone]].
+[[rc-car-custom-controller]], [[printed-rc-plane]] and
+[[custom-flight-controller-drone]], in that order: a loop that surges, then
+a loop that glides when it is wrong, then a loop that falls.
 
 ## Topics the projects do not cover, and should
 
@@ -155,7 +193,7 @@ test — that a project has to end up used, not demonstrated:
 - [[embedded-linux-course]] — the one that exists, and the source of most of
   the list above
 - [[bare-metal-bootloader]] and [[freertos-pocket-console]] — the two
-  projects the second course would be built around, and the vault's real
-  bottleneck
+  projects the second course would be built around, and between them the
+  most reused skill set in the vault
 - [[zephyr-devicetree]] — the first reference note written here, and a good
   example of the shape the course modules take

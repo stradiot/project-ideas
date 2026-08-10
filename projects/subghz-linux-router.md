@@ -1,7 +1,7 @@
 ---
 tags: [project, hardware, embedded, linux, kernel, rf]
 status: idea
-depends: [subghz-collar-remote-clone, analog-am-transmitter-receiver]
+depends: [subghz-collar-remote-clone]
 created: 2026-08-07
 ---
 
@@ -41,8 +41,9 @@ preamble, the sync word and the payload actually look like.
 [[analog-am-transmitter-receiver]] is the same signal chain done in
 hardware — envelope detection built from a diode and an earpiece instead of
 written in C. Having demodulated something by hand once makes the sample
-maths here read as familiar rather than abstract, which is a reason to
-build that one first even though it shares no components with this.
+maths here read as familiar rather than abstract. Worth doing at some point
+for that reason, but not before this: the two share no components, and
+neither one blocks the other.
 
 The case for doing it this way is not theoretical: it is
 [[subghz-collar-remote-clone]], which took the other route. That one
@@ -58,20 +59,38 @@ Custom character driver that initialises the radio and pushes raw frames
 through it. Success criterion is physical: the blinds actually go down when
 the cloned frame is transmitted.
 
-This is where the practical value lands, so it does not stop at a working
-`ioctl`: a small userspace service exposes the blinds to Home Assistant as
-a `cover` entity. At that point the flat has scheduled blinds, and the
-project has paid for itself even if Phase 3 never happens.
-
-If the problem turns out to be range rather than control, the standalone
-answer is [[subghz-fixed-code-repeater]] — an always-on box that extends
-the original remote without a Linux host in the path.
+The blinds are the *test signal*, not the product — they already reach Home
+Assistant through their own gateway, and nothing here improves on that. What
+they give is something no bench measurement can: an unambiguous physical
+confirmation that the decoder read the frame correctly and the driver
+transmitted it correctly. A slat that moves is worth more than a log line
+that says the write succeeded.
 
 ### Phase 3 — Network stack
 
-Openly the education-only phase. There is no practical need for IP over a
-CC1101 — WiFi exists, and it is better in every measurable way. The point
-is to touch the Linux networking subsystem from underneath.
+Openly the education-only phase, and the reason the whole project exists.
+There is no practical need for IP over a CC1101 — WiFi exists and is better
+in every measurable way. The point is to build a link layer from nothing and
+watch the rest of the stack accept it.
+
+The deliverable is specific: **`ping` across the radio, then `ssh` through
+it, then a packet capture showing TCP retransmitting over a link I
+designed.** Nothing about that is useful. All of it is the thing worth
+knowing.
+
+### Which floor "from scratch" means
+
+The CC1101 does modulation and demodulation. Everything above it is mine:
+preamble, sync word, frame format, addressing, length, CRC, acknowledgement
+and retry, fragmentation for an MTU that does not fit, and the `net_device`
+that carries IP over the result. That is the PPP analogy done properly, and
+it is where the kernel learning lives.
+
+The layer below — designing the waveform itself, with pulse shaping, symbol
+timing recovery and carrier correction — belongs to the RF course and a
+transmit-capable SDR, not here. Doing both eventually is the interesting
+part: a MAC of mine on someone else's PHY, then a PHY of mine underneath it,
+and a comparison between them.
 
 Phases 2 and 3 are modules 6 and 10 of [[embedded-linux-course]], using this
 same CC1101: the SPI driver with GDO0 as a threaded IRQ, then the
@@ -97,7 +116,7 @@ userspace.
 | --- | --- | --- |
 | Capture | RTL-SDR + GQRX / Universal Radio Hacker | Only for analysis, not for TX |
 | Transmit | CC1101 module (868 MHz) | SPI, 3.3 V logic |
-| Host | Raspberry Pi | SPI + free GPIO for GDO0/GDO2 |
+| Host | BeagleBone Green | Already owned; SPI plus free GPIO for GDO0/GDO2 |
 | Kernel work | Cross-toolchain, kernel headers, `dmesg`/ftrace | |
 
 ## Budget
@@ -106,10 +125,13 @@ Rough estimates.
 
 | Item | Cost |
 | --- | --- |
-| RTL-SDR dongle | 25–40 € |
+| RTL-SDR dongle | already owned |
 | CC1101 modules, 2 pcs | 5–10 € |
-| Raspberry Pi (if not already owned) | 40–80 € |
+| Linux host | already owned — the BeagleBone Green |
 | Wiring, antennas | ~10 € |
+
+Effectively free. The radio, the SDR and the board are all already on the
+bench, which is most of why this project is worth doing at all.
 
 ## Software / firmware
 
@@ -126,9 +148,12 @@ power limits, and only ever targeting my own devices.
 - [ ] Decode the payload by hand, then automate it in C
 - [ ] Wire CC1101 over SPI, get the chip ID back — proof the bus works
 - [ ] Char driver: raw TX, replay the captured frame, move the blinds
-- [ ] Expose the blinds to Home Assistant as a `cover` — schedule them
+- [ ] Design the frame format — preamble, sync, addressing, length, CRC
+- [ ] Acknowledgement and retry, then fragmentation for an oversized MTU
 - [ ] Convert to `net_device`, ping across two CC1101 nodes
 - [ ] Netlink configuration interface
+- [ ] `ssh` over `rf0`, and a capture of TCP retransmitting on my own link
+- [ ] Measure it honestly — throughput, latency, loss — and write the numbers down
 
 ## Build log
 

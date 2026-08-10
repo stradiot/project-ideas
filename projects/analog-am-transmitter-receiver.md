@@ -20,8 +20,9 @@ simplest modulation there is — a carrier whose amplitude follows the audio
 and watched on a scope. Nothing here is written against someone else's
 driver.
 
-The project ends in something that gets used: a pair of 27 MHz AM handhelds
-that actually talk to each other.
+Two things get kept at the end, and they are both receivers: a regenerative
+shortwave set in a box that gets listened to, and a DCF77 clock that sets
+itself and lives on the office desk.
 
 Learning goals:
 - Resonance in practice — winding a coil and tuning a tank until a station
@@ -74,7 +75,12 @@ takes the stage right up to the edge of oscillation, where gain and
 selectivity both peak — the clearest possible demonstration of what
 feedback does, because it is adjusted by hand while listening.
 
-This is what reaches the shortwave broadcast bands.
+This is what reaches the shortwave broadcast bands, and it is **built as a
+keeper** rather than as a breadboard step: a proper chassis, a tuning dial
+worth turning, a real audio stage and a speaker. Shortwave broadcasting is
+still alive on 49, 41 and 31 m, and a hand-built regen set is a thing people
+genuinely sit and listen to. Building it to be dismantled would waste the
+one stage here with a lasting product at the end of it.
 
 ### Stage 3 — Transmitter
 
@@ -98,10 +104,20 @@ that, and the RTL-SDR proves whether it worked.
 Two units, each a receiver and a transmitter with a PTT switch selecting
 between them. Talk across the flat, then from the street.
 
-This is the deliverable — a thing that works and gets kept, rather than a
-breadboard that gets photographed and dismantled.
+This is the **learning exercise, not a product**, and it is worth being
+honest about that: nobody needs a pair of 27 MHz AM handhelds in 2026, a
+phone is better in every respect, and homebrew gear is not type-approved so
+the link is milliwatts across a street. What stages 3 and 4 are for is
+building a transmitter — oscillator, modulator, harmonic filtering, antenna
+matching — which is where most of the real RF engineering lives and which
+nothing else in this vault covers. The pair is how that gets proven.
 
-### Optional — DCF77 clock
+Voice over a radio link is a want in its own right, and it comes back later
+somewhere better suited to it: a pair of handhelds that are not necessarily
+analog and not necessarily AM. Digital voice over the RF course's own PHY is
+the interesting version of that, and it belongs there rather than here.
+
+### DCF77 clock — a keeper
 
 77.5 kHz from Mainflingen, roughly 800 km away, transmitting continuously
 and receivable across Slovakia with a ferrite rod and one amplifier stage.
@@ -111,7 +127,8 @@ zeros and ones of a 59-bit frame carrying the date and time.
 
 Receiving it is pure analog. Decoding it is a small, self-contained C
 program written from the specification. The result is a clock that sets
-itself and stays on a shelf — permanent value, near-zero cost.
+itself and stays on the office desk — permanent value, near-zero cost, and
+the only thing in this project with a job to do every day.
 
 ## Tools
 
@@ -153,12 +170,16 @@ simpler.
 - [ ] Hear a real station — first proof the physics works
 - [ ] Add the regenerative stage, compare sensitivity and selectivity
 - [ ] Reach a shortwave broadcast band with a longer wire
+- [ ] Build the regen properly — chassis, dial, audio stage, speaker
+- [ ] Listen to it for an evening, and keep it
+- [ ] DCF77 front end: ferrite rod, amplifier, clean pulses on the scope
+- [ ] Decode the 59-bit frame in C, from the specification
+- [ ] Clock built and on the office desk, setting itself
 - [ ] Build the 27 MHz oscillator, confirm frequency on the scope and SDR
 - [ ] Add amplitude modulation, verify the envelope
 - [ ] Pi-network output filter — measure harmonics before and after
 - [ ] Second unit, PTT switching, first two-way contact across the flat
 - [ ] Measure the real range outdoors
-- [ ] Optional: DCF77 receiver and my own decoder, into a self-setting clock
 
 Legal note: 27 MHz CB is licence-exempt in Slovakia under ECC/DEC/(11)03,
 with 4 W permitted for AM. Homebrew equipment is not type-approved, though,

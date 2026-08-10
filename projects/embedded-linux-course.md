@@ -322,14 +322,22 @@ Because this note carries `repo: embedded-linux-course`, the boxes above are
 ticked by the SessionEnd hook — which only fires for sessions started in
 that repo. Exercise code goes there, not here.
 
-This is the root of the Linux track. [[industrial-sensor-node-linux]] is the
-same driver, daemon and D-Bus work assembled into a device rather than
-practised module by module, so doing that project after this course means
-building it rather than learning it. [[usb-device-and-linux-driver]] needs
-the driver model and the memory work before its host-side module makes any
-sense. [[subghz-linux-router]] is the CC1101 exercises taken to their
-conclusion, and [[beaglebone-pru-realtime]] is deferred until the real-time
-module produces a number that justifies it. [[zephyr-devicetree]] is the
+Nothing in the vault has this course in its `depends:`, and nothing should.
+A course is where a skill is learned, not an artifact another project
+consumes — putting it in the graph would park the entire Linux track behind
+a fourteen-module syllabus, which is the shape that graph was pruned to
+remove. Every project below can be started tomorrow. Doing this first only
+makes them easier.
+
+[[industrial-sensor-node-linux]] is the closest thing to an exception, and
+even there the relationship runs the other way: that note is the
+specification, and the capstone here is the build. Same board, same PIR,
+same wall — it does not get made twice.
+[[usb-device-and-linux-driver]] leans on the driver model and the memory
+work, and its gadget and dual-role half runs on this same BeagleBone.
+[[subghz-linux-router]] is the CC1101 exercises taken to their conclusion,
+and [[beaglebone-pru-realtime]] is deferred until the real-time module
+produces a number that justifies it. [[zephyr-devicetree]] is the
 same syntax with an entirely different lifecycle, and the contrast is
 sharpest having written both. [[embedded-learning-curriculum]] holds the
 other four courses.

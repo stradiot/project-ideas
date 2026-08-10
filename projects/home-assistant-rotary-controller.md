@@ -1,7 +1,7 @@
 ---
 tags: [project, hardware, embedded, esp32, home-assistant, ui]
 status: idea
-depends: [freertos-pocket-console]
+depends: []
 created: 2026-08-07
 ---
 
@@ -32,13 +32,31 @@ through Home Assistant, which already owns these devices. Also out of
 scope: a general-purpose dashboard — this controls a handful of things
 well.
 
+### Why a knob rather than the phone
+
+The phone can already do all of this, so the argument has to be about the
+few seconds either side of the action. Unlocking a phone, finding the app,
+waiting for it to connect and locating the right control is perhaps eight
+seconds and full attention. Reaching out and turning something is one
+second and none — and it works with wet hands, in the dark, while carrying
+something, and for anyone else in the flat who has not installed anything.
+
+That is a small win repeated several times a day, which is exactly the
+shape of thing worth building once. It is also why the scope stays narrow:
+a controller that does four domains instantly beats a dashboard that does
+everything slowly, and the moment it needs a menu tree it has lost the
+argument it was built on.
+
+Where it earns its place fastest is the one-second actions — muting the
+noise sensor from [[thread-matter-noise-sensor]] on the way out of the door,
+or knocking the AC down a degree without finding a phone.
+
 Leaving the CC1101 unused on a board named after it is a deliberate call,
 not an oversight. That radio is the whole subject of
-[[subghz-linux-router]] and [[subghz-fixed-code-repeater]], and it is worth
-more there — attacked properly, from the samples up — than as a second way
-to reach a `cover` entity this controller can already command over Wi-Fi.
-Two projects on one board would also mean neither can be reflashed without
-losing the other.
+[[subghz-linux-router]], and it is worth more there — attacked properly,
+from the samples up — than as a second way to reach a `cover` entity this
+controller can already command over Wi-Fi. Two projects on one board would
+also mean neither can be reflashed without losing the other.
 
 ## Architecture
 
@@ -148,7 +166,7 @@ of parts here.
 Shares its input-queue and render split with [[freertos-pocket-console]] —
 same problem one board class up, with a network event stream in place of
 game logic. The devices at the other end include
-[[thread-matter-smart-planter]] and [[thread-matter-noise-sensor]].
+[[thread-matter-growbox]] and [[thread-matter-noise-sensor]].
 
 ## Build log
 

@@ -83,7 +83,7 @@ Writing this from scratch is worth doing once, for the understanding.
 Deploying it forever is not — for anything nRF-based, MCUboot already does
 all of the above, signed, with a much larger set of eyes on it. The honest
 plan is to build this one, then use MCUboot on [[ble-sensor-node-pcb]] and
-[[thread-matter-smart-planter]] knowing exactly what it is doing.
+[[thread-matter-growbox]] knowing exactly what it is doing.
 
 ## Tools
 
@@ -125,10 +125,22 @@ Rough estimates.
 - [ ] Flash a deliberately broken image, watch it roll back on its own
 
 Result: my own firmware update mechanism, no external programmer needed
-after the first flash. Its first real user is [[freertos-pocket-console]] —
-updating that handheld over its own serial link, in the field, with a
-rollback if the new build is broken, is the test of whether this is
-genuinely finished.
+after the first flash.
+
+Its first real user is [[rc-car-custom-controller]] — same Cortex-M, and the
+telemetry UART it already carries is the transport, so nothing new gets
+wired. PID tuning is an iterate-twenty-times loop where reconnecting a
+programmer is genuine friction, and a failed update there rolls a car to a
+stop. That makes it the safe place to prove rollback actually works before
+[[custom-flight-controller-drone]] inherits the same code on something that
+falls out of the air.
+
+Not the pocket console, which is an ESP32: no VTOR, no ARM vector table, and
+ESP-IDF ships its own second-stage bootloader and OTA scheme. Nothing here
+runs on Xtensa. What that project takes from this one is knowing what an A/B
+update mechanism is doing underneath, which is the same thing
+[[thread-matter-growbox]] takes from it before trusting MCUboot with a
+sealed box.
 
 ## Build log
 

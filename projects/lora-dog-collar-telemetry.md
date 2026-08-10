@@ -26,6 +26,24 @@ Learning goals:
 Deliberately out of scope: LoRaWAN and any public network. Point-to-point
 to my own receiving station.
 
+### Against buying one
+
+Commercial GPS dog collars are a mature product category and a good one —
+Tractive, Garmin's Alpha and Astro. Any of them tracks a dog better than
+this will, immediately, with a warranty. If tracking the dog were the goal,
+that is what should be bought, and saying so plainly is more useful than
+pretending otherwise.
+
+The goal is the link. Sizing a LoRa budget, packing a payload bit by bit
+under a hard limit, classifying activity from an IMU on the device rather
+than shipping raw samples, and staying inside a duty cycle — none of that
+is learnable from a subscription. The collar is where those meet something
+that walks away from me at speed, which is a harsher test than a bench.
+
+Where this genuinely beats a commercial tracker is the second half of the
+premise: it reports what the dog is *doing*, not only where he is, and it
+does it without a subscription or a cellular network being in range.
+
 The indoor counterpart is [[thread-matter-noise-sensor]] — same dog, same
 question of what he is doing unsupervised, answered with a microphone
 instead of a radio link.

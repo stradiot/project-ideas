@@ -90,6 +90,7 @@ from the tree's shape.
 
 - [[ble-sensor-node-pcb]] — an out-of-tree board definition, the reason for
   this note
-- [[thread-matter-smart-planter]] — same SoC and SDK, but on a stock DK, so
-  the tree is inherited rather than written
+- [[thread-matter-growbox]] — the application built on that board
+  definition, so the tree is inherited from work done next door rather than
+  from Zephyr's tree
 - [[industrial-sensor-node-linux]] — the Linux side of the same syntax

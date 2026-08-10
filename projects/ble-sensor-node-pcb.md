@@ -1,7 +1,7 @@
 ---
 tags: [project, hardware, embedded, ble]
 status: planning
-depends: [freertos-pocket-console]
+depends: []
 created: 2026-08-07
 ---
 
@@ -39,7 +39,14 @@ after nine days.
 
 Its second job is [[usb-device-and-linux-driver]] — the nRF52840's native
 USB is already routed on this board, so it doubles as the device end of
-that project with no new hardware.
+that project with no new hardware. Full-speed and device-only, which is the
+whole of what this silicon can do on USB; host, dual-role and Power Delivery
+live on other hardware in that note.
+
+Its third is [[thread-matter-growbox]], which is what this board's Zephyr
+work is actually for. That project runs on this board rather than a
+development kit — the deliverable here is a working out-of-tree board
+definition, and the growbox is the application built on top of it.
 
 Its third is a UWB radio, as a second board rather than a revision of this
 one. [[uwb-precision-locator]] proves the ranging on bought modules first;
@@ -101,7 +108,7 @@ Not precision-related, but easy to get wrong:
 | Schematic + layout | KiCad | Community standard for nRF52840; git-friendly text format |
 | Mechanical / enclosure | Fusion 360 | Later, only if an enclosure is needed |
 | PCB | 2-layer | Sufficient; 4 layers only for a better ground plane |
-| Debugger | nRF52840 DK | Onboard J-Link via the Debug Out header — free |
+| Debugger | nRF52840 DK | Onboard J-Link via the Debug Out header |
 | Hand soldering | Pinecil V2 | Enough for THT and larger SMD passives |
 
 KiCad over Fusion despite having a personal-use Fusion licence: reference
@@ -144,12 +151,18 @@ actual hands-on work.
 
 | Item | Cost |
 | --- | --- |
+| nRF52840 DK — the debug probe | 45–60 € |
 | PCB, 5 pcs + shipping + VAT | 20–40 € |
 | Components incl. spares | 20–30 € |
 | JLCPCB assembly (setup + extended parts) | 30–50 € |
 | SMD practice board (AliExpress) | 2–5 € |
-| **Total — first iteration** | **~70–120 €** |
+| **Total — first iteration** | **~115–180 €** |
 | Each further layout revision | 30–50 € |
+
+The DK is bought here rather than borrowed. It is the only debug probe in
+the plan, a custom board with no working firmware cannot be brought up
+without one, and every other nRF project in the vault runs on hardware this
+project produces — so nothing else is going to buy it first.
 
 Budget for at least two revisions. The first board almost never works
 fully, and accounting for that upfront saves frustration later.

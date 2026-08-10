@@ -30,8 +30,8 @@ workspace/cache files listed in `.gitignore`.
 - `journal/` — daily notes, `journal/YYYY-MM-DD.md`. Written by automation (below).
 - `templates/` — note templates.
 
-Cross-references are wikilinks: `[[subghz-fixed-code-repeater]]` resolves to
-`projects/subghz-fixed-code-repeater.md`, or to `notes/<name>.md` for reference
+Cross-references are wikilinks: `[[subghz-linux-router]]` resolves to
+`projects/subghz-linux-router.md`, or to `notes/<name>.md` for reference
 notes. The graph is deliberately connected — every note has both inbound and
 outbound links, and a cross-reference states *why* the two are related (shared
 hardware, a prerequisite skill, the same problem solved differently), never just
@@ -61,6 +61,18 @@ this one can start. It is deliberately *not* the wikilink graph: wikilinks are
 symmetric and say "related", and every note links to five others, so they can
 never answer "what next". Keep `depends:` to true prerequisites — a skill or a
 piece of hardware this project cannot proceed without.
+
+The bar is deliberately high, because the graph was once authored as a
+curriculum and drifted into asserting difficulty ordering as dependency. An
+edge earns its place only if the dependent cannot begin without an artifact,
+a piece of hardware or a load-bearing skill the other project produces. Not
+enough: the same track, the same chip family, ascending difficulty, thematic
+adjacency, or "I would learn that there first". **Using a thing is not the
+same as having built it** — every Linux board has a bootloader, and that does
+not put every Linux project behind the bootloader project. Courses are never
+a `depends:` for the same reason: they teach a skill, they do not produce an
+artifact anything consumes. Six edges across nineteen projects is the current
+state, and it should stay closer to that than to one edge per note.
 
 A project is **ready** when every entry in its `depends:` is `built`. That set is
 what `README.md`'s "Up next" section lists, and it is derived, not authored —

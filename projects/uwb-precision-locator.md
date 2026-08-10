@@ -1,7 +1,7 @@
 ---
 tags: [project, hardware, embedded, uwb, rf, esp32, home-assistant]
 status: idea
-depends: [lora-dog-collar-telemetry, ble-sensor-node-pcb]
+depends: []
 created: 2026-08-09
 ---
 

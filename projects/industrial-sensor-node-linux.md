@@ -111,12 +111,28 @@ Rough estimates.
 - [ ] Watchdog — deliberately hang the daemon and watch it come back
 - [ ] Bridge D-Bus to MQTT, mount the board, see it live in Home Assistant
 
-[[embedded-linux-course]] builds every piece of this in isolation first —
-the overlay, the threaded IRQ driver, the socket-activated daemon with its
-watchdog, the D-Bus interface and the MQTT bridge are its modules 4, 5, 6
-and 9. Doing the course first turns this project into assembly rather than
-learning, and the course's exercises deliberately use this device as their
-worked example.
+### This note is the specification; the course is the build
+
+This device does not get built twice. [[embedded-linux-course]]'s capstone
+*is* this node — same BeagleBone, same PIR, same wall, same Home Assistant
+entities — and the course builds every piece of it along the way: the
+overlay in module 4, the threaded IRQ driver in 5, the subsystem rewrite in
+6, the socket-activated daemon with its watchdog and D-Bus in 9, and then
+the whole thing productionised in the capstone with a Yocto BSP layer, a
+signed FIT image and A/B updates that roll back.
+
+So what lives here is the *design* — what the device must do, why the
+interrupt splits where it does, why the daemon is socket-activated, and why
+the MQTT bridge is the last thing built. What lives there is the sequence
+that gets it made. Reading this note is how you know what to aim at; working
+through the course is how it ends up on the wall.
+
+One thing this note is honest about that the course cannot be: the sensing
+is a pretext. A €50 mains-powered SBC detecting motion is a job a €15
+battery Zigbee sensor does better, and if a motion sensor were the goal that
+is what should be bought. The goal is a device that behaves like a product
+from the interrupt upward, and the PIR is the cheapest honest excuse to
+build one.
 
 This is the note the other kernel-side work leans on. The char device and
 its `file_operations` reappear in [[usb-device-and-linux-driver]], where the

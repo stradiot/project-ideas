@@ -29,49 +29,75 @@ for reading; nothing reads it but a person.
 prerequisite graph, which is not the same as the wikilinks. Wikilinks say two
 projects are related; `depends:` says one cannot start.
 
+An edge earns its place only if this project genuinely cannot begin without
+an artifact, a piece of hardware or a load-bearing skill the other one
+produces. Not enough: the same track, the same chip family, ascending
+difficulty, or "I would learn that there first". **Using a thing is not the
+same as having built it** — every Linux board has a bootloader, and that does
+not put every Linux project behind the bootloader project. Courses are never
+a `depends:` for the same reason.
+
 ## Up next
 
 Everything whose prerequisites are already built. Derived from `depends:` and
 `status:` — regenerate rather than edit by hand.
 
-- `analog-am-transmitter-receiver` — RF, no prerequisites
-- `subghz-fixed-code-repeater` — unblocked by the collar remote being built
-- `bare-metal-bootloader` — the root of the whole firmware track
-- `embedded-linux-course` — the course, on hardware already owned
-- `industrial-sensor-node-linux` — the root of the Linux track
-- `rc-car-custom-controller` — the root of the control track
+- `analog-am-transmitter-receiver`
+- `bare-metal-bootloader`
+- `ble-sensor-node-pcb`
+- `embedded-linux-course`
+- `freertos-pocket-console`
+- `home-assistant-rotary-controller`
+- `industrial-sensor-node-linux` — as a specification; the course builds it
+- `printed-rc-plane`
+- `rc-car-custom-controller`
+- `subghz-linux-router`
+- `usb-device-and-linux-driver`
+- `uwb-precision-locator`
 
-The firmware track is the one worth starting: four projects sit behind
-`bare-metal-bootloader` and nothing behind it is reachable until it is done.
+Twelve of nineteen, which is the point: very little here genuinely blocks
+anything else, and a list that long stops being a recommendation. Only four
+projects are actually waiting on something, and they are marked below.
+
+Where to start is a judgement, not a derivation. Today it is
+`embedded-linux-course` — the board is already owned, the whole course costs
+58 €, and it is the widest gap between what the vault plans and what I can
+do. `ble-sensor-node-pcb` is the other one worth starting, because three
+projects want the board it produces.
+
+At the other end: `printed-rc-plane` before `custom-flight-controller-drone`,
+because a plane glides when the loop is wrong and a quadcopter falls. And the
+drone is deliberately last — nothing blocks it, but it is the project that
+most rewards already knowing what you are doing.
 
 ## Projects
 
-Grouped by track, in dependency order — each is blocked by the one above
-unless marked otherwise. Status in brackets.
+Grouped by track. Order within a track is rough progression, not dependency —
+`depends:` is the actual graph, and it is much sparser than this list looks.
+Status in brackets, with what a project is waiting on where it is waiting.
 
 **RF**
 
-- `analog-am-transmitter-receiver` *[idea, ready]* — crystal set → regenerative RX → 27 MHz walkie-talkie pair
+- `analog-am-transmitter-receiver` *[idea]* — crystal set → a shortwave regen set worth keeping → a DCF77 clock → a transmitter
 - `subghz-collar-remote-clone` *[built]* — CC1101 raw replay of the collar remote, into Home Assistant
-- `subghz-linux-router` *[idea]* — SDR capture, own decoder, CC1101 kernel driver, `net_device`
-- `subghz-fixed-code-repeater` *[idea, ready]* — store-and-forward range extender for the blinds
-- `lora-dog-collar-telemetry` *[idea]* — GPS + IMU collar, hand-packed binary protocol
+- `subghz-linux-router` *[idea]* — own decoder, CC1101 kernel driver, then my own L2 under the IP stack
+- `lora-dog-collar-telemetry` *[idea, waiting on `freertos-pocket-console`]* — GPS + IMU collar, hand-packed binary protocol
 - `uwb-precision-locator` *[idea]* — time-of-flight ranging and PDoA bearing; the dog indoors, the car in a garage
 
 **Embedded firmware**
 
-- `bare-metal-bootloader` *[idea, ready]* — ARM startup by hand, then a serial bootloader with A/B rollback
-- `freertos-pocket-console` *[idea]* — RTOS tasks and queues; ends up as the collar's ground station
+- `bare-metal-bootloader` *[idea]* — ARM startup by hand, then a serial bootloader with A/B rollback
+- `freertos-pocket-console` *[idea]* — RTOS on protoboard, then a production handheld with its own PCB and case
 - `ble-sensor-node-pcb` *[planning]* — custom nRF52840 carrier board in KiCad, Zephyr board port
-- `thread-matter-smart-planter` *[idea]* — Zephyr, Thread Border Router, Matter into Home Assistant
-- `thread-matter-noise-sensor` *[idea]* — I2S mic on ESP32-C6, noise events over Thread, live listen over Wi-Fi
+- `thread-matter-growbox` *[idea, waiting on `ble-sensor-node-pcb`]* — battery planter first, then a self-sufficient growbox
+- `thread-matter-noise-sensor` *[idea, waiting on `thread-matter-growbox`]* — I2S mic on ESP32-C6, noise events over Thread, live listen over Wi-Fi
 - `home-assistant-rotary-controller` *[idea]* — T-Embed as a physical HA controller, encoder + display
 
 **Embedded Linux**
 
-- `embedded-linux-course` *[idea, ready]* — the whole field in fourteen modules, on the BeagleBone already owned
-- `industrial-sensor-node-linux` *[idea, ready]* — device tree, IRQ driver, systemd, D-Bus, into Home Assistant
-- `usb-device-and-linux-driver` *[idea]* — own USB peripheral and the kernel driver that claims it
+- `embedded-linux-course` *[idea]* — the whole field in fourteen modules, on the BeagleBone already owned
+- `industrial-sensor-node-linux` *[idea]* — device tree, IRQ driver, systemd, D-Bus; the specification the course's capstone builds
+- `usb-device-and-linux-driver` *[idea]* — descriptors, host driver, gadget mode, dual-role and Power Delivery
 - `beaglebone-pru-realtime` *[deferred]* — PRU timing; parked, and the note says why
 
 **Mechanical**
@@ -80,8 +106,9 @@ unless marked otherwise. Status in brackets.
 
 **Control**
 
-- `rc-car-custom-controller` *[idea, ready]* — RC link decode, actuators, failsafe, a real PID — cheaply
-- `custom-flight-controller-drone` *[idea]* — attitude loop and hover; airframe bought last
+- `rc-car-custom-controller` *[idea]* — RC link decode, actuators, failsafe, a real PID — cheaply
+- `printed-rc-plane` *[idea]* — printed airframe flown manually, then a wing leveller of my own
+- `custom-flight-controller-drone` *[idea, waiting on `rc-car-custom-controller`]* — attitude loop and hover on a printed ducted whoop; last on purpose
 
 Every project is chosen for what it teaches, first and above everything
 else. That is the criterion that decides what gets built, which parts are

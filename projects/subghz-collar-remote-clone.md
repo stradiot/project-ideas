@@ -67,9 +67,8 @@ recompute, no way to tell a bad transmission from a bad capture.
 
 That is precisely the argument [[subghz-linux-router]] makes for writing
 the decoder by hand, arrived at from the other direction and at the cost of
-a device that is unreliable in the hands. [[subghz-fixed-code-repeater]]
-inherits the same lesson: it repeats *recognised* frames, and recognition
-is what this project skipped.
+a device that is unreliable in the hands. Recognition is what this project
+skipped, and it is the thing every later sub-GHz build starts from.
 
 ### Where the 70% is coming from
 
