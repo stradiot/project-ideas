@@ -15,10 +15,10 @@ idea. Code in `d-control-400-remote`.
 
 ## Now
 
-Built and deployed, beeping from Home Assistant. Open thread: the beep
-fires ~70% of the time, traced to capture damage rather than a wrong
-encoding. Next is sweeping the base tick over serial to find whether 200 µs
-is actually the wrong tick.
+Signal decoded and rebuilt. The tick is 208.9 µs (not 200 µs); the frame is
+109 ticks (not 273); the old payload was mistimed and misaligned rather than
+damaged. New firmware compiled and ready to test. Next: flash and listen to
+the collar — does it reliably beep now?
 
 ## Goal
 
@@ -155,12 +155,12 @@ Already spent.
 ## Plan
 
 - [ ] `sops -e -i include/signal.h` — it is plaintext in the working tree
-- [ ] Capture at 869.275 MHz with the RTL-SDR, 250 kHz below the carrier
-- [ ] Measure 10–20 short and long pulses by hand in URH, mean per cluster
-- [ ] Run `analyze_capture.py` on the real capture, check it against the hand
+- [x] Capture at 869.275 MHz with the RTL-SDR, 250 kHz below the carrier
+- [x] Measure 10–20 short and long pulses by hand in URH, mean per cluster
+- [x] Run `analyze_capture.py` on the real capture, check it against the hand
       measurements rather than the other way round
-- [ ] Confirm or kill the clamping hypothesis
-- [ ] If confirmed: re-capture without the two-bucket classifier, rebuild the payload
+- [x] Confirm or kill the clamping hypothesis
+- [x] If confirmed: re-capture without the two-bucket classifier, rebuild the payload
 - [ ] Sweep `BASE_TICK_US` from the calibration mode, find where reliability peaks
 - [ ] Get the beep to fire every time, in the hand, at range
 

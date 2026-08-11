@@ -63,3 +63,74 @@ Next step is the manual capture at 869.275 MHz (250 kHz low to avoid
 the RTL2832U's DC spike), measurement of 10–20 short and long pulses in
 URH, and then running the script to validate whether the clamping
 hypothesis holds.
+
+### 2026-08-11
+
+Validated the captured segments in URH — your three presses agree to within
+0.5 ms of my automated edge detection and have identical 309±4 rising edges,
+which means the capture is repeatable. The hold segment I'd cut earlier was
+bad; the real hold runs 4.14 s continuously and is only weak because it was
+captured at a different power setting, not truncated.
+
+Measured pulses by hand in URH, 15–20 shorts and 15–20 longs. Found that
+measuring edge-to-edge biases high by ~10 samples (the rise+fall time), but
+measuring at 50% crossing on both sides cancels that. Your individual numbers
+(436 samples short, 855 samples long) had that bias; mine (426.3 and 842.6)
+were at the crossing. The span measurement — rise to rise across 21 periods,
+not 20 — gave 417.75 samples per tick: 208.9 µs at 2 MSps.
+
+**The clamping hypothesis is dead.** σ/mean was 0.6% on your measurements,
+and three of four automated run clusters had σ ≈ 0.5 samples. Only 1T and 2T
+runs exist and that's a genuine property of the transmitter, not damage. The
+capture is honest.
+
+Discovered that press2 was the exact complement of press1 rotated one tick —
+same run-length magnitudes (200/200 at run offset 87 in an 88-run frame),
+but opposite carrier assignment. This isn't a rotation of the tick string
+(that wouldn't be a complement); it's a shift in the run sequence — the
+transmitter emits durations and toggles a pin, so entering one position later
+keeps every duration while flipping the carrier state on each interval. It's
+a genuinely different physical transmission but decodes to an identical frame
+downstream, which is why the collar accepts both.
+
+Tested the toggle hypothesis with a 10-press capture: polarity sequence was
+`A B A A A B A B A B`, no alternating discipline. Across all 13 presses in
+three recordings: 8 A, 5 B. The remote emits both phases randomly (or from
+some internal state I couldn't determine), but they carry the same code.
+
+Identified that frame A (press1/press3) is the true phase: 88 elements, even
+count, starts +1 ends −2, and repeats tile back-to-back without merging runs.
+Frame B (press2, the odd-count 89-element version) is a phase shift artifact.
+
+Rebuilt signal.h from the measured frame: `BASE_TICK_US 209` (was 200),
+`SIGNAL_BEEP_TICKS` = clean 109-tick frame A (was 273-tick misaligned),
+`TRANSMIT_GAP_US 5000` (was variable), `TRANSMIT_REPEAT 105` (was 50, adjusted
+to keep ~2.9 s on air).
+
+Fixed esphome/cc1101.h to read the gap from `TRANSMIT_GAP_US` instead of
+hard-coded `delay(5)`. Split the gap into whole milliseconds via `delay()`
+(which yields to the scheduler) and the sub-millisecond remainder via
+`delayMicroseconds()` (which busy-waits). When the gap is 0, it yields
+instead — getting this wrong would have turned ESPHome's Wi-Fi servicing
+window into a 5 ms spin.
+
+**Broke:** URH's *Autodetect parameters* reported 400 samples/symbol, which was
+9% off. It fits a symbol length rather than measuring one, so do not trust it
+for base-tick work. Hand measurement caught it.
+
+**Surprised:** The whole capture was clean. Every run quantised at the true
+417.75-sample grid, 0% off-grid across 13 presses. If the clamping hypothesis
+had been right, I'd expect rounding errors scattered through the frame, not
+a perfect fit. The stored payload wasn't damaged; it was mistimed and misaligned.
+
+Created a temporary test build for ESPHome only (the standalone path is
+cleaner): 3 short beeps followed by 3 long beeps, each independent, 1 s gap,
+~13 s total. That's a 6-event reliability sample per trigger instead of 1.
+Marked TEMPORARY in the code so removal is a clean delete.
+
+**Still untested against the collar.** Everything is verified against
+captures and compilers, but the reliability claim is unverified. The next
+step is to flash and listen — does it reliably beep now? Both firmware
+paths compile. signal.h is still plaintext and needs `sops -e -i` before
+any commit. Documentation (CLAUDE.md, README.md) is stale and should update
+once the collar confirms the change works.
