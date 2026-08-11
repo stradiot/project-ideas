@@ -135,6 +135,19 @@ months that is who reads this. Everything below follows from that. A note or
 a log entry earns its place if it would save that person an hour, or stop
 them repeating a dead end. Nothing else is a reason to add text.
 
+**These are study materials before they are records.** The reason to come
+back to a note is to understand what was done and why it worked, not merely
+to be reminded that it happened. So explain the mechanism, not only the
+outcome: where a decision turned on how something actually behaves — a
+peripheral, a protocol, a kernel path — say how it behaves, and say it in
+the order that makes it follow. Expand a term the first time it appears,
+hold one thread from start to finish rather than jumping between them, and
+let each paragraph set up the next. This is not licence to pad: an
+explanation earns its place when it saves the reader re-deriving something,
+and `## Now` stays one short paragraph regardless. Explaining happens in the
+same voice as everything else — first person or no subject, past tense in
+logs — never as a lecture aimed at a reader.
+
 **Record the reasoning, not just the conclusion.** A decision without its
 alternatives is unreviewable later — the reader cannot tell whether the
 other option was considered and rejected or never seen. Rejected options
