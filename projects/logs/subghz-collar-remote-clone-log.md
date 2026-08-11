@@ -134,3 +134,115 @@ step is to flash and listen — does it reliably beep now? Both firmware
 paths compile. signal.h is still plaintext and needs `sops -e -i` before
 any commit. Documentation (CLAUDE.md, README.md) is stale and should update
 once the collar confirms the change works.
+
+### 2026-08-11
+
+Flashed the rebuilt firmware and pressed the button: zero beeps, worse than
+the 70% the old firmware managed. That was the session's first real signal,
+because it meant the 209 µs tick correction — real as it was — could not be
+the actual bug. Went back to the capture to check the thing I hadn't
+checked yet: not individual pulse timing, but the shape of a whole
+transmission. A real press is 7 copies of the frame sent back-to-back, with
+no gap anywhere inside it — URH confirms this by segmenting the recording
+into one unbroken message, not seven. The new firmware, on the other hand,
+sent one frame, then a 5 ms silence, then the next. Cheap fixed-code OOK
+receivers validate frames consecutively — decode one, then require the next
+to arrive before a timer expires — and 5 ms is long enough to expire that
+timer and also long enough for the receiver's AGC to drift and corrupt the
+next frame's opening. Either mechanism kills a single-frame-plus-gap
+transmission outright. The old firmware's 70% now had an explanation too:
+it happened to pack about 2.5 frames into every burst, purely by accident of
+a bad slice, so even with a disturbed opening frame there was usually a
+clean one right behind it. It was never a timing problem. It was working by
+accident, and fixing the timing while shrinking the burst to one frame
+removed the accident.
+
+The fix follows directly: emit `FRAMES_PER_BURST` contiguous frames — 7,
+matching a real tap — inside one `vTaskSuspendAll()` window, and only gap
+*between* bursts. That meant restructuring both firmware paths so the
+scheduler suspend wraps a whole burst rather than a single frame, and
+switching to one absolute `micros()` deadline per burst so 616 edges of
+`digitalWrite()` overhead can't accumulate. `TRANSMIT_REPEAT` dropped from
+105 to 18 because it now counts bursts, not frames, at the same total
+on-air time. Flashed over OTA, pressed the short-burst test: it fired. One
+burst of 7 contiguous frames, a literal replica of what the remote sends
+for a tap, triggered the collar. Contiguity was the whole story.
+
+Then the long test reset the device. Guessed brownout first, because this
+board already has a documented LDO brownout history (it's why Wi-Fi output
+power is capped at 8.5 dBm) and the PA now runs 159 ms per burst instead of
+22.8 ms. Wrong guess. Settled it properly instead of iterating on a
+hypothesis: logged `esp_reset_reason()` on boot and on every Home Assistant
+API client connect, because the on-boot copy only reaches USB serial and I
+wanted it over Wi-Fi. Getting a clean read took two tries — an OTA reflash
+itself triggers `esp_restart`, which overwrites the very reason register I
+was trying to read, so the second attempt read it by connecting a second
+log client instead of reflashing. The answer was `TASK_WDT`, not brownout.
+The idle task feeds the watchdog, and it can't run while the scheduler is
+suspended; the old firmware handed it 5 ms out of every 27.8 ms (18% duty),
+the new one 5 ms out of every 164.5 ms (3%), and that's a duty-ratio problem
+than can't be judged by comparing total blocked time.
+
+First attempt at a fix changed two things at once: widened the gap to 30 ms
+and added `esphome::App.feed_wdt()` in every gap. No more resets — but also
+audible chopping on the long beeps, and no way to tell which change had
+fixed what. Reflashed with only one variable changed back (gap at 5 ms,
+`feed_wdt()` kept): no reset, no chopping, all 6 beeps in the reliability
+test fired cleanly. `feed_wdt()` alone was sufficient the whole time; the
+30 ms gap had been pure self-inflicted damage. Worth naming plainly: I'd
+justified the 30 ms figure as restoring a "known-good" 18% recovery ratio
+from the old firmware, but the user pointed out that 18% was never a
+designed target — 5 ms was just a value that happened to work, and I'd
+dressed a coincidence up as an analysis.
+
+Also went back to the tick measurement, because a user hand-selection in
+URH came in 15 samples away from my automated one on a 318 670-sample span
+— close, but a discrepancy worth chasing. Measuring frame-start to
+frame-start across 654 ticks, instead of across the 42-tick preamble,
+removes the ambiguity of where a press actually starts and ends (the final
+tick gets truncated on button release) and cancels rise-time bias since both
+endpoints are the same kind of edge. That gives 208.647 µs against the
+earlier 208.9 µs — six intermediate estimates agreeing to 0.02%, the best
+figure yet. Both round to the same `BASE_TICK_US 209`, so no firmware
+changed, only the documentation.
+
+Cleaned up the temporary test scaffolding, corrected three actively-wrong
+claims in the old README (notably that the inter-burst gap helps the
+receiver find the start of a new burst — the opposite of what's true),
+wrote up the RMT migration and the shock/B-channel capture as TODOs instead
+of doing them, re-encrypted signal.h, and pushed four commits.
+
+Separately, walked through what the ESP32-C3's RMT peripheral is and why
+Wi-Fi doesn't have the same bit-banging problem RMT solves (Wi-Fi has
+dedicated MAC/baseband silicon; RMT is the general answer for a peripheral
+that doesn't get one, like the WS2812 LED already on this board), then
+taught the by-hand URH extraction: measure the symbol length by selecting N
+preamble cycles and dividing, not by trusting "Autodetect parameters"
+(9% wrong here — it fits a length rather than measuring one), and validate
+by checking that repeats of the frame agree with each other rather than
+trusting any single reference. The user ran this themselves on the raw
+capture and produced a 764-bit string that matched the committed payload
+exactly at error tolerance 5, with tolerance 0 losing 5 bits to
+over-strict rounding and producing frames that disagreed with each other —
+a self-refuting result, catchable with no external reference at all. That
+self-consistency check — do the repeated frames actually agree — turned out
+to be the same test that had caught the burst-contiguity bug earlier in the
+session, just applied to a different kind of error.
+
+**What broke:** the "more correct" payload produced *fewer* beeps than the
+one it replaced, because correctness in the wrong dimension (tick length)
+doesn't fix an error in a different dimension (burst structure) — a
+reminder that fixing the thing you measured isn't the same as fixing the
+thing that's broken. **What surprised me:** the old firmware's reliability
+was entirely accidental, and the fix that finally worked was also the
+cheapest one — no gap widening needed, just feeding the watchdog directly.
+**What I'd do differently:** change one variable per physical test, always;
+the two-variable gap+feed_wdt change cost a whole extra flash-and-listen
+cycle to untangle.
+
+Firmware is working and pushed. Standalone PlatformIO build compiles but
+hasn't been flashed (needs USB, left for later). Next steps are recorded as
+TODOs rather than started: move the transmit loop onto the RMT peripheral to
+remove the contiguity/watchdog/chopping trade-off structurally, and capture
+the shock signal at several levels plus the B channel to start reverse
+engineering the protocol layout.

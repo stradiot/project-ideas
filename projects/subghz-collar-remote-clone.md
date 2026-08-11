@@ -15,10 +15,14 @@ idea. Code in `d-control-400-remote`.
 
 ## Now
 
-Signal decoded and rebuilt. The tick is 208.9 µs (not 200 µs); the frame is
-109 ticks (not 273); the old payload was mistimed and misaligned rather than
-damaged. New firmware compiled and ready to test. Next: flash and listen to
-the collar — does it reliably beep now?
+Fixed and shipped. The <70% reliability was never a timing problem — it was
+burst structure: the collar needs frames sent contiguously with no gap, and
+the rebuilt firmware now does that (7 frames per burst, gap only between
+bursts), confirmed with 6/6 beeps and no resets or chopping on hardware.
+Tick corrected to 208.647 µs, still rounds to the same constant already
+flashed. Pushed to `main`. Next: flash the standalone PlatformIO build over
+USB, then either move transmission onto the RMT peripheral or start on the
+shock/B-channel capture — both are recorded as TODOs, neither started.
 
 ## Goal
 
@@ -154,7 +158,7 @@ Already spent.
 
 ## Plan
 
-- [ ] `sops -e -i include/signal.h` — it is plaintext in the working tree
+- [x] `sops -e -i include/signal.h` — it is plaintext in the working tree
 - [x] Capture at 869.275 MHz with the RTL-SDR, 250 kHz below the carrier
 - [x] Measure 10–20 short and long pulses by hand in URH, mean per cluster
 - [x] Run `analyze_capture.py` on the real capture, check it against the hand
