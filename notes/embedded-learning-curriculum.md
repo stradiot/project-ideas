@@ -273,7 +273,8 @@ have somewhere to be turned into projects from.
 10. **Observability** — ftrace, perf, eBPF, ramoops post-mortem — as a
     discipline rather than as `printk`.
 11. **Upstreaming.** `checkpatch`, patch series, binding review, mailing
-    lists. The cheapest credible industry signal available.
+    lists. The only item on this list whose outcome cannot be self-assessed:
+    a patch is correct enough for a maintainer to take, or it is not.
 12. **Automated testing for embedded** — ptest, KernelCI and LAVA, boot
     farms, hardware-in-the-loop.
 
@@ -300,8 +301,8 @@ have somewhere to be turned into projects from.
   covers it, everything in the vault assumes it, and it is the one item here
   whose value is going up rather than down.
 - **Functional safety and coding standards** — MISRA, static analysis,
-  requirements traceability. Dull, and asked about in interviews for any
-  job where the firmware can hurt someone.
+  requirements traceability. Dull, and not optional the moment the firmware
+  can hurt someone.
 - **Unit testing embedded C** off-target, with the hardware behind a seam.
   Nothing in the vault is tested at all.
 - **Fixed-point arithmetic and numerical care** on parts with no FPU — the

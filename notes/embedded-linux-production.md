@@ -207,16 +207,16 @@ updates over that whole life.
     what the mitigations are — including the ones deliberately not
     implemented. *Success: a page that is honest about residual risk.*
 
-## What industry expects here
+## The questions this has to answer
 
-This module is the difference between an engineer who makes things work and
-one who can be trusted to ship. In interviews it is where the specific,
-scarring questions live, because everyone asking has been burned.
+This module is the difference between something that works on the bench and
+something that can be shipped, and that difference takes the form of a
+specific short list of questions. Each one is a failure mode that has already
+burned somebody, which is why they are worth being able to answer out loud and
+without notes rather than merely recognising:
 
-Specifically probed:
-
-- **How do you update in the field, and what happens when it fails?** The
-  expected answer names A/B, atomicity, bootloader integration and automatic
+- **How do you update in the field, and what happens when it fails?** A
+  complete answer names A/B, atomicity, bootloader integration and automatic
   rollback, and includes having *tested* the rollback.
 - **Where is your root of trust?** The good answer names the hardware anchor,
   or says honestly that there is not one and what that means. The bad answer
