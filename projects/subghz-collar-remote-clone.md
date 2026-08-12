@@ -24,6 +24,59 @@ flashed. Pushed to `main`. Next: flash the standalone PlatformIO build over
 USB, then either move transmission onto the RMT peripheral or start on the
 shock/B-channel capture — both are recorded as TODOs, neither started.
 
+## Lessons
+
+- **The 70% was burst structure, not timing.** A real press is 7 copies of
+  the frame sent back-to-back with no gap anywhere inside — URH segments a
+  recording of one into a single unbroken message, not seven. Cheap
+  fixed-code OOK receivers validate frames consecutively: decode one, then
+  require the next before a timer expires. A 5 ms gap expires that timer,
+  and is also long enough for the receiver's AGC to drift and corrupt the
+  next frame's opening. The old firmware happened to pack ~2.5 frames into
+  each burst through a bad slice, so a clean frame usually followed a
+  disturbed one — 70% was an accident, not a design.
+  [[subghz-collar-remote-clone-log#2026-08-11]]
+- **A correction in the wrong dimension makes things worse.** Fixing the
+  base tick to a measured-correct 209 µs while shrinking the burst to one
+  frame took reliability from 70% to *zero*. The tick was genuinely wrong
+  and genuinely not the bug; correctness in one dimension does nothing for
+  an error in another, and the drop is what finally pointed at burst
+  structure. [[subghz-collar-remote-clone-log#2026-08-11]]
+- **Measure the symbol, do not let the tool fit it.** URH's *Autodetect
+  parameters* reported 400 samples/symbol against a true 417.75 — 9% off,
+  because it fits a symbol length rather than measuring one. Measure
+  frame-start to frame-start across 654 ticks (not across the 42-tick
+  preamble, where the final tick truncates on button release), taking both
+  endpoints at the 50% crossing; edge-to-edge biases high by ~10 samples of
+  rise and fall time. That gives 208.647 µs at 2 MSps.
+  [[subghz-collar-remote-clone-log#2026-08-11]]
+- **Replay without decode is what made the failure undiagnosable.** With no
+  decoded model of the frame there is no preamble to verify, no checksum to
+  recompute, and no way to separate a bad transmission from a bad capture —
+  so the first hypothesis (a two-bucket classifier had damaged the capture)
+  survived a whole session before hand measurement killed it. That is
+  [[subghz-linux-router]]'s argument for writing the decoder by hand,
+  arrived at from the expensive direction.
+  [[subghz-collar-remote-clone-log#2026-08-09]]
+- **Suspending the scheduler is a duty-ratio problem, not a total-blocked-time
+  one.** Contiguous bursts need `vTaskSuspendAll()` around a whole burst, and
+  that handed the idle task 5 ms out of every 164.5 ms (3%) where the old
+  firmware gave it 5 ms out of 27.8 ms (18%) — the idle task feeds the
+  watchdog, so `TASK_WDT` fired. `esphome::App.feed_wdt()` in the gap fixed
+  it alone; the 30 ms gap shipped alongside it was self-inflicted damage
+  that caused audible chopping. Reading `esp_reset_reason()` settled
+  brownout-vs-watchdog in one flash instead of iterating on a guess — but
+  only on the second try, because an OTA reflash calls `esp_restart` and
+  overwrites the very register being read.
+  [[subghz-collar-remote-clone-log#2026-08-11]]
+- **Change one variable per physical test.** The gap widening and the
+  `feed_wdt()` call went in together, both fixed the resets, and untangling
+  which one mattered cost an extra flash-and-listen cycle. The same
+  discipline shows up as a positive: checking that repeated frames agree
+  with each other needs no external reference, and it caught both the
+  burst-contiguity bug and an over-strict rounding tolerance in the by-hand
+  extraction. [[subghz-collar-remote-clone-log#2026-08-11]]
+
 ## Goal
 
 Trigger the beep on a Dogtrace d-control 400 collar from Home Assistant,
@@ -51,10 +104,13 @@ three. The recall beep now fires from Home Assistant, which means it works
 when the handheld remote is on the kitchen table, and that was the entire
 premise.
 
-It is worth being precise about the remaining gap: the beep fires about 70%
-of the time, so in practice it is retried. A device that works most of the
-time is genuinely useful and genuinely not finished, and calling it either
-one alone would be wrong.
+It is worth being precise about how long that took to be true. The beep
+fired about 70% of the time for the whole period the device was in daily
+use, and was retried in practice; a device that works most of the time is
+genuinely useful and genuinely not finished, and calling it either one
+alone would have been wrong. That is fixed now — 6/6 on the reliability
+test after the burst-contiguity change — and the sentence stays here
+because the 70% version is what shipped first and was lived with.
 
 ## Architecture
 
@@ -77,33 +133,39 @@ timings. That was the fast route to a working device, and it worked: the
 collar beeps.
 
 It also turned out to be the expensive route, and that is the most useful
-thing this project has produced. The beep fires about 70% of the time, on
-both firmware paths — and with no decoded model of the frame there is
+thing this project has produced. The beep fired about 70% of the time on
+both firmware paths — and with no decoded model of the frame there was
 nothing to check a failure against. No preamble to verify, no checksum to
-recompute, no way to tell a bad transmission from a bad capture.
+recompute, no way to tell a bad transmission from a bad capture. Diagnosing
+it took three sessions and one hypothesis that turned out to be wrong.
 
 That is precisely the argument [[subghz-linux-router]] makes for writing
 the decoder by hand, arrived at from the other direction and at the cost of
-a device that is unreliable in the hands. Recognition is what this project
-skipped, and it is the thing every later sub-GHz build starts from.
+a device that was unreliable in the hands for as long as it was. Recognition
+is what this project skipped, and it is the thing every later sub-GHz build
+starts from.
 
-### Where the 70% is coming from
+### Where the 70% came from
 
-Established so far, from decrypting and analysing the stored payload:
+The first answer was wrong, and it is worth keeping because of how
+convincing it was. Decrypting the stored payload showed that every one of
+the 224 elements was exactly 200 or 400 µs — a genuine SDR capture is never
+that clean — and that the payload fit none of PWM, Manchester, biphase
+FM0/FM1, PPM or NRZ, with run lengths capping at two ticks that no standard
+line code explains. Both pointed at a two-bucket short/long classifier
+applied during capture, throwing away symbols that were neither. Every
+encoding test was expected to pass and none did, which felt like it had
+ruled out an entire category of explanation in one pass.
 
-- Every one of the 224 elements is exactly 200 or 400 µs. A genuine SDR
-  capture is never that clean — those are quantised values, not measured ones.
-- The payload fits none of PWM, Manchester, biphase FM0/FM1, PPM or NRZ,
-  and run lengths cap at two ticks, which no standard line code explains.
+Hand measurement in URH killed it. Every run quantised at the true
+417.75-sample grid, 0% off-grid across 13 presses, with σ/mean of 0.6% — if
+symbols had been discarded there would be rounding errors scattered through
+the frame rather than a perfect fit. Only 1T and 2T runs exist because the
+transmitter only emits those. The capture was honest; the payload was
+mistimed and misaligned, not damaged.
 
-Both point at the same cause: a two-bucket short/long classifier applied
-during capture, which threw away symbols that were neither. If that holds,
-no amount of tuning the base tick will fix it, because information is
-already missing — it has to be re-captured.
-
-The counter-evidence was worth as much as evidence would have been. Every
-encoding test was expected to pass and none did, which ruled out an entire
-category of explanation in one pass.
+The real cause was in a dimension nobody had measured: burst structure. That
+is the first entry under [[#Lessons]], and the reason the section exists.
 
 ### The refactor that made it testable
 

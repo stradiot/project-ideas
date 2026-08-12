@@ -11,6 +11,15 @@ created: {{date}}
 
 Not started. Nothing here is in progress — the plan below is the whole of it.
 
+## Lessons
+
+What was learned here that is still worth knowing in a year, one bullet
+each: the finding as a claim, the mechanism that makes it true, and a link
+to the log entry or note holding the detail. Written by the automation as
+the work happens and kept current afterwards — not a summary composed at
+the end. A lesson later work overturns gets rewritten in place, saying what
+the wrong hypothesis was; a killed hypothesis is content.
+
 ## Goal
 
 What I'm building and why. What is deliberately out of scope.

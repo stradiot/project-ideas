@@ -5,7 +5,7 @@ project: beaglebone-pru-realtime
 
 # beaglebone-pru-realtime — build log
 
-Session entries, newest last. Written by the SessionEnd hook.
+Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[beaglebone-pru-realtime]].
 
 No sessions logged yet.

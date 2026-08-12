@@ -18,13 +18,15 @@ workspace/cache files listed in `.gitignore`.
 
 - `projects/` — one note per project, from `templates/project.md`. Frontmatter is
   `tags: [project, …]`, `status:`, `depends:`, `created:` (ISO date), and
-  optionally `repo:` / `github:` (see below). Body sections in order: Now, Goal,
-  Learning value, Practical value, Architecture, Tools, Budget,
-  Software / firmware, Plan, Build log.
+  optionally `repo:` / `github:` (see below). Body sections in order: Now,
+  Lessons, Goal, Learning value, Practical value, Architecture, Tools, Budget,
+  Software / firmware, Plan, Build log. `Lessons` is absent until there is one
+  — the hook creates it, directly under `Now`.
 - `projects/logs/` — one `<slug>-log.md` per project, holding the dated session
-  entries. Frontmatter is `tags: [log, <slug>]` and `project: <slug>`. Every
-  project has one, created empty, so the pointer in the note never dangles and
-  the SessionEnd hook always has an existing file to append to.
+  entries, **newest first**. Frontmatter is `tags: [log, <slug>]` and
+  `project: <slug>`. Every project has one, created empty, so the pointer in the
+  note never dangles and the SessionEnd hook always has an existing file to
+  write into.
 - `notes/` — reference notes and deep dives, linked from projects, from
   `templates/note.md`. Frontmatter is `tags: [note, …]` and `created:`; no
   `status:`, no plan, no build log — these are subject notes, not work.
@@ -95,6 +97,35 @@ the SessionEnd hook, not by hand.
 finished. It never rewrites the *wording* of an item — inventing or editing plan
 text is how a plan stops being the plan. An unticked box therefore means not
 done, rather than merely unrecorded.
+
+`## Lessons` sits directly under `## Now` and is the other thing the hook
+maintains. It exists because the reusable half of a project ends up buried in
+its log: how the capture was actually measured, which tool lied and by how
+much, which hypothesis was convincing and wrong. Finding that again means
+re-reading a few hundred lines of dated prose, so it is lifted out — one bullet
+per finding, the claim first, then the mechanism that makes it true, then a
+link to the log entry or note holding the detail
+(`[[<slug>-log#YYYY-MM-DD]]`).
+
+Three properties make it work, and dropping any one turns it back into a
+summary nobody reads:
+
+- **It is written as the work happens, not composed at the end.** A lesson
+  recorded the day it was learned has the numbers in it. Reconstructed six
+  months later it has adjectives.
+- **It is revised in place, never stacked.** When later work overturns an
+  earlier lesson, that bullet is rewritten to state the corrected mechanism
+  *and* what the wrong hypothesis was — see the 70% entry in
+  [[subghz-collar-remote-clone]], where the capture-damage answer was
+  convincing for a whole session before hand measurement killed it. Deleting
+  the wrong answer silently would throw away the more useful half.
+- **It stays short.** Roughly three to seven bullets, held to the same bar as
+  everything else here: it earns its place if it would save an hour or stop a
+  repeated dead end. Everything else stays in the log.
+
+It is not a status report — `## Now` is where status lives, and a lesson that
+stops being true in a month was never a lesson. `built` is not the trigger
+either; the section is kept current before that status and after it.
 
 There is one hard rule behind all of this: **nothing in this vault is maintained
 by hand.** It is read on Obsidian mobile and written by Claude, so any field that
@@ -190,6 +221,18 @@ entry is written by the person who did the work, not as a report about
 someone else. Do not pad to look thorough. `## Now` stays one short
 paragraph because it is read first and on a phone.
 
+The failure mode there is specific and worth naming, because the log has
+already fallen into it. An entry is written from a session transcript, and a
+session is a conversation between two participants — so the natural thing is
+to keep them apart, and the result is a page that reads "your three presses
+agree to within 0.5 ms of my automated edge detection" and "the user pointed
+out that 18% was never a designed target". Months later nobody can tell which
+half was theirs, and it does not matter: the work was one piece of work. **The
+entry has exactly one voice. Everything either participant did is "I".** Never
+"you" or "your" for the vault's owner, never "the user", and no imperative
+aimed at a reader — "do not trust it for base-tick work" is "it is not to be
+trusted for base-tick work". The same holds for `## Now` and `## Lessons`.
+
 **Never claim progress that did not happen.** Do not tick a `## Plan` item
 that was not finished, do not promote `status:`, and do not describe a
 half-working thing as working. An unticked box means not done rather than
@@ -246,13 +289,18 @@ rejected by `personal_repo_from_cwd` and no vault write happens.
 
 What it writes, per session in a linked repo:
 
-- a `### YYYY-MM-DD` entry appended to `projects/logs/<slug>-log.md`, newest last;
+- a `### YYYY-MM-DD` entry in `projects/logs/<slug>-log.md`, written above every
+  existing entry — newest first, so the top of the file is the latest work and a
+  `[[<slug>-log#YYYY-MM-DD]]` link on a repeated date resolves to the newer one;
 - the note's `## Now` paragraph, replaced with where the project stands;
 - a tick on any `## Plan` item the session actually finished — wording untouched;
-- one line in `journal/<date>.md`: `- [[note-slug]] — one-line summary`.
+- a `## Lessons` bullet, added or revised, when the session produced a finding
+  still worth knowing in a year — most sessions do not, and then nothing changes;
+- one line in `journal/<date>.md`: `- [[note-slug]] — one-line summary`, likewise
+  above what is already there.
 
-Everything else in the note is off limits: frontmatter, Goal, Architecture,
-Tools, Budget, and the text of plan items. `status:` in particular is a
+Everything else in the note is off limits: frontmatter, Goal, Learning value,
+Practical value, Architecture, Tools, Budget, and the text of plan items. `status:` in particular is a
 deliberate edit — the hook does not promote a project to `built`, because
 "finished" is a judgement call and a half-working device would claim it.
 

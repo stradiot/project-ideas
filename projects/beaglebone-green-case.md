@@ -15,6 +15,27 @@ Skeleton tray is printed and in use on the bench. The full case — walls,
 lid, considered openings — is not started, and waits until the board has
 a job that decides which connectors it must expose.
 
+## Lessons
+
+No session log yet — the tray was designed and printed before the vault
+existed, so these come from the note itself rather than from dated entries.
+
+- **The Fusion archive cannot be exported at all, and STEP is unaffected.**
+  The `beaglebone-green-pcb` document holds an unresolved external reference
+  to the vendor's original SolidWorks part, and the cloud translator fails
+  on it, so there is no `.f3z`. STEP export goes through regardless, which
+  is why `cad/*.step` is the geometry of record and the repo is a set of
+  exports rather than the model. Breaking that external reference is the
+  prerequisite if a full archive is ever wanted — it is the last item under
+  [[#Plan]].
+- **Building the open tray first deferred every connector decision instead
+  of guessing at it.** A closed box designed before the board's use is known
+  has to guess which connectors need openings; the skeleton solves the
+  actual problem — a bare PCB sliding on the desk with header pins shorting
+  on what is under it — while committing to none of them. The full case
+  inherits the same parameter table and the skeleton stays a valid
+  configuration of it, so nothing is thrown away by having started there.
+
 ## Goal
 
 A printed enclosure for the BeagleBone Green, built in two stages. The

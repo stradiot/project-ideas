@@ -28,11 +28,14 @@ Two, and the second one is smaller than it sounds. Both are in use.
 - `subghz-collar-remote-clone` — an ESP32-C3 and a CC1101 that replay a
   captured 869.525 MHz frame to beep a dog collar from Home Assistant.
   Firmware, own PCB, printed case, deployed. It is also the most honest
-  thing here: the signal is replayed rather than decoded, the note says
-  what that costs, and the open bug — the beep fires ~70% of the time — is
-  traced in `projects/logs/subghz-collar-remote-clone-log.md` down to a
-  damaged capture rather than a wrong encoding. That log is the best
-  evidence in the vault of how a problem here actually gets worked.
+  thing here: the signal is replayed rather than decoded, and the note says
+  what that costs. The beep fired ~70% of the time for most of the device's
+  life; `projects/logs/subghz-collar-remote-clone-log.md` has the three
+  sessions that took it apart, including the wrong answer — a damaged
+  capture — that survived a whole session before hand measurement killed
+  it. The cause was burst structure, and it is 6/6 on hardware now. That
+  log is the best evidence in the vault of how a problem here actually gets
+  worked, and its `## Lessons` section is where the reusable half ended up.
 - `beaglebone-green-case` — a parametric printed mounting tray for the
   BeagleBone Green, on the bench and holding the board. Walls and a lid
   wait until the board has a job that decides which connectors matter.
@@ -41,7 +44,8 @@ Two, and the second one is smaller than it sounds. Both are in use.
 
 - `projects/` — one note per project: what it is, what it teaches, what it
   is for, and the plan
-- `projects/logs/` — one build log per project, appended per session
+- `projects/logs/` — one build log per project, written per session, newest
+  entry on top
 - `notes/` — reference notes, deep dives, linked from projects
 - `journal/` — daily notes
 - `templates/` — note templates
@@ -174,18 +178,22 @@ are worth reading precisely because the others do not.
 
 This vault is written, not edited. Working on a linked repo in Claude Code is
 what updates it: on session start it pulls; on session end it rewrites that
-project's `## Now`, ticks any `## Plan` item the session finished, appends a
-dated entry to `projects/logs/<slug>-log.md`, adds one line to
+project's `## Now`, ticks any `## Plan` item the session finished, adds a dated
+entry at the top of `projects/logs/<slug>-log.md`, records a `## Lessons`
+bullet if the session produced one worth keeping, adds one line to
 `journal/<date>.md`, then commits and pushes. An unlinked repo gets the
 daily-note line only.
 
 Reading order on a phone: `## Now` is the first thing in every note, so the
-current state of a project is above the fold and the plan follows it. The long
-build-log prose lives in its own file so it never buries the spec.
+current state of a project is above the fold, and `## Lessons` follows it —
+what the project has already taught, one bullet each, linking into the log
+entry that holds the working. The long build-log prose lives in its own file
+so it never buries the spec, and its entries run newest first so the top of
+the file is the latest session.
 
-What automation will not touch: frontmatter, Goal, Architecture, Tools,
-Budget, and the wording of `## Plan` items. Those are the design, and they
-change only by a deliberate edit.
+What automation will not touch: frontmatter, Goal, Learning value, Practical
+value, Architecture, Tools, Budget, and the wording of `## Plan` items. Those
+are the design, and they change only by a deliberate edit.
 
 If the push conflicts with an edit made from the phone, it stops and leaves the
 commit local rather than resolving it. Nothing is ever force-pushed, so a
