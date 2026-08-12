@@ -42,6 +42,29 @@ shock/B-channel capture — both are recorded as TODOs, neither started.
   and genuinely not the bug; correctness in one dimension does nothing for
   an error in another, and the drop is what finally pointed at burst
   structure. [[subghz-collar-remote-clone-log#2026-08-11]]
+- **Tune off-centre, because the DC spike belongs to the receiver.** The
+  RTL2832U puts a spike at whatever frequency it is tuned to, so a carrier
+  captured dead centre sits under an artefact that is not in the air. The
+  869.525 MHz beep was captured at 869.275 MHz — 250 kHz low — at 2 MSps
+  with `rtl_sdr`, then read in GNU Radio running in a UTM Linux VM, since it
+  is not usable natively on the Mac. URH did the signal view; Inspectrum was
+  skipped because URH covers the same ground. Capture several presses in one
+  recording, not one — the whole validation below depends on having repeats
+  to compare. [[subghz-collar-remote-clone-log#2026-08-09]]
+- **A tool that has not been run against a known answer is not evidence.**
+  `tools/analyze_capture.py` — IQ to envelope to run lengths to base tick to
+  frame to encoding tests — was validated against two synthetic captures
+  with ground truth (208 µs base tick, PWM and NRZ) before being pointed at
+  real data, and that caught three bugs in it: false clamping warnings on
+  healthy PWM, run clustering that collapsed 4 and 5 ticks into a bogus
+  4.44× group, and frame splitting that invented phantom frames on an 8-tick
+  gap. Any of the three would have been read as a property of the signal.
+  Doing the URH measurements by hand first and checking the script against
+  them, rather than the other way round, is the same guard from the other
+  side — as is asking whether repeated frames in one recording agree with
+  each other, which needs no external reference at all and caught both the
+  burst-contiguity bug and an over-strict rounding tolerance later on.
+  [[subghz-collar-remote-clone-log#2026-08-09]]
 - **Measure the symbol, do not let the tool fit it.** URH's *Autodetect
   parameters* reported 400 samples/symbol against a true 417.75 — 9% off,
   because it fits a symbol length rather than measuring one. Measure
@@ -67,15 +90,10 @@ shock/B-channel capture — both are recorded as TODOs, neither started.
   that caused audible chopping. Reading `esp_reset_reason()` settled
   brownout-vs-watchdog in one flash instead of iterating on a guess — but
   only on the second try, because an OTA reflash calls `esp_restart` and
-  overwrites the very register being read.
-  [[subghz-collar-remote-clone-log#2026-08-11]]
-- **Change one variable per physical test.** The gap widening and the
-  `feed_wdt()` call went in together, both fixed the resets, and untangling
-  which one mattered cost an extra flash-and-listen cycle. The same
-  discipline shows up as a positive: checking that repeated frames agree
-  with each other needs no external reference, and it caught both the
-  burst-contiguity bug and an over-strict rounding tolerance in the by-hand
-  extraction. [[subghz-collar-remote-clone-log#2026-08-11]]
+  overwrites the very register being read. The gap and the `feed_wdt()` call
+  also went in together, both fixed the resets, and untangling which one
+  mattered cost an extra flash-and-listen cycle: one variable per physical
+  test, always. [[subghz-collar-remote-clone-log#2026-08-11]]
 
 ## Goal
 
