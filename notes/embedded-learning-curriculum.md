@@ -11,6 +11,72 @@ nineteen project notes describe *what* to build and none of them describe
 what has to be learned first, and it turned out that gap was mostly in the
 same four or five places every time.
 
+## What stays worth knowing
+
+The courses below were ordered on four things: the size of the gap, how often
+a skill is reused across the projects, what the hardware costs, and what the
+field actually asks for. A fifth criterion was missing. It does not change
+what the courses are, but it changes the emphasis inside most of them — how
+long a piece of knowledge keeps its value, now that most code can be written
+by an agent.
+
+The usual answer to that is to learn fundamentals and skip specific
+technologies, and it is half wrong in a way that matters. The better axis is
+**where the ground truth lives, and who can reach it.** An answer recoverable
+from text that already exists is cheap to obtain: API surface, framework
+idiom, config syntax, a driver written from a datasheet, a protocol
+implemented from a spec. An answer that exists only inside a physical system,
+and has to be measured out of it, is not. Neither is deciding what "correct"
+means, which has to happen before anything can be checked against it.
+
+[[subghz-collar-remote-clone]] is the evidence and it is already written down.
+URH's Autodetect reported 400 samples per symbol against a true 417.75 — a
+wrong number, stated confidently, in a format indistinguishable from a right
+one, and only a hand measurement at the 50% crossing disagreed. The
+capture-damage hypothesis for the 70% reliability was coherent, fitted
+everything visible on screen, and was wrong; it died to a measurement rather
+than to an argument. `esp_reset_reason()` turned out to be clobbered by the
+OTA reflash that delivered the code reading it, which is written in no
+document. The line from that note that generalises furthest is the one about
+evidence: a tool that has not been run against a known answer is not one.
+
+So, in rough order of how well it holds:
+
+1. **Measurement and instrumentation.** Getting a number off physical hardware
+   that can be defended — choosing what to measure, knowing the instrument's
+   own error, and validating a tool against a known answer before believing
+   it.
+2. **Debugging where the model and the hardware disagree.** The errata, the
+   clobbered register, the return path that was not where the schematic
+   implied it was.
+3. **Owning the specification.** What "works" means, which failure modes
+   matter, and what the latency, power and spectrum budgets are.
+4. **Architecture under physical constraint.** Power, thermal, timing, duty
+   cycle, bill of materials, certification — trade-offs where being wrong is
+   expensive and slow to find out about.
+5. **Physics and mathematics with a long half-life.** Propagation, noise
+   figure, matching, sampling, control theory. Forty years of evidence
+   already.
+6. **Reading and judging a system I did not write.** Errata, an unfamiliar
+   kernel subsystem, generated code. The only one on this list whose value is
+   rising.
+
+What shrinks is memorising interfaces — API signatures, framework fluency,
+tool menus, boilerplate. The tempting conclusion is to skip them entirely and
+learn only the mechanism underneath, and that is the mistake, because the
+interface is frequently the compressed record of the hard problem.
+`-EPROBE_DEFER` exists because of a probe ordering problem, `regmap` because
+every SPI and I²C driver was reimplementing the same register cache, the DMA
+API because of cache coherency. Skipping the interface leaves the mechanism
+with nothing to attach to, and leaves no way to tell correct-looking code from
+correct code.
+
+The conclusion is not that less code gets written, but that it gets written
+for a different reason: enough to read and to judge, rather than enough to be
+fluent at producing. Which is the rule this vault already applies to its own
+notes — teach the mechanism rather than the API surface, and say what breaks
+without the abstraction.
+
 ## The five courses
 
 Each one is a project note when it gets written, with subject deep-dives in
@@ -45,9 +111,29 @@ custom board, the growbox, the car, the plane and the drone — and it is the
 one where I currently have nothing. Learning it early makes seven projects
 easier rather than possible, which is a weaker claim but a true one.
 
+RF is the standing counter-argument, and it got stronger once the criterion
+above was written down: it scores highest of the five on durability, its
+instruments make every other course's measurements possible, and it holds the
+only open technical problem in the vault. What keeps it second is cost and
+sequence rather than value — the instruments are ~150 € before a TX-capable
+SDR at 150–230 €, against ~35 € for bare-metal, and the two projects the
+Cortex-M course is built around are already written while the RF course is
+not. If the RF course gets written before the bare-metal one starts, this
+ordering should be revisited rather than defended.
+
 Embedded Linux went first anyway, for a reason that stands: the board was
 already owned, the course costs 58 €, and it is the half of the field the
 existing notes are thinnest on.
+
+It is also the course most exposed to the criterion above, which is worth
+saying rather than working around. Yocto recipes, Kconfig, devicetree syntax
+and driver boilerplate are text-mediated work, and text-mediated work is what
+an agent already does well. What survives the test is what the gap list below
+was already pointing at: bring-up when the board says nothing at all, latency
+as a measured quantity, ftrace and perf and eBPF as a discipline, power
+measured in µA, and upstreaming — where the acceptance test is a maintainer
+with no reason to be kind. Those are the modules to spend time in, and none of
+them is the one that writes a recipe.
 
 ### RF and wireless, in outline
 
@@ -94,6 +180,15 @@ The PHY module is also the other half of a split that starts in
 modulation there, a modulation of mine here, and a comparison between them
 that neither project could produce alone.
 
+This is the course the criterion above weights up hardest. Propagation and
+noise figure do not get a version bump, and almost every step is
+measurement-bound — an antenna is matched or it is not, and no amount of
+reasoning about it substitutes for a VNA and a hand on the trimmer. It also
+holds the one genuinely open problem in the vault, the collar encoding that
+fits none of the standard schemes, and an open problem teaches better than a
+syllabus does. That is the argument against the ordering above, and it is
+recorded there rather than here.
+
 ### Bare-metal and RTOS, in outline
 
 Cortex-M architecture, the vector table and the reset handler, linker
@@ -105,6 +200,14 @@ under trace. Then Zephyr, devicetree and Kconfig and an out-of-tree board
 port, which is [[ble-sensor-node-pcb]]. Then low power measured in µA,
 testing and HIL, and MCUboot in production.
 
+The split inside this course is the sharpest of the five. The concepts —
+memory map, linker script, interrupt latency, priority inversion, stack
+sizing — are durable, and are also exactly where generated code is confidently
+wrong, because none of them is visible in the code that violates them. The
+code itself is the most substitutable in the vault. So the weight belongs on
+measuring the latency and breaking the RTOS deliberately to watch the failure
+mode, rather than on writing the driver a second time.
+
 ### Hardware design, in outline
 
 Reading datasheets and reference designs, schematic capture, the power tree,
@@ -112,6 +215,12 @@ footprint discipline, stackup and return paths, signal integrity, RF layout
 and antenna keepouts, DFM and JLCPCB, hand SMD assembly, and bring-up.
 [[ble-sensor-node-pcb]] is already at `planning` and is this course's
 project.
+
+Durable in the physics, disposable in the tooling. Stackup, return paths,
+signal integrity and the power tree are spatial judgement about where current
+actually flows, checked by a fab run that takes two weeks to tell me I was
+wrong. KiCad is the part that will be replaced, and is the part worth the
+least time.
 
 ### Control and real-time, in outline
 
@@ -121,6 +230,12 @@ fail — then state estimation and complementary filters, then sensor fusion.
 [[rc-car-custom-controller]], [[printed-rc-plane]] and
 [[custom-flight-controller-drone]], in that order: a loop that surges, then
 a loop that glides when it is wrong, then a loop that falls.
+
+Second only to RF on the criterion above, and for the same reason: the
+mathematics is from the 1960s and still governs, and the plant is physical, so
+a tune is confirmed by a vehicle that stops oscillating rather than by
+anything that can be argued. "Bounded, not fast" is judgement, and a loop that
+falls out of the sky is an acceptance test nothing can talk its way past.
 
 ## Topics the projects do not cover, and should
 
@@ -165,7 +280,25 @@ have somewhere to be turned into projects from.
 **Visible from the other four courses, worth flagging early:**
 
 - **EMC and pre-compliance.** Both RF and hardware design need it, and a
-  device that radiates is a device that can fail certification.
+  device that radiates is a device that can fail certification. It ranks
+  higher than the rest of this list under the criterion at the top: it is
+  regulatory, physical and measured, the answer is not in any text, and a
+  chamber booking is not something to meet for the first time at the end of a
+  project.
+- **Instrumentation, as a subject rather than a purchase.** It appears above
+  only as "instruments are the real cost", filed under the RF budget, and that
+  undersells it — getting a number off hardware that can be defended is the
+  first durable skill and the one every other measurement here rests on. What
+  a scope's bandwidth and probe loading actually do to an edge, what a VNA
+  calibration is compensating for, what a spectrum analyser's resolution
+  bandwidth does to a noise floor, and how to establish ground truth before
+  believing a tool. Half of it was learned in anger on
+  [[subghz-collar-remote-clone]] and none of it is written down.
+- **Reading and judging a system I did not write.** Errata against observed
+  behaviour, an unfamiliar kernel subsystem read well enough to extend it,
+  someone else's driver reviewed for what it gets wrong. Nothing in the vault
+  covers it, everything in the vault assumes it, and it is the one item here
+  whose value is going up rather than down.
 - **Functional safety and coding standards** — MISRA, static analysis,
   requirements traceability. Dull, and asked about in interviews for any
   job where the firmware can hurt someone.
