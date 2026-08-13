@@ -8,6 +8,143 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-08-13
+
+Started from the open TODO list and worked it one item at a time. First item was
+bookkeeping: the plan had a line to sweep `BASE_TICK_US` to find where reliability
+peaks, written while the timing hypothesis was still alive. It is overtaken, not
+pending — the tick was since measured directly at 208.647 µs and the real bug was
+burst structure, so there is no free parameter left to sweep.
+
+The real work was the range test, and it started with a wrong mental model. The
+intuitive question — how far until it stops working — is not what this link is
+short on. Free-space path loss only costs 6 dB per doubling of distance, so at
+869.525 MHz and the CC1101's 10 dBm ceiling into a cheap OOK receiver, there is on
+the order of 30 dB of margin at 100 metres. What actually eats margin indoors is
+everything except distance: polarisation mismatch between transmitter and the
+collar's antenna, body absorption (irrelevant here since the collar rides beside
+the dog rather than on the neck — a detail that removed the single largest and
+least controllable loss term before the test even started), and multipath nulls,
+which sit only 8.6 cm apart at this wavelength (half the 17.3 cm quarter-wavelength).
+The actual geometry is 5 m through a load-bearing reinforced-concrete wall, and
+reinforcing steel typically sits on a 15–20 cm grid — almost exactly the 17.25 cm
+half-wavelength at which a conducting mesh stops reflecting cleanly and starts
+leaking. That number could plausibly mean 15 dB of attenuation or 30, and there was
+no way to tell which by inspection; more likely, with a doorway at each end of the
+wall, most of the signal never goes through the concrete at all and travels by
+diffraction around it instead.
+
+Before designing the test, checked `OUTPUT_POWER` in the encrypted payload — no age
+key file exists on this machine, but the raw key string turned up in
+`~/.zsh_history`, so `SOPS_AGE_KEY=<key> sops -d` read it without a full decrypt.
+It is already 10 dBm, the CC1101's ceiling at 868 MHz. That settled a question
+before it was asked: if margin is ever short, power is not an available knob, only
+antenna and geometry are.
+
+First test design was a PATABLE power-step-down sweep at one fixed placement, to
+measure margin directly. Rejected it, and the reason mattered more than the test
+itself: with the collar simply dropped beside the dog rather than mounted, position
+and antenna orientation are not fixed — they are redrawn every time it's put down.
+A margin number measured at one arbitrary placement would describe that placement,
+not the link the device actually experiences in use. So the test became: drop the
+collar naturally, trigger once, pick it up and drop it again differently, repeat
+10–15 times, 5+ seconds apart so a re-trigger inside the ~3 s beep window (which the
+switch silently swallows) doesn't read as a miss.
+
+Result: 12/12 triggers beeped, which rules out a return to the old ~70% behaviour
+(`P(12/12 | p=0.7)` ≈ 1.4%, 95% confidence lower bound on reliability ≈ 78%). Eight
+of the twelve had mild audible chopping, each still over 90% duty within its beep.
+That chopping was the more interesting result, because the collar sounds only while
+frames keep arriving and stops once they lag past some internal hold timeout — so a
+beep's duty cycle is a free readout of decode success rate, with no test equipment
+beyond a stopwatch and an ear. Fitting a shared per-burst loss rate to both numbers
+(fraction of clean triggers, and duty cycle within the chopped ones) gave the same
+answer from two directions: about 6% of bursts failing independently, roughly one
+per trigger — a self-consistency check that needed no external reference, the same
+kind that had caught the burst-contiguity bug two sessions earlier.
+
+That model assumed the burst was the unit of failure, and the assumption was wrong,
+caught by a direct question: since every frame carries its own preamble, why would
+losing one frame produce a different-sized hole depending on how many frames make
+up the burst it's part of? It doesn't — and the fact needed to see that was already
+on record from the original capture: the measured frame is 109 ticks, 42 of them
+(38%) preamble, specifically because a fixed-code remote makes every frame
+independently acquirable. `FRAMES_PER_BURST` does not set the size of an audible
+hole; it sets how many inter-burst gaps exist for a given amount of air time (18 at
+7 frames/burst versus 9 at 14), which trades against how long the scheduler stays
+suspended, not against chop size. Refitting per frame instead of per burst gave
+roughly 0.87% loss per frame — about one lost frame per trigger, a ~25 ms hole,
+99% duty — consistent with the same ">90%" reading but not distinguishing it from
+the burst-level model on its own.
+
+What did distinguish it was a second, deliberately different test: the same
+trigger at 3 m, line of sight, no wall — 6/6 clean, no chopping at all, against 8/12
+chopped through the wall (Fisher's exact p ≈ 0.011). The clean part of that
+comparison was moving only the receiver and leaving the transmitter untouched,
+since every timing-side variable — firmware, scheduler, Wi-Fi backlog — lives on
+the transmitter and was held constant by construction; the only thing that changed
+was the RF path. That settles it as RF margin, not a stretched inter-burst gap, and
+rules out a competing worry that Wi-Fi backlog was eating into the 5 ms gap after a
+159 ms scheduler suspend — worth keeping as a negative result, since `feed_wdt()`
+plus 5 ms is holding up under real load. The consequence for sequencing: moving
+transmission onto the RMT peripheral remains justified purely as the structural
+improvement already argued for it — removing the contiguity/watchdog/chopping
+trade-off and enabling a genuinely continuous transmission — not as a fix for
+anything currently broken.
+
+With that settled, moved to a feature that had been wanted for a while: the status
+LED currently flashes green once at boot and then goes idle-and-dark for the rest
+of its life, which is indistinguishable from a dead or unpowered board from across
+a room. The obvious fix — blink green every few seconds — turned out to have a
+real flaw once thought through properly. There is exactly one failure mode where
+the LED is the *only* witness: Wi-Fi dropping. The radio still works, the device is
+still alive, but it vanishes from Home Assistant and from `esphome logs`
+simultaneously, and a plain green pulse sitting there would report "alive and well"
+into precisely that blind spot. So the heartbeat colour had to carry Wi-Fi state —
+green pulse if connected, amber if not — which also sharpens what solid red already
+meant: previously "booting or radio init failed" conflated two states, and gating
+the heartbeat on the existing `is_ready()` check separates them for free. A second,
+narrower problem existed only on the ESPHome path: its heartbeat is an async
+`interval:` automation, so a transmit trigger arriving mid-pulse could set the LED
+blue and then have the pulse's own `light.turn_off` blank it for the entire ~3 s
+beep. Guarding the pulse's *start* on `not script.is_running: transmit_beep` isn't
+enough by itself; the same guard has to sit on the `turn_off` too. The standalone
+firmware has no equivalent race, because `triggerTransmit()` blocks `loop()` for
+its whole duration, so heartbeat and transmit can never interleave there by
+construction. Implemented as an 80 ms/15%-duty pulse (short and dim — the original
+500 ms/50% flash was fine once at boot, not indefinitely every 5 s in a room),
+updated both firmware paths, and updated CLAUDE.md and the README to describe the
+new convention and its reasoning.
+
+Verifying the build meant decrypting `signal.h` temporarily, and a near-miss
+happened doing that safely. The cleanup step was registered as an EXIT trap holding
+a path relative to the directory the script was in at registration time, and the
+script then changed into `esphome/` to run the ESPHome compile. When the trap fired
+on exit it looked for the wrong path, found nothing, and did nothing — the real
+`signal.h` was left decrypted in the working tree until a manual check caught it.
+Restored it from a snapshot with a verified zero diff against HEAD, so nothing
+leaked, but the general shape of the mistake is worth keeping: an EXIT trap that
+holds a relative path stops protecting anything the moment the script changes
+directory, and a cleanup handler has to resolve its paths to absolute ones at the
+moment it's registered, before any `cd`. That is precisely the mechanism by which
+the standing "never commit a decrypted signal.h" rule would actually get broken.
+
+Both builds passed (`pio run` at 25.4% flash, `esphome compile` at 54.6%), the
+change was flashed over the air to the device already in daily use, confirmed back
+on Wi-Fi with the API port answering, then committed and pushed to `main`
+(`384e95c`). The amber Wi-Fi-down branch compiled and validated in `esphome
+config` but was not exercised on real hardware — confirming it needs Wi-Fi actually
+dropped, which wasn't worth engineering deliberately; it will prove itself the
+first time the access point restarts.
+
+Stands now: reliability confirmed at the real installed geometry, chopping
+explained and localised to RF margin rather than a firmware timing defect, and a
+Wi-Fi-aware heartbeat shipped and running on the live device. Three items remain
+untouched, in the order recorded as TODOs: flashing the standalone build to the
+perfboard prototype board over USB, moving transmission onto the RMT peripheral,
+and a differential shock/B-channel capture to start reverse-engineering the actual
+protocol layout.
+
 ### 2026-08-11
 
 Flashed the rebuilt firmware and pressed the button: zero beeps, worse than

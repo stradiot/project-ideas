@@ -15,14 +15,16 @@ idea. Code in `d-control-400-remote`.
 
 ## Now
 
-Fixed and shipped. The <70% reliability was never a timing problem — it was
-burst structure: the collar needs frames sent contiguously with no gap, and
-the rebuilt firmware now does that (7 frames per burst, gap only between
-bursts), confirmed with 6/6 beeps and no resets or chopping on hardware.
-Tick corrected to 208.647 µs, still rounds to the same constant already
-flashed. Pushed to `main`. Next: flash the standalone PlatformIO build over
-USB, then either move transmission onto the RMT peripheral or start on the
-shock/B-channel capture — both are recorded as TODOs, neither started.
+Reliability now confirmed at the real installed geometry: 12/12 beeps
+through the load-bearing wall with placement redrawn each time, and the
+occasional chopping there traced to RF margin rather than a firmware timing
+bug, so RMT stays a structural improvement rather than a required fix. Also
+shipped a continuous LED heartbeat (green pulse if Wi-Fi is up, amber if
+not) so idle reads as alive instead of dark, deployed over the air and
+pushed to `main`. Three items remain untouched: flashing the standalone
+build to the perfboard prototype over USB, moving transmission onto the RMT
+peripheral, and a differential shock/B-channel capture to start on the
+protocol. Next up is the USB flash.
 
 ## Lessons
 
@@ -94,6 +96,17 @@ shock/B-channel capture — both are recorded as TODOs, neither started.
   also went in together, both fixed the resets, and untangling which one
   mattered cost an extra flash-and-listen cycle: one variable per physical
   test, always. [[subghz-collar-remote-clone-log#2026-08-11]]
+- **Chopping at range is RF margin, not a firmware timing defect, and
+  `FRAMES_PER_BURST` does not set the size of a chop.** Each frame carries
+  its own preamble (42 of 109 ticks, 38%) so it is independently acquirable,
+  meaning a lost decode drops the tone for about one frame's worth
+  regardless of how many frames make up its burst; what `FRAMES_PER_BURST`
+  actually trades is the number of inter-burst gaps against how long the
+  scheduler stays suspended. Localised to RF rather than a stretched
+  inter-burst gap by moving only the receiver: 6/6 clean at 3 m
+  line-of-sight against 8/12 chopped at 5 m through a load-bearing wall
+  (Fisher's exact p ≈ 0.011), with every timing-side variable held fixed on
+  the transmitter. [[subghz-collar-remote-clone-log#2026-08-13]]
 
 ## Goal
 
@@ -246,7 +259,7 @@ Already spent.
 - [x] Confirm or kill the clamping hypothesis
 - [x] If confirmed: re-capture without the two-bucket classifier, rebuild the payload
 - [ ] Sweep `BASE_TICK_US` from the calibration mode, find where reliability peaks
-- [ ] Get the beep to fire every time, in the hand, at range
+- [x] Get the beep to fire every time, in the hand, at range
 
 Same dog as [[lora-dog-collar-telemetry]] and
 [[thread-matter-noise-sensor]] — this is the only one of the three he
