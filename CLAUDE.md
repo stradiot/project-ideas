@@ -268,24 +268,65 @@ property as a clickable link. `github:` is optional and decorative — add it on
 to notes that already carry `repo:`, since a note with no code has no remote to
 point at.
 
-The machinery lives **outside this repo**, in three scripts under
-`~/.local/bin`, which is its own git repo — <https://github.com/stradiot/claude-hooks>,
-private — so they have a history. Read it there when the behaviour described
-below and the behaviour you observe disagree; the scripts are the authority and
-this section is a description of them. They are wired
-by absolute path into `~/.claude-personal/settings.json` — the config dir the
-`claude-personal` alias selects. There is no default `~/.claude` dir and there
-should never be one; `~/.zshrc` aliases bare `claude` to a warning precisely so
-nothing lands there. A session whose cwd is outside `~/Documents/personal` is
-rejected by `personal_repo_from_cwd` and no vault write happens.
+The machinery lives **outside this repo**, in the `claude` package of `~/dotfiles`
+— <https://github.com/stradiot/dotfiles>, private — stowed into `~/.local/bin`, so
+the entries there are symlinks and the file in the repo *is* the live hook. Read
+it there when the behaviour described below and the behaviour you observe
+disagree; the scripts are the authority and this section is a description of
+them, with a README of its own and a test suite (`tests/test-session-notes.sh`,
+22 checks against fixture config dirs and a stubbed model). The hooks are wired
+by absolute path under `~/.local/bin` into `~/.claude-personal/settings.json` —
+the config dir the `claude-personal` alias selects, itself a symlink into that
+same package. There is no default `~/.claude` dir and there should never be one;
+`~/.zshrc` aliases bare `claude` to a warning precisely so nothing lands there. A
+session whose cwd is outside `~/Documents/personal` is rejected by
+`personal_repo_from_cwd` and no vault write happens.
 
-- `~/.local/bin/claude-personal-project-lib.sh` — `personal_repo_from_cwd` (maps a
-  cwd under `~/Documents/personal` to a repo name, excluding the vault itself) and
-  `note_for_repo` (frontmatter `repo:` lookup).
-- `~/.local/bin/claude-personal-project-start.sh` — SessionStart: pulls the vault
-  and injects the linked project note into that session's context.
-- `~/.local/bin/claude-session-notes.sh` — SessionEnd: a detached headless Claude
-  writes the journal, then the shell commits and pushes (`journal: <repo> <date>`).
+There are five scripts, split so that only the personal config loads any vault
+code at all. The other config dir, `~/.claude-work`, runs a SessionEnd entry
+point that shares the machinery and stops short of the vault, so a work session
+cannot reach this repo or its remote by any route. That separation used to be a
+runtime `cwd` check inside one shared script; it is now a question of which
+files each config sources, which holds even if the check is wrong. The check
+still runs, one layer in.
+
+- `claude-session-notes-core.sh` — the half both configs need: work out which
+  config dir the ending session belongs to, decide whether the session is worth
+  writing up, build a digest of the transcript, spawn the writer. Sourced, never
+  run directly, and it contains no vault code — that ignorance is the point.
+- `claude-session-notes.sh` — SessionEnd for `~/.claude-work`: memory notes
+  only. Sources the core and stops.
+- `claude-session-notes-personal.sh` — SessionEnd for `~/.claude-personal`: the
+  same memory note, plus the vault journal, after which the shell commits and
+  pushes (`journal: <repo> <date>`).
+- `claude-personal-project-lib.sh` — `personal_repo_from_cwd` (maps a cwd under
+  `~/Documents/personal` to a repo name, excluding the vault itself) and
+  `note_for_repo` (frontmatter `repo:` lookup). It pulls in the core, so the two
+  personal hooks source one file rather than two.
+- `claude-personal-project-start.sh` — SessionStart: pulls the vault and injects
+  the linked project note into that session's context.
+
+Two gates decide whether anything is written. A session with fewer than two
+*real* user turns is skipped before any model is spawned — real excludes tool
+results, system reminders and slash-command expansions, all of which the
+transcript records as user turns — and the writer is told to reply
+`NOTHING SIGNIFICANT` and write nothing when the session produced nothing
+durable. Most sessions end one of those two ways, and an empty diff produces no
+commit. The writer runs `sonnet` where there is journal prose and `haiku`
+otherwise: deciding a finding belongs in `## Lessons`, noticing that today's
+result overturns a bullet already there, and holding one voice across a
+two-party transcript are judgement work, and `haiku` wrote entries that split
+the session into "your measurements" and "my automated one".
+
+It is given `Read,Write,Edit,Glob,Grep` and no Bash tool, with the vault and the
+memory directory as its only writable roots. Every git operation below is
+therefore plain shell running after the model has exited, rather than something
+the model can improvise.
+
+Alongside the journal, every session that clears the gate — work sessions
+included — writes durable notes into that project's memory directory under its
+own config dir, indexed by a `MEMORY.md` beside them. That half never touches
+the vault.
 
 What it writes, per session in a linked repo:
 
@@ -330,13 +371,23 @@ pushed on your behalf here — commit deliberately.
 
 When editing from a session in some other personal repo, do not touch the vault
 mid-session; the SessionEnd hook owns those writes, and they are limited to the
-log file, `## Now`, plan ticks and the daily note. Frontmatter, Goal,
+log file, `## Now`, `## Lessons`, plan ticks and the daily note. Frontmatter, Goal,
 Architecture and the *wording* of plan items are never rewritten by automation —
 a change to those is a deliberate human (or explicitly requested) edit.
 
-Automation activity is logged to `$CLAUDE_CONFIG_DIR/.session-notes-state/log.txt`.
-Everything here is a personal project, so in practice that is
-**`~/.claude-personal/.session-notes-state/log.txt`** — not `~/.claude/`, which is
-the wrong place to look and is empty. Check it when a journal entry or a push
-seems to have gone missing; the failure is silent from the phone's side, since a
-stranded commit looks exactly like a session that wrote nothing.
+Automation activity is logged beside the config dir the ending session belonged
+to, at `.session-notes-state/log.txt`. Everything here is a personal project, so
+in practice that is **`~/.claude-personal/.session-notes-state/log.txt`** — not
+`~/.claude/`, which is the wrong place to look and does not exist. Check it when
+a journal entry or a push seems to have gone missing; the failure is silent from
+the phone's side, since a stranded commit looks exactly like a session that
+wrote nothing.
+
+Which config dir that is gets read off the transcript path the hook is handed,
+not from `CLAUDE_CONFIG_DIR`. A session lives at
+`<config dir>/projects/<slug>/<session>.jsonl` with that project's `memory/`
+beside it, so the transcript cannot be wrong about either, whereas the
+environment variable can — and a wrong one would file a work session's notes
+into the personal store. The variable is cross-checked only: a disagreement is
+logged as a `warn` line and the transcript wins, and an unrecognised layout makes
+the hook refuse rather than guess.
