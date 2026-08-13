@@ -274,7 +274,7 @@ the entries there are symlinks and the file in the repo *is* the live hook. Read
 it there when the behaviour described below and the behaviour you observe
 disagree; the scripts are the authority and this section is a description of
 them, with a README of its own and a test suite (`tests/test-session-notes.sh`,
-22 checks against fixture config dirs and a stubbed model). The hooks are wired
+30 checks against fixture config dirs and a stubbed model). The hooks are wired
 by absolute path under `~/.local/bin` into `~/.claude-personal/settings.json` —
 the config dir the `claude-personal` alias selects, itself a symlink into that
 same package. There is no default `~/.claude` dir and there should never be one;
@@ -379,9 +379,24 @@ Automation activity is logged beside the config dir the ending session belonged
 to, at `.session-notes-state/log.txt`. Everything here is a personal project, so
 in practice that is **`~/.claude-personal/.session-notes-state/log.txt`** — not
 `~/.claude/`, which is the wrong place to look and does not exist. Check it when
-a journal entry or a push seems to have gone missing; the failure is silent from
-the phone's side, since a stranded commit looks exactly like a session that
-wrote nothing.
+a journal entry or a push seems to have gone missing.
+
+A failure no longer has to be found by looking, though, because the log was the
+wrong place to keep one: everything after the session ends runs detached, so a
+failure that only reached the log reached nobody. It is now reported twice — a
+macOS banner at the moment it happens, and a line in
+`.session-notes-state/failures.txt` that the SessionStart hook surfaces in the
+next session started in a personal repo, then drains so it reports once rather
+than nagging. Reported that way: the writer exiting non-zero, the writer being
+killed by its 15-minute timeout, and each of the vault git steps.
+
+The writer's exit code used to be discarded, which is what made this worth
+building. A crashed, rate-limited or unauthenticated writer produced
+`vault: nothing written, no commit` — byte for byte the line a genuinely quiet
+session produces — so the likeliest failure was indistinguishable from normal
+operation. Nothing bounded the writer either, so a wedged one sat there and the
+log simply stopped after `spawned`. Both were invisible from the phone's side,
+where a stranded commit looks exactly like a session that wrote nothing.
 
 Which config dir that is gets read off the transcript path the hook is handed,
 not from `CLAUDE_CONFIG_DIR`. A session lives at
