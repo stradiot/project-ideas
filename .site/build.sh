@@ -61,35 +61,25 @@ python3 "$VAULT/.site/prune-lockfile.py" quartz.config.yaml quartz.lock.json
 # quartz.config.yaml must not name a plugin the tag's default config lacks.
 npx quartz plugin install
 
-# The explorer, graph and search plugins each fetch "/static/contentIndex.json"
-# — root-absolute, with no allowance for a site served under a path. On a
-# GitHub Pages project site that resolves to stradiot.github.io/static/...
-# rather than /project-ideas/static/..., so the fetch 404s and the sidebar file
-# tree, the graph and search all come up empty while every page still renders.
+# The explorer, search and graph plugins build URLs in the browser by putting
+# "/" in front of a slug, which is only right at a domain root. Under
+# /project-ideas that breaks twice over: the content index 404s so all three
+# panels come up empty, and the links they do build point at
+# stradiot.github.io/projects/... See patch-base-path.py for the full account.
 #
-# Quartz core gets this right: it inlines `const fetchData = fetch(...)` into
-# each page's head with a path relative to that page's depth. These plugins
-# ignore that global and fetch again on their own. `quartz build --baseDir`
-# does not reach them, and the string lives in each plugin's compiled
-# dist/*.js — patching src/ does nothing, because plugin install has already
-# built dist/ and that is what the bundler consumes.
+# The patch edits each plugin's readable src/ and then rebuilds it, rather than
+# rewriting the minified dist/ that plugin install produced. dist/ is what the
+# bundler consumes, so it does have to be regenerated — hence the tsup run.
 #
-# The substitution has to be an absolute path rather than a relative one:
-# postscript.js is shared by pages at different depths, so "../static/..."
-# would resolve differently per page.
-#
-# Fails loudly rather than silently doing nothing if a future tag changes the
-# string.
+# --no-dts because the plugins' type-declaration step fails on a missing
+# vitest/globals type that has nothing to do with this patch, while the ESM
+# build it would otherwise mask succeeds.
 if [ -n "${SITE_BASE:-}" ]; then
-  targets=$(grep -rl '"/static/contentIndex.json"' .quartz/plugins/*/dist || true)
-  if [ -z "$targets" ]; then
-    echo "SITE_BASE set but the contentIndex fetch was not found — upstream changed, re-check the patch" >&2
-    exit 1
-  fi
-  # perl rather than sed -i, which needs different arguments on macOS and Linux.
-  echo "$targets" | xargs perl -pi -e \
-    "s{\"/static/contentIndex\.json\"}{\"$SITE_BASE/static/contentIndex.json\"}g"
-  echo "patched contentIndex fetch to $SITE_BASE in $(echo "$targets" | wc -l | tr -d ' ') script(s)"
+  patched=$(python3 "$VAULT/.site/patch-base-path.py" .quartz/plugins "$SITE_BASE")
+  for plugin in $patched; do
+    (cd ".quartz/plugins/$plugin" && npx tsup --no-dts >/dev/null)
+  done
+  echo "rebuilt after base-path patch: $(echo "$patched" | tr '\n' ' ')"
 fi
 
 npx quartz build "$@"
