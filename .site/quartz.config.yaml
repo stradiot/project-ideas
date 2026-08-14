@@ -98,8 +98,11 @@ plugins:
   - source: github:quartz-community/description
     enabled: true
     order: 70
+  # Off: the vault has no math. Checked by stripping code fences and inline
+  # code and looking for $...$ spans — zero across all 64 files. Costs 153 MB
+  # of katex to install for nothing. Turn back on if a note ever needs math.
   - source: github:quartz-community/latex
-    enabled: true
+    enabled: false
     options:
       renderEngine: katex
     order: 80
@@ -136,8 +139,9 @@ plugins:
   # Turn it back on only alongside a real custom domain.
   - source: github:quartz-community/cname
     enabled: false
+  # Off: no .canvas files in the vault.
   - source: github:quartz-community/canvas-page
-    enabled: true
+    enabled: false
   - source: github:quartz-community/content-page
     enabled: true
   - source: github:quartz-community/folder-page
@@ -228,8 +232,9 @@ plugins:
       position: left
       priority: 25
       display: mobile-only
+  # Off: no .base files in the vault.
   - source: github:quartz-community/bases-page
-    enabled: true
+    enabled: false
     options: {}
     order: 50
   - source: github:quartz-community/note-properties
@@ -265,8 +270,11 @@ plugins:
       position: body
       priority: 100
       display: all
+  # Off: an optional side-by-side reading UI, not navigation. It also carries
+  # the same root-absolute contentIndex fetch as the explorer, in a compiled
+  # form the patch in build.sh does not match, so it would stay broken here.
   - source: github:quartz-community/stacked-pages
-    enabled: true
+    enabled: false
     layout:
       position: afterBody
       priority: 50

@@ -50,7 +50,14 @@ python3 "$VAULT/.site/lift-titles.py" "$WORK/content"
 
 cd "$WORK"
 npm ci
-# At v5.0.0 this installs strictly from quartz.lock.json, which is why
+
+# At v5.0.0 `plugin install` installs strictly from quartz.lock.json and
+# ignores `enabled:`, so every disabled plugin is still cloned, npm-installed
+# and compiled. Dropping them from the lockfile first is the whole difference
+# between a ~10 minute deploy and a short one.
+python3 "$VAULT/.site/prune-lockfile.py" quartz.config.yaml quartz.lock.json
+
+# Installs strictly from the (now pruned) lockfile, which is why
 # quartz.config.yaml must not name a plugin the tag's default config lacks.
 npx quartz plugin install
 
