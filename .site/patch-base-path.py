@@ -89,6 +89,24 @@ RESOLVE_PATH_NEW = """function resolvePath(to) {
   return "{base}/" + to;
 }"""
 
+# getFullSlugFromUrl() reads the slug back off the address bar, stripping only
+# the leading "/". Under /project-ideas it therefore returns
+# "project-ideas/projects/logs/foo" while the content index is keyed
+# "projects/logs/foo", so the lookup misses. The graph is the only consumer,
+# and a missed lookup is why it drew a single stray node instead of a
+# neighbourhood.
+#
+# The fix does not need to know the base at all: Quartz core already stamps the
+# correct slug on the body as data-slug, and the sibling helper getFullSlug()
+# reads exactly that. Preferring it is right at a domain root and under any
+# path, so this substitution stays correct if the site ever moves.
+FULL_SLUG_ORIG = """function getFullSlugFromUrl() {
+  let rawSlug = window.location.pathname;"""
+FULL_SLUG_NEW = """function getFullSlugFromUrl() {
+  const fromBody = window.document.body.dataset.slug;
+  if (fromBody) return fromBody;
+  let rawSlug = window.location.pathname;"""
+
 
 def main() -> int:
     plugins = Path(sys.argv[1])
@@ -107,23 +125,34 @@ def main() -> int:
         path.write_text(text.replace(old, new.replace("{base}", base)), encoding="utf-8")
         touched.add(plugin)
 
-    # The shared helper, in every plugin that bundles a copy of it.
+    # The shared helpers, in every plugin that bundles a copy of them.
     resolve_hits = 0
+    slug_hits = 0
     for path in plugins.glob("*/node_modules/@quartz-community/utils/dist/*.js"):
         text = path.read_text(encoding="utf-8")
-        if RESOLVE_PATH_ORIG not in text:
-            continue
-        path.write_text(
-            text.replace(RESOLVE_PATH_ORIG, RESOLVE_PATH_NEW.replace("{base}", base)),
-            encoding="utf-8",
-        )
-        resolve_hits += 1
-        touched.add(path.relative_to(plugins).parts[0])
+        original = text
+        if RESOLVE_PATH_ORIG in text:
+            text = text.replace(
+                RESOLVE_PATH_ORIG, RESOLVE_PATH_NEW.replace("{base}", base)
+            )
+            resolve_hits += 1
+        if FULL_SLUG_ORIG in text:
+            text = text.replace(FULL_SLUG_ORIG, FULL_SLUG_NEW)
+            slug_hits += 1
+        if text != original:
+            path.write_text(text, encoding="utf-8")
+            touched.add(path.relative_to(plugins).parts[0])
 
     if resolve_hits == 0:
         raise SystemExit("resolvePath() was not found in any utils package — upstream changed")
+    if slug_hits == 0:
+        raise SystemExit("getFullSlugFromUrl() was not found in any utils package — upstream changed")
 
-    print(f"base-path patch: {len(EDITS)} source edit(s), {resolve_hits} resolvePath copy(ies)", file=sys.stderr)
+    print(
+        f"base-path patch: {len(EDITS)} source edit(s), "
+        f"{resolve_hits} resolvePath, {slug_hits} getFullSlugFromUrl",
+        file=sys.stderr,
+    )
     for name in sorted(touched):
         print(name)
     return 0
