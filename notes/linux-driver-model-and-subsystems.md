@@ -118,10 +118,23 @@ register set while debugging is worth more than the code it saves.
 The BME280 and the CC1101 from the bench. This module is where the sensor
 budget line gets used.
 
+Exercise 1 is the one that matters most here, and it has a worked example of
+the mistake it corrects. `hd44780.c` in the `lcdcontrol` driver takes its six
+GPIO numbers from `#define`s and requests them in `module_init` with
+`gpio_request`. It works, on exactly one board, and it is invisible in the
+code that this is a problem — which is the misconception this whole module
+exists to correct. A driver does not decide what hardware it is attached to.
+The devicetree says, the bus matches, `probe` is handed the result, and the
+same driver binary then works on a board whose pins are somewhere else.
+Writing a driver that names its own pins is how three of them got written
+before anyone noticed the model was upside down.
+
 1. **A platform driver that does nothing.** Devicetree node, `of_match_table`,
    `probe()` that logs and returns. *Success: `dmesg` shows probe on boot, and
    `/sys/bus/platform/drivers/` has the entry.* Then remove the node and
-   confirm probe does not run.
+   confirm probe does not run. Then take a GPIO with `devm_gpiod_get` from a
+   property in that node, and compare what happens when the node changes
+   against what would have happened with the number compiled in.
 
 2. **BME280 as a char driver, deliberately.** I2C client driver, registers
    read by hand, values exposed through the char interface from

@@ -23,20 +23,30 @@ project note, its log and the daily journal.
 
 ## Why not a course
 
-Buying one was the obvious alternative, and it was rejected for a specific
-reason rather than a general dislike. A course on Udemy or Coursera is
-generic by construction: it has to serve everyone who buys it, so it covers
-a lot that is not wanted here, skips things that are, and pitches at a level
-that is someone else's.
+Buying one was the obvious alternative, and one *was* bought: Advanced
+Embedded Software Development, a graded online course from the University of
+Colorado Boulder, taken through nine assignments and a final project between
+October 2024 and May 2025, and continued alone afterwards as an HD44780
+display driver, a userspace tool and a two-layer Yocto build for a Raspberry
+Pi 4. So the usual complaint — that a course is generic by construction,
+pitched at nobody's level and mostly watched rather than done — is not what
+this is. That one was graded, built rather than watched, and finished.
 
-Planning the projects instead costs the time to write them down, and buys a
-syllabus that is only the interesting parts, work that is hands-on rather
-than watched, and a level that matches whatever is actually known. The money
-goes on hardware instead of tuition — the embedded Linux course here is
+What it did not supply is narrower and more specific. Every board in it came
+with a board support package already written, none of them booted through
+U-Boot, and nothing built on any of them was ever measured. That is the shape
+of what is left, and it is why the embedded Linux course here now spends its
+time on bring-up, latency and tracing rather than on writing another recipe.
+
+Writing the remaining four instead costs the time to write them down, and
+buys a syllabus that is only the interesting parts, work that is hands-on
+rather than watched, and a level that matches whatever is actually known. The
+money goes on hardware instead of tuition — the embedded Linux course here is
 fourteen modules and its entire budget is 58 € of parts, microSD cards, a
-logic analyzer and a Wi-Fi dongle that would have been bought anyway. Four
-more courses are mapped the same way in
-`notes/embedded-learning-curriculum.md`. The output is sometimes useful on
+logic analyzer and a Wi-Fi dongle that would have been bought anyway. All
+five are mapped in `notes/embedded-learning-curriculum.md`, along with an
+inventory of what is already known, since an order derived partly from the
+size of a gap is only as good as that list. The output is sometimes useful on
 its own terms too, which a course exercise rarely is:
 `subghz-collar-remote-clone` is a device in daily use.
 
@@ -137,11 +147,17 @@ Twelve of nineteen, which is the point: very little here genuinely blocks
 anything else, and a list that long stops being a recommendation. Only four
 projects are actually waiting on something, and they are marked below.
 
-Where to start is a judgement, not a derivation. Today it is
-`embedded-linux-course` — the board is already owned, the whole course costs
-58 €, and it is the widest gap between what the vault plans and what I can
-do. `ble-sensor-node-pcb` is the other one worth starting, because three
-projects want the board it produces.
+Where to start is a judgement, not a derivation, and this one changed. It used
+to be `embedded-linux-course`, on the grounds that it was the widest gap
+between what the vault plans and what I can do. That turned out to be false —
+a graded Linux course and a driver-plus-Yocto project of my own already cover
+roughly a third of its syllabus, which is written up in
+`notes/embedded-learning-curriculum.md`. The five courses are now ordered RF,
+bare-metal and RTOS, embedded Linux, hardware design, control, aimed at
+embedded software with RF as the main focus, so the place to start is the RF
+material — and `analog-am-transmitter-receiver` is the project it begins in.
+`ble-sensor-node-pcb` is the other one worth starting, because three projects
+want the board it produces.
 
 At the other end: `printed-rc-plane` before `custom-flight-controller-drone`,
 because a plane glides when the loop is wrong and a quadcopter falls. And the

@@ -160,6 +160,14 @@ means that project starts already solved.
 Every one of these is on the board, over NFS root, with `CONFIG_DEBUG_ATOMIC_SLEEP`,
 `CONFIG_PROVE_LOCKING` and `CONFIG_KASAN` available in the kernel config.
 
+Exercises **1** and **2** are the ground this module starts from rather than
+new work: three char drivers with `class_create`, a `/dev` node and a
+fixed-size buffer already exist across the older repositories, one of them
+with `ioctl` and `llseek` on top. What none of them has is any of **3** to
+**10** — no wait queue, no `poll`, no interrupt of any kind, no lock ever
+contended on purpose, and neither lockdep nor KASAN ever switched on. That is
+where the module actually is. See [[embedded-learning-curriculum]].
+
 1. **Hello module.** Load, unload, read `dmesg`. *Success: both messages, and
    `lsmod` showing it in between.* Then add a module parameter and set it at
    `insmod` time.

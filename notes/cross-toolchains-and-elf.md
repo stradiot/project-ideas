@@ -130,6 +130,16 @@ worth feeling once before [[rootfs-buildroot-yocto]] takes it away.
 The build host is the aarch64 Linux VM. ARM publishes aarch64-hosted
 `arm-none-linux-gnueabihf` toolchains, so the prebuilt route works there.
 
+Exercise **1** is already done, for `arm64` with `aarch64-none-linux-gnu-`,
+including the `file`-output check — and so is the substance of **4**, though
+by the opposite route: rather than renaming the loader to break a working
+binary, the loader and its libraries were copied into a hand-built root
+filesystem until the binary started working. Same lesson, arrived at from the
+other side. The rest of this list is untouched, and **3**, **6** and **7** are
+where the module actually earns its place: what is inside the toolchain, and
+what an ABI mismatch looks like when it fails. See
+[[embedded-learning-curriculum]].
+
 1. **Hello, cross.** Build a static hello with the prebuilt toolchain, get it
    onto the board, run it. *Success: it prints.* Check `file` on it first and
    confirm it says ARM, EABI5, statically linked.

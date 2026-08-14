@@ -26,19 +26,45 @@ reproducible image with Yocto, and ship updates to it that can roll back.
 That is the job description, and every module below exists because it is
 part of it.
 
+Half of that test is already passed, and naming which half is what this note
+is now organised around. The unpassed half is the phrase *with no BSP*: every
+board worked on so far came with a board support package and booted without
+U-Boot in the path, and nothing built on any of them was ever measured.
+
 This is fourteen subjects, each one a note in `notes/` with the theory and
 the exercises, and this note carries the order and the state. It is
 deliberately long. Embedded Linux is not a weekend, and the honest version
 of the syllabus is the one worth writing down.
 
+### What is already covered, and why some modules below are short
+
+Some modules here are noticeably thinner than others, and that is deliberate
+rather than an oversight. The Advanced Embedded Software Development course
+from the University of Colorado Boulder (Oct 2024 – May 2025) and the
+`lcdcontrol` project that followed it (Jun 2025 – Jan 2026) between them
+already covered a character driver with `ioctl` and `llseek`, cross-compiling
+and the sysroot, a BusyBox root filesystem built by hand on top of a mainline
+kernel, two Yocto layers with module, application and image recipes, and one
+kernel Oops read back to a symbol. [[embedded-learning-curriculum]] holds the
+inventory and the exact boundaries.
+
+All of it ran on qemu-aarch64 and a Raspberry Pi 4. **None of it ran on the
+BeagleBone**, so nothing below is ticked on account of it — an exercise that
+would only repeat covered ground on a new board has been removed from the
+plan instead, and what is left is either new or new on this hardware. The
+boxes still mean what they say.
+
 Deliberately out of scope: desktop Linux, Android and AOSP, x86 and server
 work, and anything requiring an oscilloscope — nothing here is analog, and
 that instrument belongs to the RF course rather than this one.
 
-This is the first of five courses. The other four — RF and wireless,
-bare-metal and RTOS firmware, hardware design, control systems — are mapped
-in [[embedded-learning-curriculum]] along with what each would need when its
-turn comes.
+This is the only one of five courses written so far, and third in the order
+they are meant to be done — behind RF and wireless and behind bare-metal and
+RTOS firmware, ahead of hardware design and control systems. It was written
+first and was meant to be done first; taking the inventory of what is already
+known is what moved it. All five are mapped in
+[[embedded-learning-curriculum]], along with the argument for that order and
+what each would need when its turn comes.
 
 ## Learning value
 
@@ -71,8 +97,9 @@ What it does produce indirectly is real. The capstone builds
 [[industrial-sensor-node-linux]], which is a deployed device rather than an
 exercise. The BeagleBone Green stops being a board that was bought and
 becomes a board that is used, which is also what makes
-[[beaglebone-green-case]] worth having. And the cost is the reason it went
-first: 58 €, on hardware already owned.
+[[beaglebone-green-case]] worth having. And it stays cheap either way: 58 €,
+on hardware already owned, which is why being third in the order costs
+nothing to sit on.
 
 ## Architecture
 
@@ -92,8 +119,8 @@ What I build by hand, and what I take as a finished block:
 | U-Boot | From mainline source | The boot chain is half of embedded Linux and it is invisible until it breaks |
 | Kernel | From mainline source | See below |
 | Every driver | Written from scratch | The whole point |
-| Root filesystem | Three times — BusyBox by hand, Buildroot, Yocto | Each one teaches what the next one hides |
-| BSP layer | Written from scratch | Including `meta-ti` wholesale is what a job does; writing one is what a course does |
+| Root filesystem | Buildroot, once | BusyBox by hand and Yocto are both already done elsewhere; Buildroot is the one of the three never used, and the middle of the range is where the comparison is decided |
+| BSP layer | Written from scratch | Including `meta-ti` wholesale is what a job does; writing one is what a course does — and consuming somebody else's is the only thing done so far, which makes this the sharpest remaining item in the whole module |
 | The board, sensors, RT patch | Bought or taken as given | Nothing to learn from re-deriving them |
 
 ### Mainline over the vendor SDK, everywhere
@@ -187,8 +214,8 @@ The stack, in the order it gets built:
   bindings that pass `dtbs_check`
 - **Drivers** — char + IRQ first, then the driver model properly: I2C and
   SPI client drivers, `regmap`, IIO, LED class, and a `net_device`
-- **Root filesystem** — BusyBox initramfs by hand, then Buildroot, then
-  Yocto with an own BSP layer
+- **Root filesystem** — Buildroot, then Yocto with an own BSP layer and an
+  own machine configuration; the BusyBox-by-hand step is not repeated
 - **Userspace** — C daemon under systemd with socket activation, cgroup
   limits and `sd_notify` watchdog; D-Bus for local IPC; a D-Bus → MQTT
   bridge into Home Assistant
@@ -211,8 +238,7 @@ milestones from it.
 
 **Toolchains and ELF** ([[cross-toolchains-and-elf]])
 
-- [ ] Cross-compile a static hello and run it on the board over NFS
-- [ ] Build a toolchain with crosstool-NG and use it for the same binary
+- [ ] Build a toolchain with crosstool-NG and use it for a static hello, run on the board over NFS
 - [ ] Read the ELF: sections, symbols, relocations, the interpreter path
 - [ ] Link the same source against musl and against glibc, compare size and `ldd`
 - [ ] Break it on purpose — soft-float against hard-float — and read the error until it is obvious
@@ -249,7 +275,6 @@ milestones from it.
 
 **Char drivers and interrupts** ([[linux-char-drivers-and-irqs]])
 
-- [ ] Char driver with a ring buffer, a udev node, and `read`/`write`
 - [ ] Add `poll` support backed by a wait queue, prove it with `select` in userspace
 - [ ] Race it from two processes, find the corruption, fix it with the right lock
 - [ ] PIR on a GPIO edge with a threaded IRQ handler waking the readers
@@ -258,6 +283,12 @@ milestones from it.
 
 **The driver model and subsystems** ([[linux-driver-model-and-subsystems]])
 
+The longest module here, and the only one that grew. Three char drivers exist
+across this vault and the older repositories and not one of them is bound to
+hardware by description — they take their pins from macros. That first box is
+the correction.
+
+- [ ] A `platform_driver` bound by devicetree — `of_match_table`, a real `probe`, and GPIOs taken with `devm_gpiod_get` rather than by number
 - [ ] BME280 as a plain I2C char driver, values readable and correct
 - [ ] Rewrite it as an IIO driver, read it with `iio_generic_buffer`
 - [ ] Convert the register access to `regmap` and delete the hand-rolled code
@@ -277,12 +308,10 @@ milestones from it.
 
 **Root filesystems** ([[rootfs-buildroot-yocto]])
 
-- [ ] BusyBox initramfs with a two-line `/init`, booting to a shell
 - [ ] Buildroot image that boots and auto-loads the drivers written so far
 - [ ] Package an own daemon as a Buildroot package in `BR2_EXTERNAL`
 - [ ] Set up the Yocto build host and build `core-image-minimal` for the board
-- [ ] Write recipes for the driver and the daemon, in an own layer
-- [ ] Write a machine conf for a hypothetical custom AM335x board
+- [ ] Write a machine conf for a custom AM335x board, with no `meta-ti` underneath it
 - [ ] Generate an SDK with `populate_sdk` and build against it
 - [ ] Produce a license manifest and identify the actual GPL obligations
 - [ ] Write down when Buildroot is the right answer and when Yocto is
@@ -320,7 +349,7 @@ milestones from it.
 **Debugging and performance** ([[linux-kernel-debugging]])
 
 - [ ] Plant a null deref, a use-after-free and a deadlock; find each with the right tool
-- [ ] Read an Oops properly — `decode_stacktrace.sh` back to a source line
+- [ ] Read an Oops properly — `decode_stacktrace.sh` back to a source line, on a driver of mine rather than a planted one
 - [ ] Set up ramoops and recover a panic log across a reboot
 - [ ] `ftrace` a driver's probe path with `function_graph`
 - [ ] Flamegraph the daemon under `perf`, find where it actually spends time

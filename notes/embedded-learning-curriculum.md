@@ -72,12 +72,13 @@ replaced it.
 
 ## What stays worth knowing
 
-The courses below were ordered on four things: the size of the gap, how often
-a skill is reused across the projects, what the hardware costs, and what the
-field actually asks for. A fifth criterion was missing. It does not change
+The courses below were first ordered on four things: the size of the gap, how
+often a skill is reused across the projects, what the hardware costs, and what
+the field actually asks for. A fifth criterion was missing. It does not change
 what the courses are, but it changes the emphasis inside most of them — how
 long a piece of knowledge keeps its value, now that most code can be written
-by an agent.
+by an agent. It ended up changing the order as well, once the first of those
+four turned out to have been measured against the wrong thing.
 
 The usual answer to that is to learn fundamentals and skip specific
 technologies, and it is half wrong in a way that matters. The better axis is
@@ -136,16 +137,104 @@ fluent at producing. Which is the rule this vault already applies to its own
 notes — teach the mechanism rather than the API surface, and say what breaks
 without the abstraction.
 
+## What is already known
+
+The criteria above were applied to an inventory taken from this vault, and
+the vault is not where the work is recorded. Re-taking the inventory from the
+repositories moved one item a long way and trimmed five others, so it is
+written down here rather than left implicit: an ordering derived partly from
+the size of a gap is only as good as the list of what is already closed.
+
+### The Advanced Embedded Software Development course, Oct 2024 to May 2025
+
+AESD, a graded online course from the University of Colorado Boulder, taken
+to completion — nine assignments and a final project. What it covered:
+
+- A character driver with a circular buffer, `llseek` and an `ioctl`
+  interface, plus `scull` and the `misc-modules` examples built and loaded as
+  out-of-tree modules.
+- Cross-compilation for `arm64` with `aarch64-none-linux-gnu-`, including
+  reading `file` output back to work out why a binary would not run.
+- A root filesystem assembled by hand: mainline `linux-stable` v5.15.163 built
+  from source, BusyBox on top, and the dynamic loader and its libraries
+  (`ld-linux-aarch64.so.1`, `libc.so.6`) copied into place by hand — the
+  exercise that makes a sysroot stop being magic.
+- A Yocto layer, `meta-aesd`, with a recipe for each of those modules, an
+  image recipe, and a patch applied to third-party source through the recipe
+  rather than by editing the source.
+- One kernel Oops, captured and read: a null dereference traced back to
+  `faulty_write+0x18/0x20` through `ksys_write` and `el0t_64_sync`.
+- POSIX threads and mutexes, and `fork`/`exec`/`wait` from the system-call
+  side.
+
+### lcdcontrol, Jun 2025 to Jan 2026
+
+The follow-on, done alone, and the most recent Linux work here by seven
+months. Three repositories driving an HD44780 16x2 character display from a
+Raspberry Pi 4:
+
+- `lcdcontrol` is an out-of-tree kernel module. A `cdev` with a dynamically
+  allocated `dev_t` and a device class, `copy_from_user` into a `kzalloc`
+  buffer, `mutex_lock_interruptible` around a 32-byte shadow copy of the
+  screen, terminal-style scrolling when a line completes, `read` served from
+  that shadow copy because the display's read/write pin is tied to ground,
+  and `ioctl` commands for clear, display, cursor and blink.
+- `lcdcontrol-user` is the userspace tool over that device node, including a
+  monitor mode putting the IP address, the CPU temperature from
+  `/sys/class/thermal`, uptime and hostname on the display.
+- `lcdcontrol-yocto` is the build. Two layers, split deliberately:
+  `meta-lcdcontrol` holds the module and application recipes, and
+  `meta-rpi-config` holds the product — a development image carrying
+  `kernel-devsrc`, a toolchain and `strace`, and a production image with
+  `debug-tweaks` off and root reachable only by SSH key. The board support
+  package layer, `meta-raspberrypi`, is consumed unmodified.
+
+### Where both of them stop
+
+This is the useful half, and it is specific.
+
+Everything above ran on qemu-aarch64 or a Raspberry Pi 4. Both already have a
+board support package, so a machine configuration has never been written for a
+board that had none. Neither boots through U-Boot — the Raspberry Pi hands off
+from a GPU-side bootloader — so the boot chain below the kernel is untouched,
+and so is a board that comes up saying nothing at all.
+
+No driver written so far is bound to hardware by description. `hd44780.c`
+takes its six GPIO numbers from macros and requests them with `gpio_request`
+and `gpio_direction_output`, the integer interface that the descriptor
+interface in `linux/gpiod.h` replaced. There is no `platform_driver`, no
+`probe`, no `of_match_table` and no devicetree node: the module's `init` grabs
+pins by number, which works on exactly one board. That is a sharper statement
+of the gap than "the vault knows char drivers", and it is the one to plan
+against.
+
+Nothing in either was measured. No latency number, no power number, no trace.
+
+### What this does to the argument at the top of this note
+
+The case for writing these courses is that a bought one is generic by
+construction, pitched at nobody's level, mostly watched rather than done, and
+half-skipped. AESD was none of those. It was graded, the assignments were
+built rather than watched, and it was finished. Paying for it was not the
+mistake that argument predicts.
+
+What it did not supply is narrower, and it is what the Linux course below is
+now actually for: a board with no board support package, a boot chain with
+U-Boot in it, and any measurement whatsoever. The rest of the argument stands
+for the four courses that are not about Linux, where nothing has been bought
+and nothing has been taken.
+
 ## The five courses
 
 Each one is a project note when it gets written, with subject deep-dives in
-`notes/` and exercises reusing hardware from the projects it feeds.
+`notes/` and exercises reusing hardware from the projects it feeds. In the
+order they are meant to be done, which is argued below.
 
 | Course | Arc | Projects it feeds | New hardware |
 | --- | --- | --- | --- |
-| **Embedded Linux** — written | Boot ROM → drivers → Yocto BSP → signed A/B updates | 4 | ~58 € |
 | **RF and wireless** | Radio as physics → DSP and IQ → modulation and coding → own PHY and MAC | 5 | ~150 € instruments, plus a TX-capable SDR |
 | **Bare-metal and RTOS** | Reset vector → drivers by datasheet → FreeRTOS → Zephyr → OTA | 6 | ~35 € |
+| **Embedded Linux** — written | Boot ROM → drivers → Yocto BSP → signed A/B updates | 4 | ~58 € |
 | **Hardware design** | Datasheets → KiCad → layout and SI → fab and assembly → bring-up | 3 | ~120 € plus fab runs |
 | **Control and real-time** | Sensors → filtering → PID → state estimation → sensor fusion | 3 | shares the RC gear |
 
@@ -155,44 +244,87 @@ artifact another project consumes. Putting one in the graph would park half
 the vault behind a fourteen-module syllabus, which is exactly the shape the
 dependency graph was pruned to remove.
 
-### Which one to do second
+### The order, and what would change it
 
-Bare-metal and RTOS, and the reason has changed since this note was first
-written. It used to be "it unblocks the vault" — back when a chain of
-questionable dependencies put seven projects behind
-[[bare-metal-bootloader]] and [[freertos-pocket-console]]. That chain is
-gone: nothing depends on the bootloader at all now, and only the LoRa collar
-waits on the console.
+The first version of this ordering had Embedded Linux first and RF second,
+and it was built from four inputs: the size of the gap, how often a skill is
+reused across the projects, what the hardware costs, and what the field asks
+for. Two of those were wrong. The gap sizing came from the vault rather than
+from the repositories, and the section above is what it looks like corrected.
+And "what the field asks for" was left general when it did not have to be:
+the work is aimed at embedded software with RF as the main focus, and an
+order that does not say so is being decided by something it has not written
+down.
 
-The real argument is simpler and better. Cortex-M firmware is the most
-*reused* skill in the vault — it turns up in the bootloader, the console, the
-custom board, the growbox, the car, the plane and the drone — and it is the
-one where I currently have nothing. Learning it early makes seven projects
-easier rather than possible, which is a weaker claim but a true one.
+**RF and wireless, first.** It scores highest of the five on the criterion
+above — propagation and noise figure do not get a version bump, and almost
+every step is measurement-bound, which is the one thing on that list nothing
+else can supply. Its instruments are what make every other course's
+measurements possible rather than asserted. It holds the only open technical
+problem in the vault. And it is the direction the rest is aimed at, which on
+its own would be enough.
 
-RF is the standing counter-argument, and it got stronger once the criterion
-above was written down: it scores highest of the five on durability, its
-instruments make every other course's measurements possible, and it holds the
-only open technical problem in the vault. What keeps it second is cost and
-sequence rather than value — the instruments are ~150 € before a TX-capable
-SDR at 150–230 €, against ~35 € for bare-metal, and the two projects the
-Cortex-M course is built around are already written while the RF course is
-not. If the RF course gets written before the bare-metal one starts, this
-ordering should be revisited rather than defended.
+The cost objection was what kept it second, and it survives contact only if
+the purchases are treated as one lump. They are not, and the module list
+below already stages them. The crystal set, the regenerative receiver, dB and
+transmission lines, link budgets, sampling and complex baseband, the
+modulations and the receive chain all run on the RTL-SDR and the CC1101
+already on the bench, for nothing. A NanoVNA and a TinySA (~150 € together)
+are first needed at antenna measurement and matching. A transmit-capable
+SDR — ADALM-Pluto at ~230 €, or a HackRF at ~150 € — is first needed at the
+PHY module, which is the last one. So the expensive part of the most
+expensive course is late *inside* it, and putting the course first does not
+put the spending first.
 
-Embedded Linux went first anyway, for a reason that stands: the board was
-already owned, the course costs 58 €, and it is the half of the field the
-existing notes are thinnest on.
+**Bare-metal and RTOS, second.** The old argument for it holds unchanged and
+is still the second-best one here: Cortex-M firmware is the most *reused*
+skill in the vault — the bootloader, the console, the custom board, the
+growbox, the car, the plane and the drone — and it is the one where I have
+nothing. Reading and pruning somebody else's mbed firmware on a MAX32620,
+which is what the health-sensor project actually was, is not the same as
+having written a reset handler. It costs ~35 €, and for RF work in particular
+it is the course that matters most after RF itself: a radio driver on a
+Cortex-M is the shape most of that work takes.
 
-It is also the course most exposed to the criterion above, which is worth
-saying rather than working around. Yocto recipes, Kconfig, devicetree syntax
-and driver boilerplate are text-mediated work, and text-mediated work is what
-an agent already does well. What survives the test is what the gap list below
-was already pointing at: bring-up when the board says nothing at all, latency
-as a measured quantity, ftrace and perf and eBPF as a discipline, power
-measured in µA, and upstreaming — where the acceptance test is a maintainer
-with no reason to be kind. Those are the modules to spend time in, and none of
-them is the one that writes a recipe.
+**Embedded Linux, third.** It went first, and the reason it went first was
+that the board was already owned, the course costs 58 €, and it was believed
+to be the thinnest part of the field. The first two hold. The third was
+false — it is the best-covered track here, not the thinnest, and roughly a
+third of the syllabus below was already built twice on other boards.
+
+It is also the course most exposed to the criterion above, which was written
+before the inventory and reads better after it. Yocto recipes, Kconfig,
+devicetree syntax and driver boilerplate are text-mediated work, and
+text-mediated work is what an agent already does well — and, it turns out,
+what has already been done here by hand. What survives the test is what the
+gap list below was pointing at: bring-up when the board says nothing at all,
+latency as a measured quantity, ftrace and perf and eBPF as a discipline,
+power measured in µA, DMA where the cache and the device disagree, and
+upstreaming, where the acceptance test is a maintainer with no reason to be
+kind. Those are the modules to spend time in, and none of them is the one
+that writes a recipe.
+
+**Hardware design, fourth.** It sits after RF on purpose. The parts of it
+that matter most for the aim are RF layout, matching networks and antenna
+keepouts, and none of those can be brought up without the vector network
+analyser and the spectrum analyser the RF course buys. It is also the only
+course with a cost that recurs — fab runs — and the slowest feedback loop
+here, two weeks to be told the return path was wrong.
+
+**Control and real-time, last.** This is the largest genuine gap in the
+inventory: no repository contains a control loop of any kind, and it is the
+only track the audit made *worse* rather than better. It is last anyway, and
+the honest reason is relevance rather than difficulty — it is the furthest of
+the five from where the work is aimed. It scores second only to RF on
+durability, so if the aim changes this is the one that moves, and it moves a
+long way.
+
+What would change this order: the RF course being written is what unlocks
+it — the two projects the Cortex-M course is built around are already
+specified while the RF course is still an outline, and an outline cannot be
+started. If that stays true for long, bare-metal goes first by default rather
+than by argument, and that should be recorded as what happened rather than
+presented as the plan.
 
 ### RF and wireless, in outline
 
@@ -245,8 +377,8 @@ measurement-bound — an antenna is matched or it is not, and no amount of
 reasoning about it substitutes for a VNA and a hand on the trimmer. It also
 holds the one genuinely open problem in the vault, the collar encoding that
 fits none of the standard schemes, and an open problem teaches better than a
-syllabus does. That is the argument against the ordering above, and it is
-recorded there rather than here.
+syllabus does. That was written as the argument against an earlier ordering
+that had this course second; it is the argument for the present one.
 
 ### Bare-metal and RTOS, in outline
 
@@ -296,46 +428,86 @@ a tune is confirmed by a vehicle that stops oscillating rather than by
 anything that can be argued. "Bounded, not fast" is judgement, and a loop that
 falls out of the sky is an acceptance test nothing can talk its way past.
 
+It also starts from further back than any of the other four. Nothing I have
+written contains a control loop — no PID, no filter, no state estimator, in
+any repository — so unlike the Linux course there is no covered ground to
+subtract. That is an argument for its value and not for its position; it is
+last because it is furthest from where the work is aimed, and those are
+different things.
+
 ## Topics the projects do not cover, and should
 
 These came out of writing the Linux course. Each one is genuinely part of
 the field and appears in no project note in this vault. Listed here so they
 have somewhere to be turned into projects from.
 
+The first version of this list conflated two different claims — *absent from
+`projects/`* and *not known* — and they come apart badly, because the work in
+`## What is already known` is in neither the vault nor the project notes. So
+each item below now says which of the two it is, and where a thing has been
+done once already, what specifically is left. Six of the twelve shrank and one
+disappeared.
+
 **In the Linux course, absent from the projects:**
 
-1. **Yocto, Buildroot and BSP construction.** The largest single gap. This
-   is the embedded Linux job description more often than driver work is, and
-   nothing in `projects/` mentions it.
-2. **The boot chain.** Every note begins at a booted Linux. Nothing covers
-   SPL, DDR init, boot order, U-Boot, or what to do when the board says
-   nothing at all.
-3. **Cross-toolchains, ELF and ABI.** Assumed by every project, learned by
-   none.
-4. **Kernel subsystems.** The vault knows char drivers. Industry writes IIO,
-   input, hwmon and `regmap` drivers, and a char driver for a sensor gets
-   rejected on sight upstream.
+1. **A board with no board support package.** This replaces what used to read
+   "Yocto, Buildroot and BSP construction — the largest single gap", which was
+   the wrongest sentence in this note: two Yocto builds exist, one of them
+   with a hand-written layer split, and recipes, `.bbappend`s, image variants
+   and `local.conf` are all worked ground. What is left of it is narrow and
+   worth stating exactly. **Buildroot** has never been used at all — the two
+   routes taken were a BusyBox root filesystem by hand and Yocto, with nothing
+   in between. And both builds consumed a BSP layer somebody else wrote,
+   `meta-raspberrypi` or qemu's, so writing a machine configuration for a
+   board that has none is untouched. That is the gap; the tool is not.
+2. **The boot chain.** Every note begins at a booted Linux, and so does every
+   build so far — the Raspberry Pi hands off from a GPU-side bootloader, so
+   U-Boot has never been in the path. SPL, DDR init, boot order, FIT images
+   and what to do when the board says nothing at all: all untouched. A
+   mainline kernel built from source is not, and that part of the module is a
+   second pass rather than a first.
+3. **ELF and the ABI.** Cross-compilation itself is done — a toolchain
+   triplet, a sysroot, and the dynamic loader copied in by hand until the
+   interpreter path stopped being mysterious. What is left is the layer under
+   it: ELF sections, relocations and symbol resolution read directly; the
+   soft-float against hard-float ABI wall, hit on purpose; musl against glibc;
+   and building a toolchain rather than using one.
+4. **Binding a driver to hardware by description.** The vault and the
+   repositories between them have three char drivers and not one
+   `of_match_table`. `hd44780.c` takes its GPIO numbers from macros — so the
+   gap is `platform_driver`, `probe`, devicetree matching and the `gpiod`
+   descriptor interface first, and then the subsystems: IIO, input, hwmon and
+   `regmap`. A char driver for a sensor gets rejected on sight upstream, and
+   knowing *why* is this item rather than knowing that it does.
 5. **DMA and kernel memory management.** Absent, and the source of a large
    share of real embedded bugs.
 6. **Latency as a measured quantity.** [[beaglebone-pru-realtime]] reaches
    for a PRU without anything first establishing what the CPU could actually
-   have done, which is the wrong order.
+   have done, which is the wrong order. Nothing anywhere has been measured,
+   which makes this the widest of the twelve.
 7. **Power management on Linux** — runtime PM, cpuidle, cpufreq,
    suspend/resume, wakeup sources. Absent, and decisive for any
    battery-powered Linux device.
 8. **Security and updates** — verified boot, dm-verity, A/B, provisioning,
-   SBOM, license compliance. Absent, and it is most of the distance between
-   a working build and a product.
+   SBOM. Absent, and it is most of the distance between a working build and a
+   product. The nearest thing already done is a production image built apart
+   from the development one, with `debug-tweaks` off and root reachable only
+   by key — which is the posture without any of the mechanism.
 9. **The Linux wireless stack** — `mac80211`, `cfg80211`/`nl80211`,
    regulatory domains. The vault has sub-GHz and Thread and nothing about
-   Wi-Fi.
+   Wi-Fi. Bringing Wi-Fi *up* on a built image is done — the firmware package,
+   NetworkManager, `iw` — which is configuration and not the stack.
 10. **Observability** — ftrace, perf, eBPF, ramoops post-mortem — as a
-    discipline rather than as `printk`.
+    discipline rather than as `printk`. One Oops has been read back to a
+    symbol and an offset, which is the entry point to this and nothing more.
 11. **Upstreaming.** `checkpatch`, patch series, binding review, mailing
-    lists. The only item on this list whose outcome cannot be self-assessed:
-    a patch is correct enough for a maintainer to take, or it is not.
+    lists. Writing a patch and carrying it in a recipe is done; being told no
+    by somebody who maintains the subsystem is not. Still the only item on
+    this list whose outcome cannot be self-assessed: a patch is correct enough
+    for a maintainer to take, or it is not.
 12. **Automated testing for embedded** — ptest, KernelCI and LAVA, boot
-    farms, hardware-in-the-loop.
+    farms, hardware-in-the-loop. Nothing in the vault is tested at all, and
+    the test harnesses met so far were supplied rather than written.
 
 **Visible from the other four courses, worth flagging early:**
 
@@ -358,7 +530,15 @@ have somewhere to be turned into projects from.
   behaviour, an unfamiliar kernel subsystem read well enough to extend it,
   someone else's driver reviewed for what it gets wrong. Nothing in the vault
   covers it, everything in the vault assumes it, and it is the one item here
-  whose value is going up rather than down.
+  whose value is going up rather than down. This bullet used to say nothing
+  covered it *anywhere*, and that was wrong in an interesting direction: the
+  MAX32620 health-sensor project was 293,000 lines of vendor mbed firmware
+  imported whole, and the only work of mine in it deleted 287 lines of device
+  drivers that were not needed and added a heart-rate characteristic to the
+  BLE service — seventeen lines. Reading enough of somebody else's firmware to
+  know which 287 lines were safe to remove is precisely this skill. One
+  instance five years ago is not coverage, but it is not zero, and it is the
+  only evidence for the durable skill this note ranks as rising fastest.
 - **Functional safety and coding standards** — MISRA, static analysis,
   requirements traceability. Dull, and not optional the moment the firmware
   can hurt someone.
@@ -383,8 +563,11 @@ test — that a project has to end up used, not demonstrated:
 
 ## Where this sits
 
-- [[embedded-linux-course]] — the one that exists, and the source of most of
-  the list above
+- [[embedded-linux-course]] — the only one written, now third in the order
+  rather than first, and the source of most of the list above
+- [[subghz-collar-remote-clone]] — the RF course's starting material and its
+  one open problem, and the project that supplies most of the evidence for
+  the criterion this note is ordered by
 - [[bare-metal-bootloader]] and [[freertos-pocket-console]] — the two
   projects the second course would be built around, and between them the
   most reused skill set in the vault

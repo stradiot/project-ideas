@@ -267,6 +267,12 @@ notices. Doing the manual measurements before running the script is
 deliberate: the SDR skill is the point, and it is the same skill
 [[subghz-linux-router]] Phase 1 is built on.
 
+It is also where [[embedded-learning-curriculum]] gets most of its evidence.
+URH reporting 400 samples per symbol against a true 417.75, and the capture
+damage hypothesis that fitted everything on screen and died to a hand
+measurement, are what that note's argument about measurement rests on — and
+the reason the RF course is ordered first there.
+
 ## Build log
 
 Session entries live in [[subghz-collar-remote-clone-log]].

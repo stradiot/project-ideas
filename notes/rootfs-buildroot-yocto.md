@@ -154,6 +154,24 @@ The Yocto build host is the aarch64 Linux VM, ~100 GB free. Set
 `DL_DIR` and `SSTATE_DIR` outside the build directory before the first build,
 so nothing is downloaded twice for the rest of the course.
 
+Four of these are a second pass rather than a first, and it is worth knowing
+which before spending a weekend on them. **1** (a rootfs by hand) was done for
+qemu-aarch64 with a mainline kernel underneath it. **6** (a first Yocto build)
+was done twice, for `raspberrypi4-64` and for qemu. **7** (an own layer) and
+**8** (a `.bbappend`) are `meta-lcdcontrol` and `meta-rpi-config`, which
+between them carry a module recipe, an application recipe, two image recipes
+and an append that installs configuration into `/etc`. Those four are kept
+because they are what the theory above is *for*, and repeating one on new
+hardware is cheap — but the module's time belongs in **3** (Buildroot, never
+used at all), **9** (a machine configuration, the only one of these never
+approached), **11** and **12**. See [[embedded-learning-curriculum]] for the
+inventory this comes from.
+
+Exercise **13** also changes character. It asks for Buildroot and Yocto
+compared from having built both; Yocto has been built twice and Buildroot not
+once, so the comparison is currently half-informed, which is a more honest
+starting position than none and a worse one than it looks.
+
 1. **A rootfs by hand.** Static BusyBox, a two-line `/init`, packed as a cpio
    initramfs, booted over TFTP. *Success: a shell prompt, with the whole
    filesystem in RAM and no storage involved.*
