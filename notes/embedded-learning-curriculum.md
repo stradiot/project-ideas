@@ -11,6 +11,40 @@ nineteen project notes describe *what* to build and none of them describe
 what has to be learned first, and it turned out that gap was mostly in the
 same four or five places every time.
 
+## Why these are written rather than bought
+
+The alternative was to buy five courses instead of writing them, and it is
+worth recording why that lost, because the answer is not that commercial
+courses are bad.
+
+A course sold to everyone has to be built for everyone, which forces three
+compromises at once. The syllabus is the intersection of what its buyers
+want rather than what any one of them wants. The level assumes a starting
+point that is nobody's in particular. And the work is mostly watched rather
+than done. Paying for that and then skipping half of it is the normal
+outcome, and it is not the same half for any two people.
+
+Writing them costs the time these notes took and removes all three: the
+syllabus is only the parts worth learning here, the level is whatever is
+actually known this month, and every module ends in hardware on the bench.
+What is left to pay for is the hardware, which was going to be bought
+regardless — 58 € for Embedded Linux, and the table below carries the same
+figure for the other four.
+
+The part a bought course genuinely cannot supply is being answered back. A
+recorded lecture cannot notice that a foundation is missing, and it cannot
+be argued with when it is wrong. Working through a module in Claude Code
+does both, and the SessionStart hook makes it the default rather than
+something to remember to ask for: explain the mechanism before writing the
+code, and cover the gap rather than route around it. That is the same rule
+these notes are written under — teach the mechanism, not the API surface —
+so the session and the note it produces are held to one standard.
+
+What a bought course still has that this does not is a deadline, and
+somebody else's judgement that the order is right. The ordering below is
+the substitute for the second. There is no substitute for the first, and
+`status:` staying honest is the only thing that makes a stall visible.
+
 ## What stays worth knowing
 
 The courses below were ordered on four things: the size of the gap, how often

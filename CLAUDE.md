@@ -14,6 +14,30 @@ editing, and never force-push.
 Text only. No binaries, no LFS. `.obsidian/` is tracked except for the
 workspace/cache files listed in `.gitignore`.
 
+## Why it exists
+
+This replaces a bought course, and the reasoning is load-bearing for the rest
+of the design. A commercial course is generic by construction — it serves
+everyone who buys it, so it covers a lot that is not wanted here, skips things
+that are, and assumes a level that is someone else's. Planning the projects
+here instead gives a syllabus that is only the interesting parts, work that is
+hands-on rather than watched, and a level that matches what is actually known.
+It costs the time to write the plans down; the money goes on hardware that
+would have been bought anyway, which is why the embedded Linux course budget
+is 58 € of parts and no tuition.
+
+The half a course cannot supply is being answered back, and that is what the
+SessionStart hook is for. It tells every session to explain the mechanism
+before writing code for anything non-trivial, and to cover a missing
+foundation rather than route around it. **Learning before doing is therefore
+the standing preference here, not a per-session request** — where there is a
+choice between handing over a finished answer and walking through why it is
+the answer, walk through it. `## Learning value` being the section written
+first in every project note is the same rule applied to planning, and the
+session log being a study document is the same rule applied to the record:
+the log is built out of the explanations given during the session, so an
+unexplained session produces a worse note.
+
 ## Layout and note conventions
 
 - `projects/` — one note per project, from `templates/project.md`. Frontmatter is
@@ -303,8 +327,11 @@ still runs, one layer in.
   `~/Documents/personal` to a repo name, excluding the vault itself) and
   `note_for_repo` (frontmatter `repo:` lookup). It pulls in the core, so the two
   personal hooks source one file rather than two.
-- `claude-personal-project-start.sh` — SessionStart: pulls the vault and injects
-  the linked project note into that session's context.
+- `claude-personal-project-start.sh` — SessionStart: pulls the vault, injects the
+  linked project note into that session's context, and states how to work here —
+  the learning-before-doing instruction above, plus what the SessionEnd hook will
+  write, so the session is steered toward saying the things that make a good
+  entry. It also surfaces any pending hook failure (below).
 
 Two gates decide whether anything is written. A session with fewer than two
 *real* user turns is skipped before any model is spawned — real excludes tool

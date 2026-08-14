@@ -21,6 +21,32 @@ Written by automation as much as by hand — see *The vault maintains itself*
 at the bottom. Working on one of the linked repos is what updates the
 project note, its log and the daily journal.
 
+## Why not a course
+
+Buying one was the obvious alternative, and it was rejected for a specific
+reason rather than a general dislike. A course on Udemy or Coursera is
+generic by construction: it has to serve everyone who buys it, so it covers
+a lot that is not wanted here, skips things that are, and pitches at a level
+that is someone else's.
+
+Planning the projects instead costs the time to write them down, and buys a
+syllabus that is only the interesting parts, work that is hands-on rather
+than watched, and a level that matches whatever is actually known. The money
+goes on hardware instead of tuition — the embedded Linux course here is
+fourteen modules and its entire budget is 58 € of parts, microSD cards, a
+logic analyzer and a Wi-Fi dongle that would have been bought anyway. Four
+more courses are mapped the same way in
+`notes/embedded-learning-curriculum.md`. The output is sometimes useful on
+its own terms too, which a course exercise rarely is:
+`subghz-collar-remote-clone` is a device in daily use.
+
+What a course cannot do at all is answer back. Working through a project in
+Claude Code means the mechanism gets explained before the code is written, a
+missing foundation gets covered rather than routed around, and a wrong idea
+can be argued with. That is the half worth having, and it is why the
+SessionStart hook puts that instruction into every session rather than
+leaving it to memory.
+
 ## Built
 
 Two, and the second one is smaller than it sounds. Both are in use.
