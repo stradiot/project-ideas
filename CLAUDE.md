@@ -38,6 +38,23 @@ session log being a study document is the same rule applied to the record:
 the log is built out of the explanations given during the session, so an
 unexplained session produces a worse note.
 
+The cost of the arrangement is that nothing here is reviewed. No instructor
+marks the work, no peer reads the notes, no maintainer rejects a patch, and a
+wrong explanation reads exactly like a right one. What limits the damage is
+that most of this work ends in a physical result that does not care what
+anyone believed — a measured number, a frame a real receiver accepts, an
+airframe that flies. That check is real but partial: it only covers what the
+build exercises, and it can arrive late. The collar remote beeped about 70% of
+the time for months, and the first explanation for why was convincing and
+wrong.
+
+So **"it works" and "I understand why it works" are separate claims here**, and
+the notes are written to keep them apart. A hypothesis stays labelled as one
+until something measured it, a number carries where it came from, and a killed
+hypothesis is recorded next to the answer that replaced it rather than quietly
+dropped. Those conventions are not stylistic — they are the only review this
+work gets.
+
 ## Layout and note conventions
 
 - `projects/` — one note per project, from `templates/project.md`. Frontmatter is

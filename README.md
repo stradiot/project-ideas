@@ -47,6 +47,18 @@ can be argued with. That is the half worth having, and it is why the
 SessionStart hook puts that instruction into every session rather than
 leaving it to memory.
 
+The honest cost is that none of this is reviewed. Nobody marks the work or
+reads the notes, and a wrong explanation reads exactly like a right one.
+What catches most of it is that the work ends in hardware, which does not
+care what anyone believed — a number is measured or it is not, a decoded
+frame is accepted by a real receiver or it is not, an airframe flies or it
+does not. That check is partial: it only covers what the build exercises,
+and it can be slow. `subghz-collar-remote-clone` beeped about 70% of the
+time for months, and the first explanation for why was convincing and
+wrong. So "it works" and "I understand why it works" are kept as separate
+claims throughout, which is what `## Lessons` and the recorded dead ends are
+for.
+
 ## Built
 
 Two, and the second one is smaller than it sounds. Both are in use.

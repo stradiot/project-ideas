@@ -45,6 +45,31 @@ somebody else's judgement that the order is right. The ordering below is
 the substitute for the second. There is no substitute for the first, and
 `status:` staying honest is the only thing that makes a stall visible.
 
+The larger thing it does not have is review. Nothing here is fact-checked
+by anyone — no instructor marks the work, no peer reads the notes, no
+maintainer rejects a patch — and a wrong explanation arrives in the same
+confident prose as a right one. That is a real hazard and it is not fully
+solvable from inside.
+
+What limits it is that most of this work ends in a physical result, and
+hardware does not care what anyone believed. A number is measured or it is
+not, a decoded frame is accepted by a real receiver or it is not, an
+airframe flies or it does not. Nothing marks that work, but nothing needs
+to — and that verdict is not available for the theory-shaped parts of a
+bought syllabus either, so on the practical half this is better checked
+than a course rather than worse.
+
+The offset is partial in two ways worth naming. It only covers what the
+build actually exercises: a misunderstanding that never touches the outcome
+survives indefinitely. And the verdict can arrive late and be misread on
+the way — [[subghz-collar-remote-clone]] beeped about 70% of the time for
+months, and the first explanation for why fitted everything visible on
+screen and was wrong, killed a session later by a hand measurement. **"It
+works" and "I understand why it works" are separate claims, and only the
+first one checks itself.** Keeping them apart is what `## Lessons` is for,
+and why a killed hypothesis is written down next to the answer that
+replaced it.
+
 ## What stays worth knowing
 
 The courses below were ordered on four things: the size of the gap, how often
