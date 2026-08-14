@@ -16,6 +16,10 @@
 #   .site/build.sh --serve    build and serve on http://localhost:8080
 #
 # Any arguments are passed through to `quartz build`.
+#
+# SITE_BASE is the path the site is served under: empty at a domain root, and
+# "/project-ideas" for the GitHub Pages project site. It exists to work around
+# an upstream bug — see the patch step below.
 
 set -euo pipefail
 
@@ -49,4 +53,36 @@ npm ci
 # At v5.0.0 this installs strictly from quartz.lock.json, which is why
 # quartz.config.yaml must not name a plugin the tag's default config lacks.
 npx quartz plugin install
+
+# The explorer, graph and search plugins each fetch "/static/contentIndex.json"
+# — root-absolute, with no allowance for a site served under a path. On a
+# GitHub Pages project site that resolves to stradiot.github.io/static/...
+# rather than /project-ideas/static/..., so the fetch 404s and the sidebar file
+# tree, the graph and search all come up empty while every page still renders.
+#
+# Quartz core gets this right: it inlines `const fetchData = fetch(...)` into
+# each page's head with a path relative to that page's depth. These plugins
+# ignore that global and fetch again on their own. `quartz build --baseDir`
+# does not reach them, and the string lives in each plugin's compiled
+# dist/*.js — patching src/ does nothing, because plugin install has already
+# built dist/ and that is what the bundler consumes.
+#
+# The substitution has to be an absolute path rather than a relative one:
+# postscript.js is shared by pages at different depths, so "../static/..."
+# would resolve differently per page.
+#
+# Fails loudly rather than silently doing nothing if a future tag changes the
+# string.
+if [ -n "${SITE_BASE:-}" ]; then
+  targets=$(grep -rl '"/static/contentIndex.json"' .quartz/plugins/*/dist || true)
+  if [ -z "$targets" ]; then
+    echo "SITE_BASE set but the contentIndex fetch was not found — upstream changed, re-check the patch" >&2
+    exit 1
+  fi
+  # perl rather than sed -i, which needs different arguments on macOS and Linux.
+  echo "$targets" | xargs perl -pi -e \
+    "s{\"/static/contentIndex\.json\"}{\"$SITE_BASE/static/contentIndex.json\"}g"
+  echo "patched contentIndex fetch to $SITE_BASE in $(echo "$targets" | wc -l | tr -d ' ') script(s)"
+fi
+
 npx quartz build "$@"

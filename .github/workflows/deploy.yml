@@ -33,6 +33,10 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('.site/build.sh') }}
           restore-keys: ${{ runner.os }}-npm-
       - name: Build site
+        # The Pages project site is served under /project-ideas, which the
+        # plugins' hardcoded contentIndex fetch does not account for.
+        env:
+          SITE_BASE: /project-ideas
         run: bash .site/build.sh
       - uses: actions/upload-pages-artifact@v3
         with:
