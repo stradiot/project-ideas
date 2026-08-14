@@ -1,0 +1,50 @@
+name: Deploy vault to GitHub Pages
+
+# Every push to main rebuilds, which includes the pushes the SessionEnd hook
+# makes on its own (`journal: <repo> <date>`). Nothing here needs a human.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          # Quartz v5 requires Node >= 22.
+          node-version: 24
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('.site/build.sh') }}
+          restore-keys: ${{ runner.os }}-npm-
+      - name: Build site
+        run: bash .site/build.sh
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .site/.work/public
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

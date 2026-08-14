@@ -7,3 +7,6 @@
 # Local Claude guidance. Loaded into sessions, never published.
 CLAUDE.local.md
 .claude/
+
+# Scratch clone of Quartz plus the built site. Recreated by .site/build.sh.
+.site/.work/
