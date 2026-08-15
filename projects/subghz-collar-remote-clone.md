@@ -15,16 +15,16 @@ idea. Code in `d-control-400-remote`.
 
 ## Now
 
-Reliability now confirmed at the real installed geometry: 12/12 beeps
-through the load-bearing wall with placement redrawn each time, and the
-occasional chopping there traced to RF margin rather than a firmware timing
-bug, so RMT stays a structural improvement rather than a required fix. Also
-shipped a continuous LED heartbeat (green pulse if Wi-Fi is up, amber if
-not) so idle reads as alive instead of dark, deployed over the air and
-pushed to `main`. Three items remain untouched: flashing the standalone
-build to the perfboard prototype over USB, moving transmission onto the RMT
-peripheral, and a differential shock/B-channel capture to start on the
-protocol. Next up is the USB flash.
+The standalone `src/main.cpp` build has run on real hardware for the first
+time, flashed to the perfboard prototype over USB: 18/18 beeps across three
+tested configurations. It now defaults to the deadline timing engine to
+match the validated ESPHome path, and a same-geometry test showed the
+5 ms inter-burst gap does nothing on this path (it sits inside the
+suspended-scheduler region) while a fully gapless run — 126 contiguous
+frames, structurally a button hold — decoded clean, which de-risks the RMT
+migration directly. Two items remain: RMT migration, now the better-founded
+one to start next, and a differential shock/B-channel capture to begin
+decoding the protocol.
 
 ## Lessons
 
@@ -107,6 +107,14 @@ protocol. Next up is the USB flash.
   line-of-sight against 8/12 chopped at 5 m through a load-bearing wall
   (Fisher's exact p ≈ 0.011), with every timing-side variable held fixed on
   the transmitter. [[subghz-collar-remote-clone-log#2026-08-13]]
+- **The collar tolerates fully continuous drive, not just contiguous
+  frames.** With the standalone path's inter-burst gap set to zero at
+  runtime, 126 frames ran back-to-back over 2.87 s — the same shape as a
+  real button hold rather than a series of taps — and decoded clean, 6/6.
+  That's direct evidence against the receiver needing periodic silence to
+  resettle, and it's the open question the RMT migration specifically
+  needed answered, since RMT's point is sustained output with no CPU-timed
+  gaps at all. [[subghz-collar-remote-clone-log#2026-08-15]]
 
 ## Goal
 
@@ -258,7 +266,14 @@ Already spent.
       measurements rather than the other way round
 - [x] Confirm or kill the clamping hypothesis
 - [x] If confirmed: re-capture without the two-bucket classifier, rebuild the payload
-- [ ] Sweep `BASE_TICK_US` from the calibration mode, find where reliability peaks
+- [x] Sweep `BASE_TICK_US` from the calibration mode, find where reliability peaks
+      — **closed as overtaken, not performed.** Written while the timing
+      hypothesis was still alive. The tick was since measured directly at
+      208.647 µs frame-start to frame-start, and the real fault turned out to be
+      burst structure, so there is no free parameter left to sweep. Kept rather
+      than deleted because the sweep is why `signal.h` is parameterised by a
+      single scalar at all, and that refactor is what made the timing hypothesis
+      testable in seconds. [[subghz-collar-remote-clone-log#2026-08-13]]
 - [x] Get the beep to fire every time, in the hand, at range
 
 Same dog as [[lora-dog-collar-telemetry]] and

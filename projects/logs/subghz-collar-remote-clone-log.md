@@ -8,6 +8,121 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-08-15
+
+Picked the smallest of the three open TODOs — flashing the standalone
+`src/main.cpp` build to the perfboard prototype over USB — and it turned out not
+to be as small as it looked. That build had compiled since 2026-08-11 but had
+never once run on hardware, carrying three sessions of RF changes that were
+validated only on the ESPHome path. Two things about it needed checking before
+touching the board. First, it defaults to `timingMode = 0`, the legacy engine
+that samples `micros()` *after* `digitalWrite()`, so the overhead of the write
+itself isn't counted toward the timing target and compounds across all 616
+edges of a burst — never confirmed working, unlike the deadline engine (mode 1)
+the ESPHome path uses, which fixes a single timestamp at burst start and
+accumulates ideal durations from it, so a late edge only eats into its own slot
+rather than the next one's. Second, the standalone path has no `feed_wdt()` call
+and holds the scheduler suspended across the *entire* ~2.96 s sequence, which
+looked like the exact condition that reset the ESPHome board on 2026-08-11.
+Reading the C3 Arduino SDK's `sdkconfig` settled that one before any flash:
+`CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0` is unset, so the idle task — the
+thing that starved on the ESPHome path and took the watchdog down with it — was
+never subscribed to the watchdog in the first place. Nothing feeds it, nothing
+trips it. The two firmware paths turn out to have genuinely different watchdog
+exposure, not just different mitigations for the same risk, and that's now
+written into the repo's `CLAUDE.md` rather than left to be rediscovered.
+
+The thing that actually cost time was the age key. Decryption failed with
+`identity did not match any of the recipients` against a key file whose public
+key I'd already verified matched `.sops.yaml` exactly — which should have been
+impossible, and was the tell that the key simply wasn't being loaded at all. It
+was sitting at `~/.config/sops/age/keys.txt`, the *Linux* default. sops is
+written in Go and resolves its default key path with `os.UserConfigDir()`,
+which returns `$HOME/.config` on Linux but `$HOME/Library/Application Support`
+on macOS — so on this machine sops was looking somewhere else entirely and
+saying so in the least helpful way possible: its error lists only the
+`SOPS_AGE_*` environment variables it checked and never names the default path,
+so a correct key in the wrong place reads exactly like a missing one. Moving
+the same file to `~/Library/Application Support/sops/age/keys.txt` fixed it
+immediately. Confirmed the copy at the wrong path was truly redundant (same
+derived public key, survivor still matches the recipient) before deleting it,
+rather than leaving two copies of a decryption key on disk. That correction is
+now in `CLAUDE.md` and `README.md`, in the place a fresh clone would actually
+read it.
+
+With the key resolved, the build, flash and a decrypt-verify-restore round trip
+all went cleanly — `signal.h` was restored from a pre-decrypt snapshot rather
+than re-encrypted, since a fresh `sops -e -i` rolls a new data key and MAC and
+would have diffed against `HEAD` for identical content. Talking to the board
+afterward needed a way to send commands and read the serial console
+non-interactively, since `pio device monitor` is interactive and never exits on
+its own. Wrote a small pyserial script instead, which was worth understanding
+rather than just using. `/dev/tty.usbmodem101` isn't a UART: the C3 has a USB
+Serial/JTAG peripheral built into the silicon, and with
+`ARDUINO_USB_CDC_ON_BOOT=1` set, Arduino's `Serial` binds to that peripheral
+directly over USB CDC-ACM (Communications Device Class, Abstract Control
+Model — the USB device class every microcontroller with native USB uses to look
+like a serial port to a generic OS driver, without a vendor driver). Baud is
+decorative there: the `SET_LINE_CODING` control request is accepted and
+ignored, because a real USB-to-UART bridge would apply it to a physical UART
+that doesn't exist on this path, and the actual bytes ride bulk endpoints at
+whatever the 12 Mbit/s bus has spare. DTR and RTS aren't wires either — they're
+two bits in a `SET_CONTROL_LINE_STATE` request, and the C3's USB Serial/JTAG
+peripheral watches them the same way a classic board's DTR/RTS-to-EN/GPIO0
+transistor circuit would, which is what let the script reset the board into a
+known state before each run. Also switched the script from `/dev/tty.usbmodem101`
+to `/dev/cu.usbmodem101` after working out the difference: `tty.*` is the BSD
+*callin* device, whose `open()` blocks until DCD (Data Carrier Detect, the
+modem-control signal that historically meant "a live connection exists," and
+whose loss is where SIGHUP and `nohup` come from) is asserted — meant for a
+line something dials *into*. `cu.*` is *callout*, for a device the host
+initiates a connection to, which is every USB serial device on a Mac without
+exception. `tty.*` had been working by accident because the C3 asserts DCD
+unconditionally; `pio run --target upload` picking `cu.usbmodem101` on its own
+during the later rebuild confirmed it was the outlier, not the norm.
+
+The actual A/B test came down to two questions, both answered with the collar
+stationary and untouched between runs so placement couldn't confound the
+result. First, mode 0 versus mode 1: 6/6 clean on mode 0, 5/6 clean on mode 1
+with the standard 5 ms inter-burst gap — Fisher's exact p = 1.0, a statistical
+non-result. The unobstructed, close-range geometry had too much margin to
+expose mode 0's compounding error; the test confirmed both engines work
+without ranking them. Defaulted to mode 1 anyway, to match the already-
+validated ESPHome path rather than because it scored better, and left mode 0
+reachable through the serial `m 0` command rather than deleting it. Second,
+the gap itself: reading `transmitSequence()` showed `TRANSMIT_GAP_US` sits
+*inside* `vTaskSuspendAll()` on the standalone path, unlike the ESPHome path
+where the same constant sits outside the resume and is where `feed_wdt()`
+runs — so on standalone the gap is a busy-wait yielding to nothing, with no
+possible justification except an RF-side one, and the capture record already
+said real presses have no gap anywhere inside a transmission. Setting it to
+zero at runtime (`g 0`, no reflash) and firing six more triggers gave 6/6 beeped,
+6/6 clean — 126 contiguous frames over 2.87 s, structurally the same shape as a
+real button hold rather than a series of taps. That's the first direct evidence
+that the collar's receiver tolerates fully continuous drive rather than needing
+periodic silence to resettle, and it's evidence the RMT migration specifically
+needed, since RMT's whole point is sustained output with no CPU-timed gaps.
+`TRANSMIT_GAP_US` itself was left at 5000 in `signal.h` — it's shared with the
+ESPHome path, where removing it reproduces the 2026-08-11 watchdog reset — so
+the gapless result stays a standalone-only finding, not a payload change.
+
+Also pinned `platformio.ini`'s `platform =` line to a specific release URL
+after noticing the unpinned form silently resolves to whatever's already
+installed locally rather than a fixed version, and dropped `build_flags` and
+the hardcoded `upload_port`/`monitor_port` that the board JSON and PlatformIO's
+own auto-detection already handle — auto-detection picked `cu.usbmodem101` on
+its own, which was the check that the callout-device reasoning above was right.
+Closed the session by pushing three commits, deleting the now-confirmed-
+redundant key copy at the Linux path, and ticking the `Sweep BASE_TICK_US` plan
+item as overtaken-not-performed, a bookkeeping correction that had been sitting
+unticked since 2026-08-13.
+
+Where this leaves it: the standalone firmware has run on hardware for the
+first time and works — 18/18 beeps across the three tested configurations. Two
+TODOs remain, and RMT migration is now the better-founded one to start next,
+since the gapless result removes the open question of whether the collar can
+tolerate sustained output at all.
+
 ### 2026-08-13
 
 Started from the open TODO list and worked it one item at a time. First item was
