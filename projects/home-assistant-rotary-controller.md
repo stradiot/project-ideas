@@ -4,6 +4,7 @@ status: idea
 depends: []
 created: 2026-08-07
 repo: t-embed-ha-controller
+github: https://github.com/stradiot/t-embed-ha-controller
 ---
 
 # Home Assistant Rotary Controller
