@@ -11,8 +11,30 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-Not started. Nothing here is in progress — the plan below is the whole
-of it.
+Toolchain and discovery are underway; nothing has been flashed. ESP-IDF
+v5.5.5 is installed, a factory firmware backup is taken and hashed, and a
+no-GPIO diagnostic build compiles clean. Nine of thirteen board pins are
+confirmed by tracing the vendor schematic; four remain (power latch,
+backlight enable, LCD DC, LCD reset). Next step is reading those off the
+PDF by hand, then deciding whether to run the first flash.
+
+## Lessons
+
+- **A shared SPI bus is capped by its worst-routed signal.** The S3's
+  IO_MUX gives a direct, low-latency path to 80 MHz for a fixed pin per
+  peripheral signal, but IDF documents that once any one signal on a bus
+  isn't on its IO_MUX-direct pin, the whole bus routes through the GPIO
+  matrix crossbar instead, capping around 40 MHz. On this board `SPI_SCK`
+  landed on GPIO11 (the MOSI slot), not GPIO12, so the LCD/SD/CC1101 bus
+  is crossbar-routed — not a problem here (46 fps ceiling on a 320×170
+  panel is plenty), but worth checking on any board before assuming 80 MHz.
+  [[home-assistant-rotary-controller-log#2026-08-16]]
+- **A pin map is a fact about the PCB, not the chip, and has to be
+  discovered accordingly.** The ESP32-S3's GPIO matrix lets almost any
+  peripheral signal route to almost any pad, unlike an STM32's fixed
+  alternate-function table, so "which pin drives the LCD chip-select" is
+  answered by the schematic or the running board, never by the datasheet
+  alone. [[home-assistant-rotary-controller-log#2026-08-16]]
 
 ## Goal
 
