@@ -186,6 +186,10 @@ project produces — so nothing else is going to buy it first.
 Budget for at least two revisions. The first board almost never works
 fully, and accounting for that upfront saves frustration later.
 
+Sourcing: [[parts-sourcing]] — why the DK comes from a distributor rather
+than a marketplace, and why LCSC rather than AliExpress is the right basket
+for the genuine ICs, since it shares shipping with the JLCPCB order.
+
 ## Firmware — Zephyr / nRF Connect SDK
 
 A custom board means a custom board definition. Ideally as an out-of-tree

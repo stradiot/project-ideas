@@ -200,6 +200,10 @@ Not bought, deliberately: an oscilloscope (nothing here is analog), a JTAG
 probe (see Tools), a second board (nothing to brick), a Raspberry Pi (one is
 owned and busy).
 
+Sourcing: [[parts-sourcing]] — most of the 58 € is safe to buy from
+AliExpress, but the microSD cards and the 5 V supply are the two lines where
+a bad part imitates the boot bug this course exists to teach diagnosing.
+
 ## Software / firmware
 
 The stack, in the order it gets built:

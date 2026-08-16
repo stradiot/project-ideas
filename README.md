@@ -164,6 +164,13 @@ because a plane glides when the loop is wrong and a quadcopter falls. And the
 drone is deliberately last — nothing blocks it, but it is the project that
 most rewards already knowing what you are doing.
 
+Where the parts come from is a separate question from which project is next,
+and `notes/parts-sourcing.md` answers it across every `## Budget` table at
+once. Roughly half the vault's parts spend is commodity modules, motors and
+wire where a marketplace is the obvious source; the rest is sorted by a
+single test — whether a subtly wrong part would announce itself, or would
+present as a bug in the thing being learned.
+
 ## Projects
 
 Grouped by track. Order within a track is rough progression, not dependency —

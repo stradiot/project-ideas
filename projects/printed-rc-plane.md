@@ -112,6 +112,9 @@ Rough estimates. The radio line is zero if the car came first.
 Around 120–175 € for the first aircraft, and every crash after that costs
 filament. The second airframe is essentially free.
 
+Sourcing: [[parts-sourcing]] — the airframe hardware and the radio set come
+from AliExpress; LW-PLA and the 3S packs do not, for different reasons.
+
 ## Software / firmware
 
 None in version 1 — the receiver drives the servos directly.

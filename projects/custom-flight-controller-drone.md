@@ -153,6 +153,10 @@ bought once for all three.
 Budget for crashes, but not for much: at this size a bad landing costs a
 reprinted duct. Motors are the consumable, and they are a few euros each.
 
+Sourcing: [[parts-sourcing]] — motors, ESC and props are the category
+AliExpress genuinely owns; the LiPo packs are not, and the radio set is
+bought once across this project, the car and the plane.
+
 ## Software / firmware
 
 - Bare-metal or minimal RTOS — the loop must not be at anyone else's mercy

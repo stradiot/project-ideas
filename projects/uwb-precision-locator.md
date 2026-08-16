@@ -197,6 +197,10 @@ Rough estimates.
 Phase 1 costs about 50 € on top of parts already in the drawer, and it is
 the phase that decides whether the rest is worth doing.
 
+Sourcing: [[parts-sourcing]] — the DW3000 modules are the one part here
+whose counterfeit would be absorbed by the tape-measure calibration rather
+than exposed by it.
+
 ## Hardware of my own — later
 
 Once the ranging works on bought boards, the UWB radio becomes an

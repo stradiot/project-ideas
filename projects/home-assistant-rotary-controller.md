@@ -249,6 +249,10 @@ The board is effectively the entire cost — display, encoder, PSRAM, battery
 and charging are already on it, which is why it is worth more than the sum
 of parts here.
 
+Sourcing: [[parts-sourcing]] — LilyGO sell the T-Embed through their own
+store, which makes the single most expensive module in the vault also the
+one most safely bought from AliExpress.
+
 ## Software / firmware
 
 - WebSocket client: authenticate, `get_states` for the initial snapshot,

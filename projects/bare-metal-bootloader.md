@@ -117,6 +117,10 @@ Rough estimates.
 | USB-UART converter | 5–10 € |
 | ST-Link clone (if not already owned) | 5–10 € |
 
+Sourcing: [[parts-sourcing]] — the ST-Link clone is safe to buy cheaply and
+the MCU board is not, because this project erases flash sectors and sets
+option bytes, which is exactly where a relabelled die diverges invisibly.
+
 ## Software / firmware
 
 - `startup.s` — vector table and reset handler

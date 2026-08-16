@@ -152,6 +152,10 @@ Rough estimates.
 | MCU board | 10–25 € |
 | LiPo + charger + enclosure | 20–30 € |
 
+Sourcing: [[parts-sourcing]] — Ebyte and Heltec sell the SX1262 modules
+direct, and the u-blox GPS is the line worth verifying on arrival before a
+slow fix gets blamed on the antenna.
+
 ## Software / firmware
 
 - Firmware: GPS NMEA parsing, IMU sampling and classification, packing,

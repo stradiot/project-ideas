@@ -107,6 +107,9 @@ Rough estimates.
 
 The radio set is the largest line and is bought once — the drone reuses it.
 
+Sourcing: [[parts-sourcing]] — the radio set is the biggest single saving in
+the vault, and this is the project that buys it, for all three.
+
 ## Software / firmware
 
 - Input capture driver for PPM, later an SBUS parser on UART

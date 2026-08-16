@@ -149,6 +149,9 @@ Rough estimates.
 Effectively free. The radio, the SDR and the board are all already on the
 bench, which is most of why this project is worth doing at all.
 
+Sourcing: [[parts-sourcing]] — the CC1101 modules are already proven from
+AliExpress by [[subghz-collar-remote-clone]], which runs one.
+
 ## Software / firmware
 
 - Userspace decoder in C — sample stream in, payload out

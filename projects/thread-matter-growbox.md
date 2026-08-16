@@ -209,6 +209,10 @@ regardless.
 Phase 1 is around 55–80 €. Phase 2 roughly triples it, and is a decision
 taken after phase 1 has been running in a pot for a month.
 
+Sourcing: [[parts-sourcing]] — phase 2's actuators are commodity, and the
+12 V supply, the pH probe and the cell are the three lines that are not.
+The cell matters most: phase 1's deliverable is a current figure.
+
 ## Software / firmware
 
 - Zephyr application: ADC sampling, I2C sensors, Matter cluster exposure

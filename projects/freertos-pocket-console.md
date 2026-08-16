@@ -161,6 +161,10 @@ v2 is the expensive half and it is spent on a device that gets carried, not
 on the learning. Worth deciding after v1 has been used on a few walks and
 the requirements are known rather than guessed.
 
+Sourcing: [[parts-sourcing]] — the v1 modules are commodity buys and the
+battery is not, because v2's whole claim is a runtime figure and a pack of
+overstated capacity still produces a number.
+
 ## Software / firmware
 
 - ESP-IDF project, tasks created explicitly with chosen stack sizes and

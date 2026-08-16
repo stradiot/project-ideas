@@ -79,6 +79,10 @@ Rough estimates.
 | WS2812 strip | 15–30 € |
 | 5 V supply sized for the strip | 15–25 € |
 
+Sourcing: [[parts-sourcing]] — the strip needs a stated part number rather
+than "WS2812 compatible", because this project's claim is a timing figure and
+the variants have different timing windows.
+
 ## Software / firmware
 
 - PRU firmware, loaded via `remoteproc`

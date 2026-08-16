@@ -159,6 +159,9 @@ Rough estimates.
 The cheapest project in the vault, and the one most likely to be used
 daily.
 
+Sourcing: [[parts-sourcing]] — the cheapest BOM in the vault is also the one
+that is safe to buy from AliExpress end to end.
+
 ## Software / firmware
 
 - I2S capture task, framing and RMS → dBFS

@@ -103,6 +103,9 @@ Rough estimates.
 | USB thermometer / serial converter | 10–20 € |
 | Board (if not already owned) | 40–80 € |
 
+Sourcing: [[parts-sourcing]] — the PIR and the logic analyzer are commodity
+buys; the board is the line worth paying a distributor for.
+
 ## Software / firmware
 
 - Device Tree Overlay — pin muxing, interrupt declaration

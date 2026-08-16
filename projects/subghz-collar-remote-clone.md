@@ -249,6 +249,9 @@ Already spent.
 | PCB fabrication | 10–20 € |
 | Filament for the enclosure | ~2 € |
 
+Sourcing: [[parts-sourcing]] — already spent, but these prices are the
+evidence the rest of the vault's AliExpress estimates rest on.
+
 ## Software / firmware
 
 - `src/main.cpp` — button handling, LED feedback, transmit sequence, and

@@ -168,6 +168,10 @@ Rough estimates.
 Under 60 € for all four stages. Nothing here needs a part with a tolerance
 worth paying for.
 
+Sourcing: [[parts-sourcing]] — the ferrite rods, variable capacitors and
+passives here are the vault's clearest case for buying from AliExpress, and
+the germanium detector is its clearest case against.
+
 ## Software / firmware
 
 None for the analog stages — that is the appeal.
