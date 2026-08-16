@@ -166,10 +166,14 @@ most rewards already knowing what you are doing.
 
 Where the parts come from is a separate question from which project is next,
 and `notes/parts-sourcing.md` answers it across every `## Budget` table at
-once. Roughly half the vault's parts spend is commodity modules, motors and
-wire where a marketplace is the obvious source; the rest is sorted by a
-single test — whether a subtly wrong part would announce itself, or would
-present as a bug in the thing being learned.
+once, on two tests. The first is whether a subtly wrong part would announce
+itself or would present as a bug in the thing being learned. The second is
+arithmetic: since 1 July 2026 a low-value parcel from outside the EU carries
+a flat €3 per customs classification — €3.70 with Slovak VAT — which is
+charged per *product type* rather than per parcel or per unit. Quantity is
+free and variety is expensive, so buying one of everything cheap is now the
+most expensive way to stock the bench, and the note works out which lines
+that reverses.
 
 ## Projects
 

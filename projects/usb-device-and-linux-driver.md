@@ -203,9 +203,10 @@ exist. The nRF board has the USB-C connector, ESD protection and native USB
 already routed; the BeagleBone has a dual-role port and a mainline MUSB
 driver.
 
-Sourcing: [[parts-sourcing]] — the USB-C breakout is a passive board with
-nothing to fake, and the FUSB302 is the opposite, because the kernel's TCPM
-driver binds against one specific register map.
+Sourcing: [[parts-sourcing]] — the FUSB302 has to be genuine, because the
+kernel's TCPM driver binds against one specific register map, and the USB-C
+breakout is the vault's clearest example of a part that saves less than the
+flat duty costs.
 
 ## Software / firmware
 

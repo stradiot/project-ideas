@@ -168,9 +168,10 @@ Rough estimates.
 Under 60 € for all four stages. Nothing here needs a part with a tolerance
 worth paying for.
 
-Sourcing: [[parts-sourcing]] — the ferrite rods, variable capacitors and
-passives here are the vault's clearest case for buying from AliExpress, and
-the germanium detector is its clearest case against.
+Sourcing: [[parts-sourcing]] — the ferrite rods and variable capacitors are
+the vault's clearest case for buying from AliExpress, the germanium detector
+is its clearest case against, and the rest of this BOM is the shape the
+July 2026 flat duty punishes worst: many distinct cheap parts wanted once.
 
 ## Software / firmware
 

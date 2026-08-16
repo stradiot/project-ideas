@@ -21,7 +21,13 @@ still sold at all. Ferrite rods and air-spaced variable capacitors for
 stock them, and a surplus dealer wants more for one than AliExpress wants
 for five.
 
-## The rule that decides each line
+Two separate questions decide each line, and they are worth keeping apart
+because they can disagree. The first is whether the part can be trusted from
+a marketplace at all. The second is whether it is still cheaper once the
+customs charge introduced on 1 July 2026 is added, and that one now kills
+some lines the first question passes.
+
+## The first rule — what a wrong part looks like when it fails
 
 Price is not the criterion, and neither is trust in the seller. The question
 that separates the two lists is **what a wrong part looks like at the moment
@@ -57,12 +63,90 @@ understand why it works" apart, and a part that lies about what it is
 attacks the second one specifically.
 
 So the test is: **if this part were subtly wrong, would I find out, or would
-I blame my own work?** Everything below sorts on that.
+I blame my own work?** The lists below sort on that.
+
+## The second rule — €3.70 per product type, not per parcel
+
+The €150 duty-free threshold is gone. Council Regulation (EU) 2026/382,
+adopted 11 February 2026, abolished the low-value consignment relief and
+replaced it with a flat customs duty from **1 July 2026 until 1 July 2028**,
+after which standard tariff rates apply to everything regardless of value.
+
+The number is €3, and the unit it is charged per is the thing that matters:
+**a goods item, meaning a customs classification, not a physical object.**
+Five identical CC1101 modules are one classification and cost €3. A CC1101,
+a breadboard and a reel of enamelled wire are three classifications and cost
+€9. On the simplified H7 declaration used for these parcels the granularity
+is the six-digit tariff subheading, and Slovak customs group by identical
+classification, description and origin together — so two visibly different
+listings tend to be counted separately even where the subheading is shared.
+There is no upper limit on the number of lines.
+
+It applies to any consignment with an intrinsic value of €150 or less sold
+at distance to a consumer, **regardless of the tariff classification of the
+goods** and regardless of the VAT regime. That last part is the one worth
+being clear about, because it looked at first like there might be an escape:
+most of what this vault buys is IT electronics, which carries a 0% erga
+omnes rate under the Information Technology Agreement, and there is loose
+reporting suggesting zero-rated goods stay zero-rated. They do not, under
+this measure. The flat duty replaces the tariff calculation rather than
+following it, so a 0% part pays exactly the same €3 as a 12% one.
+
+Slovak VAT is 23%, and it is charged on the duty as well as on the goods, so
+the real figure per product type is **€3.69**. That is exactly what
+AliExpress now shows in a Slovak cart, as an *Estimate duties* line of
+€3.70 per product category, charged at checkout rather than on delivery.
+
+Four things follow, and they are the whole financial answer.
+
+**The break-even is a saving of €3.70, not a percentage.** Buy a category
+from AliExpress only if the total saving across every unit of it beats
+€3.70. A module that saves €10 clears that on the first unit. A €2 breakout
+that saves €4 against a European shop does not clear it at all — the duty is
+185% of the part. Quantity is what rescues a marginal line: four HC-SR501s
+saving €4 each clear it easily, one does not.
+
+**Bulk is free and variety is expensive.** This inverts the old habit of
+buying one of everything. Five CC1101s cost the same duty as one, so the
+spare that removes "is the module dead" from every future debugging session
+is now free. Meanwhile an order of twenty different small parts carries
+twenty duty lines — €74 — whichever way it is split into parcels, because
+the charge follows classifications rather than boxes. Splitting a basket
+across sellers does not reduce it; buying the *same* category from two
+sellers doubles it.
+
+**Under about €15, an EU warehouse usually wins.** AliExpress's *Ship from
+EU* stock is already inside the customs union, so it carries no flat duty at
+all and its price includes VAT. It typically lists 10–30% above the China
+warehouse, which means it wins outright whenever that gap is under €3.70 —
+true for most items below roughly €15. The filter is available with the
+country set to Slovakia, and it is now the first thing to check on any
+cheap line, not a fallback.
+
+**A single European order beats a scattered marketplace one.** TME in Poland
+is the relevant comparison: thirty different components on one TME order
+carry no duty at all, where the same thirty categories from China would
+carry €111. For assorted passives, connectors, wire and hardware — exactly
+the long tail of cheap distinct items — the arithmetic no longer favours
+AliExpress, and it did before July.
+
+Two dates ahead. From **1 November 2026** an EU-wide customs handling fee of
+about €2 per parcel is added on top, which is the first thing here that
+rewards consolidating onto fewer sellers rather than fewer categories. And
+from **1 July 2028** the flat fee ends and normal tariffs return, which for
+HS 85 electronics is largely 0% — so this is a two-year distortion rather
+than a permanent one, and it is not worth stockpiling against.
+
+Sources are dated: Council Regulation (EU) 2026/382 and the Commission's
+June 2026 guidance for the rule, Slovenská pošta and Finančná správa for the
+Slovak handling, and the AliExpress cart line for what is actually charged.
+The euro figures for European alternatives below are estimates from typical
+catalogue prices and are worth checking rather than trusting.
 
 ## Buy from AliExpress
 
 Loud failures, commodity parts, no downstream reasoning resting on the part
-being genuine.
+being genuine — and a saving per category that clears €3.70.
 
 | Part | Projects | Note |
 | --- | --- | --- |
@@ -88,6 +172,35 @@ being genuine.
 | WS2812 strip | [[beaglebone-pru-realtime]] | 15–30 €, BTF-Lighting direct. One catch that matters here specifically: WS2812B, WS2812B-V5 and SK6812 have different timing windows, and this project's entire claim is a timing figure — so buy a strip whose exact part number is stated, not "WS2812 compatible" |
 | USB-C breakout with CC lines exposed | [[usb-device-and-linux-driver]] | ~5 €, passive board, nothing to fake |
 | Telescopic and whip antennas | [[analog-am-transmitter-receiver]], [[subghz-linux-router]] | ~10 € |
+
+Every line above clears the break-even comfortably. The cheapest of them do
+it on quantity rather than on unit price — the soil moisture sensors save
+about €4.50 each and the project already wants three, so the category saves
+€13 against €3.70 of duty.
+
+## The lines the duty now kills
+
+These pass the trust test and fail the arithmetic. All of them are small,
+cheap, and needed in ones — the exact shape the flat fee punishes. European
+prices here are estimates and worth confirming.
+
+| Line | AliExpress | Europe | Saving | Verdict |
+| --- | --- | --- | --- | --- |
+| Breadboard, jumpers, headers | ~8 € | ~18 € | 10 € across up to three separate classifications | Three duty lines is 11 €. Buy in one European order |
+| M3 standoff and screw kit | ~5 € | ~10 € | 5 € | Clears by 1.30 €, which is not worth a six-week wait. TME |
+| USB-C breakout, CC lines exposed | ~5 € | ~8 € | 3 € | Below break-even outright |
+| 27 MHz crystals | ~3 € for five | ~7.50 € | 4.50 € | Clears by 0.80 €, and the European part is genuine. TME |
+| Enamelled wire, one roll | ~5 € | ~10 € | 5 € | Marginal, and it rides along free on a TME order that already exists |
+| USB-UART, CH340 | ~2 € | ~6 € | 4 € | Marginal alone; fine bundled, since it is one more classification either way |
+| ST-Link V2 clone | ~5 € | ~11 € | 6 € | Clears, barely. Worth it only inside a larger order |
+| STM32F411 Black Pill | ~8 € | ~12 € | 4 € | Barely clears, and [[bare-metal-bootloader]] wants a genuine board anyway |
+
+The pattern is worth stating rather than leaving as eight rows: **anything
+under about €10 that is wanted once is now a European purchase.** Not
+because the marketplace part is worse, but because €3.70 of duty on a €5
+part is a 74% surcharge that no plausible discount survives. Before July
+these were all obvious marketplace buys, and that is the specific advice the
+new rule reverses.
 
 ## Buy from AliExpress, but test on arrival
 
@@ -230,37 +343,66 @@ Named plainly rather than written around.
   AliExpress equivalent — a USB power meter does not resolve microamps, so
   there is no cheap substitute, only a different method. Both projects claim
   a current figure, so this is a real gap rather than a nice-to-have.
-- **Whether the EU's €150 customs threshold still applies** by the time an
-  order is placed. AliExpress is IOSS-registered, so VAT is collected at
-  checkout and a consignment under the threshold clears without a handling
-  fee; over it, the courier adds one. The EU has been legislating that
-  exemption away and I do not know the state of it, so it is worth checking
-  before splitting or combining a large order rather than assuming.
+- **Where exactly customs draws the line between two product types.** The
+  legal granularity is the six-digit subheading, but the declaration groups
+  by classification *and* description *and* origin, and AliExpress applies
+  its own categorisation in the cart. Whether two different 868 MHz radio
+  modules count as one line or two is therefore not predictable from the
+  tariff alone. The cart states the figure before payment, so this is
+  answered by looking rather than by reasoning — but it means the estimates
+  above are a floor, not a guarantee.
+- **Whether deliberately crossing €150 in one consignment is ever worth
+  it.** Above the threshold the flat duty does not apply at all: standard
+  tariff rates do, which for most HS 85 electronics is 0%, plus 23% VAT and
+  the carrier's clearance fee — 8–15 € at Slovenská pošta, more with a
+  courier. On paper a single-seller basket with six or more classifications
+  is cheaper handled that way (22 € of flat duty against ~12 € of handling
+  and no duty). In practice a consignment is what one seller ships, and
+  AliExpress splits an order across sellers, so engineering a >150 € parcel
+  is only possible when buying a lot from one store. Worth testing once on
+  an RC order from a single brand store rather than assuming either way.
 
 ## How to actually order
 
-Three practical consequences of the lists above.
+Shipping time is still the real cost. Two to six weeks to Slovakia means the
+constraint is ordering *early* rather than cheaply, and the projects that
+stall are the ones waiting on a 3 € part. What changed in July is only how
+the basket is composed, not that there should be one.
 
-Shipping time is the real cost, not money. Two to six weeks to Slovakia
-means the constraint is ordering *early*, not ordering cheaply, and the
-projects that stall are the ones waiting on a 3 € part. So the sensible
-first order is not per project at all — it is a single bench-stock batch of
-the things three or more projects share: the RC radio set, a couple of
-CC1101s, a handful of ESP32 boards, the logic analyzer, the passive and
-connector assortments, breadboard and jumpers. That covers the opening moves
-of most of the vault for well under 150 €.
+The shape that used to be right — a single bench-stock batch containing one
+of everything the vault will eventually want — is now the worst possible
+shape, because it maximises exactly the thing that is charged. Counting the
+distinct product types across all nineteen budgets gives something near
+thirty-eight, which as a marketplace order is about **140 € of duty**. Moving
+the eight killed lines to a European order and dropping the ones needed only
+once takes it to roughly **90 €** on the same parts. That difference is the
+entire content of this note in one number.
 
-Buy the loud parts in quantity and the quiet ones once, properly. A second
-CC1101 costs 4 € and removes "is the module dead" from every future
-debugging session; a second microSD card of unknown provenance adds a
-variable instead of removing one.
+So the order splits three ways rather than one.
 
-And buy against the order in README's *Up next* rather than against the
-whole list. [[analog-am-transmitter-receiver]] and [[ble-sensor-node-pcb]]
-are the two named as worth starting, and between them they need ferrite
-rods, wire, variable capacitors, germanium diodes or Schottkys, passives,
-the SMD practice board, and the nRF52840 DK — one AliExpress basket under
-40 € and one distributor order for the DK.
+**One TME order** for the long tail: passives that need to be genuine,
+connectors, wire, standoffs, crystals, BAT85s instead of hunting a real
+germanium diode. No duty on any of it however many distinct parts it
+contains, and it arrives in days.
+
+**One AliExpress order per band of the plan**, composed by category rather
+than by project, buying spares wherever the category is one I will want
+again — since the second and fifth unit are free of duty. For the two
+projects README names as worth starting, that is ferrite rods, a variable
+capacitor, the SMD practice board and a passive assortment: four
+classifications, ~15 € of parts, ~15 € of duty. That ratio is bad enough
+that it is worth checking *Ship from EU* on each of the four first, and
+worth waiting until there are more categories to carry the same fixed cost.
+
+**Distributor orders** for the quiet parts, which the first rule already
+decided: the nRF52840 DK, the microSD cards, the supplies, the batteries,
+the DW3000 modules. These were never marketplace purchases and the duty does
+not change that.
+
+One habit change worth naming on its own: check *Ship from EU* before
+anything cheap goes in the basket. On a €5 part it is the difference between
+€8.70 and roughly €6, and it arrives in a week instead of a month — a
+straight win that did not exist as a consideration before July.
 
 ## Where this sits
 
