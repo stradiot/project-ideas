@@ -3,6 +3,7 @@ tags: [project, hardware, embedded, esp32, home-assistant, ui]
 status: idea
 depends: []
 created: 2026-08-07
+repo: t-embed-ha-controller
 ---
 
 # Home Assistant Rotary Controller
@@ -19,10 +20,17 @@ Pick a device with the encoder, push to enter it, and the knob then means
 whatever that device needs — volume for the TV, temperature for the AC,
 brightness for a light. One control, different meaning per device.
 
-Deliberately out of scope: the board's CC1101, IR and NFC. Everything goes
-through Home Assistant, which already owns these devices. Also out of
-scope: a general-purpose dashboard — this controls a handful of things
-well.
+Deliberately out of scope: every radio on the board — the CC1101 sub-GHz
+transceiver, the nRF24L01 2.4 GHz transceiver, the PN532 NFC reader and the
+IR. Everything goes through Home Assistant over Wi-Fi, which already owns
+these devices. Also out of scope: a general-purpose dashboard — this
+controls a handful of things well.
+
+The board in hand is the variant LilyGO codes `K268` on the box — their own
+product number for the T-Embed CC1101 Plus, distinguishing the antenna and
+housing options rather than anything electrical. It has no bearing on the
+firmware and is recorded here only so the box and the note can be matched
+up later.
 
 ### Why a knob rather than the phone
 
@@ -52,12 +60,77 @@ also mean neither can be reflashed without losing the other.
 
 ## Learning value
 
-- The Home Assistant WebSocket API written by hand — authentication, event
-  subscription, a local state cache
-- Designing a usable interface where the only input is one knob and one
-  button
-- LVGL on a colour display, driven from ESP-IDF
-- Keeping a networked UI honest when the connection is not there
+Secondary here, and worth saying so plainly: this is the rare project in
+the vault built for what it does rather than for what it teaches, and the
+Practical value section below is the argument for it. It is also not part
+of any of the five courses in [[embedded-learning-curriculum]] and should
+not be folded into one. The only candidate is bare-metal and RTOS, whose
+whole premise is peripherals driven from the reference manual with no HAL,
+on Cortex-M; this is ESP-IDF on Xtensa, which is the vendor HAL that course
+exists to refuse, on a core where the serial bootloader half cannot run at
+all. Nothing here is gated on knowing what happens before `main()`.
+
+So the question is what to slow down for once the thing is being built
+anyway, and the parts split unevenly. Three hold their value:
+
+**Two copies of one value, with a lossy link between them.** A fast spin
+produces encoder ticks faster than a WebSocket round trip completes, so the
+knob and Home Assistant disagree for as long as the network takes. Sending
+a `call_service` per tick makes the UI lag its own input; sending only on
+release makes the knob feel dead. The answer — apply locally, coalesce, send
+the latest value at a fixed rate, reconcile when `state_changed` comes
+back — is optimistic concurrency with reconciliation, which is the same
+shape as a game client predicting movement or an editor syncing text. What
+makes it concrete here is that the failure is visible: the number on screen
+snaps backwards when the reconciliation disagrees with the prediction.
+That is measurable rather than arguable, and the coalescing interval should
+come out of a measured tick-to-`state_changed` latency rather than a guessed
+100 ms.
+
+**A cache with no age is a lie.** Every entity value held on the device is a
+copy of something that was true when it arrived, and nothing on screen
+distinguishes a value confirmed a second ago from one last confirmed before
+the Wi-Fi dropped. Storing a timestamp per entity and rendering the age is
+the whole mechanism, and the reason it is worth doing deliberately is that
+the failure mode is invisible until the link breaks — a controller
+confidently showing stale numbers is worse than one admitting it does not
+know, because the knob still turns and nothing happens. The test is to
+break it on purpose: restart Home Assistant underneath it, pull the Wi-Fi.
+Same problem and same answer as the ground station in
+[[lora-dog-collar-telemetry]].
+
+**One control, several meanings, and nowhere to put a mode indicator.**
+Single-control interfaces fail by becoming modal without telling anyone
+which mode they are in, and the 320×170 panel has to answer that at a
+glance, from across a room, to someone who did not build it. This is
+specification work rather than code — deciding what the device refuses to
+do is most of it — and it is the part that cannot be recovered from any
+document.
+
+Two more are worth doing once, with the effort kept proportionate:
+
+- **LVGL as a memory and timing problem rather than an API.** The numbers
+  are what make it click: 320 × 170 at 16 bits is 108,800 bytes per full
+  framebuffer, so double buffering wants ~212 KiB against the ESP32-S3's
+  512 KiB of internal SRAM. That is why partial buffers and a flush callback
+  exist at all, and why 8 MB of PSRAM changes the calculation. Worth deriving
+  once; the widget API on top is not worth memorising.
+- **A protocol read off the wire before it is implemented.** `websocat`
+  against Home Assistant first, so the auth handshake, `get_states` and
+  `subscribe_events` are things that have been watched rather than things
+  taken from a tutorial. One number to take from that session: the actual
+  byte size of the `get_states` response, since it returns every entity in
+  the instance and cJSON parses into a DOM several times the size of its
+  input. Getting away with that on 8 MB of PSRAM is not the same as solving
+  it, and whether Home Assistant offers a filtered subscription instead is
+  worth checking against its documentation rather than assuming.
+
+The one piece of genuine peripheral work comes free with the encoder. The
+ESP32-S3 has a hardware pulse counter with a glitch filter, so quadrature
+can be decoded in hardware or in a GPIO interrupt handler, and the choice
+has a real consequence: a software handler can miss ticks while a slow
+render holds the CPU, and a hardware counter cannot. That is the one place
+here where the datasheet decides something.
 
 ## Practical value
 
@@ -76,7 +149,7 @@ needs a menu tree it has lost the argument it was built on.
 
 | Block | Implementation |
 | --- | --- |
-| Board | T-Embed CC1101 Plus — ESP32-S3, 16 MB flash, 8 MB PSRAM |
+| Board | T-Embed CC1101 Plus (LilyGO `K268`) — ESP32-S3, 16 MB flash, 8 MB PSRAM, 1300 mAh cell |
 | Display | 1.9" 320×170 ST7789, driven through LVGL |
 | Input | Rotary encoder with push — the only input on the device |
 | Transport | Home Assistant WebSocket API over Wi-Fi |
