@@ -86,7 +86,7 @@ definition, not the PCB.
 
 | Block | Implementation | What I learn |
 | --- | --- | --- |
-| USB | USB-C connector + USBLC6-2SC6 (ESD), D+/D− straight into nRF52840 | Native USB peripheral, enumeration |
+| USB | USB-C connector, 5.1 kΩ CC1/CC2 pull-downs, USBLC6-2SC6 (ESD), D+/D− straight into nRF52840, VBUS to the detect input | Native USB peripheral, enumeration — checklist in [[usb-protocol-and-linux-stack]] |
 | Power | MCP73831 LiPo charger, 3.3 V LDO (MCP1700 / TLV70233), USB/battery power path | Battery management, power sequencing |
 | Flash | W25Q32 SPI NOR | SPI driver, littlefs, partitioning |
 | Sensor | I2C header (BME280 / SHT4x) + power gating via GPIO | I2C, current consumption |
@@ -109,6 +109,13 @@ Not precision-related, but easy to get wrong:
   the guide defines it precisely
 - Route USB D+/D− as a pair, matched length, away from switching
   regulators (even at full speed where impedance control isn't needed)
+- **5.1 kΩ from each of CC1 and CC2 to ground.** Without them a USB-C host
+  sees no sink, never turns VBUS on, and the board is indistinguishable from
+  a dead one — the failure has nothing to do with D+/D−, which is where a
+  schematic review looks. Why it works that way is in
+  [[usb-protocol-and-linux-stack]]
+- VBUS on a detect input rather than assumed, since this board is also
+  battery powered and the USB peripheral cannot come up without knowing
 - RESET pin — pull-up and debounce cap per the recommended circuit
 - Power sequencing on USB ↔ battery transition — test unplugging USB
   mid-charge

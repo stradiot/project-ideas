@@ -9,8 +9,10 @@ created: 2026-08-07
 
 ## Now
 
-Not started. Nothing here is in progress — the plan below is the whole
-of it.
+Not started — nothing is flashed, wired or written. The subject matter is,
+though: [[usb-protocol-and-linux-stack]] now holds the protocol, the classes
+and both halves of the Linux stack, so the plan below is no longer waiting
+on theory to be worked out first.
 
 ## Goal
 
@@ -20,6 +22,13 @@ and how power is negotiated on a wire that also carries data.
 
 Deliberately out of scope: writing a class driver for a class that already
 has one, and SuperSpeed — nothing available here does 5 Gbps.
+
+The subject matter this assumes — the polled bus and what follows from it,
+packets and transactions, the four transfer types, descriptors and
+enumeration, the classes, the Linux stack on both ends, and how a device
+with no UART anywhere in it keeps pretending to be a serial port — is
+[[usb-protocol-and-linux-stack]]. That note is the theory; this note is the
+work.
 
 ### Three vehicles, because no single one covers it
 
@@ -55,6 +64,24 @@ which removes the entire exercise — but it is also a real limit, and the
 honest consequence is that this is bench equipment that happens to sit on a
 desk, not a peripheral to depend on. A kernel upgrade means rebuilding the
 module.
+
+### Designing the interface, not just using it
+
+Both device-end vehicles arrive with USB already routed, so as written this
+project consumes somebody's design — including my own, since the nRF board's
+front end is drawn in [[ble-sensor-node-pcb]] rather than here. That hides
+the half that matters the next time a board gets a connector, because the
+decisions that go wrong are made at schematic time and are not recoverable
+in firmware: the 5.1 kΩ CC pull-downs without which a USB-C device never
+enumerates and reads as dead, VBUS detection as its own input on a board
+that also runs on battery, ESD placed at the connector rather than after the
+pair, and the clock accuracy that makes native USB imply a crystal.
+
+So one step here is a paper one, done before anything is flashed: the board's
+USB front end reviewed against the checklist in
+[[usb-protocol-and-linux-stack]]. It costs an afternoon, and the failure it
+is aimed at is the expensive kind — a fabricated board that does not
+enumerate, with no instrument on the bench able to say why.
 
 ### Device side
 
@@ -126,6 +153,9 @@ explicit contracts, and what happens when a negotiation fails.
 - Linux as a USB *device* — the gadget framework, configfs, FunctionFS
 - Dual-role: one port, both directions, and what negotiates that
 - USB Power Delivery, which is a separate protocol on separate wires
+- Why a CDC device is not a serial port, and how it keeps pretending to be
+  one convincingly enough that a 1985 program still works
+- What has to be right on the schematic before any of the above is reachable
 
 ## Practical value
 
@@ -184,6 +214,7 @@ driver.
 
 **Device end — the nRF52840 board**
 
+- [ ] Review the board's USB front end against the checklist in [[usb-protocol-and-linux-stack]] — CC resistors, VBUS detect, ESD placement, pair routing, declared current
 - [ ] Firmware enumerates as a vendor-specific device, verify with `lsusb -v`
 - [ ] Capture enumeration in Wireshark, read my own descriptors off the wire
 - [ ] Interrupt IN and bulk both directions, from hand-written descriptors
@@ -216,9 +247,10 @@ driver.
 
 The host side assumes the driver model — `probe()`, match tables, `devm_`,
 deferred probe — plus the buffer and DMA handling URBs sit on top of, which
-are modules 6 and 7 of [[embedded-linux-course]]. The gadget and dual-role
-work happens on the same BeagleBone that course uses, so it lands naturally
-after those modules rather than needing its own board.
+are [[linux-driver-model-and-subsystems]] and [[linux-memory-and-dma]] in
+[[embedded-linux-course]]. The gadget and dual-role work happens on the same
+BeagleBone that course uses, so it lands naturally after those modules
+rather than needing its own board.
 
 ## Build log
 

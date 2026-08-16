@@ -226,6 +226,7 @@ hypothesis is "the timebase is wrong".
 | Analysis | GNU Radio in a UTM Linux VM | Not usable natively on the Mac |
 | Pipeline | `tools/analyze_capture.py` | IQ → envelope → run lengths → base tick → frame → encoding tests |
 | Firmware | PlatformIO, and ESPHome for the HA path | Two paths, same signal |
+| Console | pyserial against `/dev/cu.usbmodem101` | The C3 speaks native USB CDC-ACM, so the baud rate is decorative and DTR/RTS are control requests — [[usb-protocol-and-linux-stack]] |
 | Secrets | sops | `include/signal.h` is never committed in plaintext |
 | Enclosure | Fusion 360 | Same tool noted for enclosures in [[ble-sensor-node-pcb]] |
 

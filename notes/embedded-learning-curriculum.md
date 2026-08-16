@@ -435,6 +435,42 @@ subtract. That is an argument for its value and not for its position; it is
 last because it is furthest from where the work is aimed, and those are
 different things.
 
+### The subject that is not a course
+
+USB has a full project note, a subject deep-dive and no course to belong to.
+That is not an oversight — it is what a *bus* looks like against a syllabus
+built out of *arcs*, and it is worth writing down rather than leaving as a
+hole in the map, because until now this note did not mention USB at all.
+
+Its three halves attach to three different courses. Descriptors, endpoints,
+transfer types and device firmware are bare-metal work on the nRF52840.
+The host driver, the gadget framework and TCPM are Embedded Linux, and are
+already counted there — [[usb-device-and-linux-driver]] is one of the four
+projects that course feeds. The connector, the CC resistors, the ESD array
+and the differential pair are hardware design. A fifteenth module would
+either teach the same protocol three times or park two courses behind a
+third, so the subject lives in [[usb-protocol-and-linux-stack]] and the work
+lives in the project, which is the same split every course module already
+uses.
+
+Against the criterion at the top of this note it splits cleanly, and the
+split is the useful part. The protocol layer is durable: host-mastered
+polling, descriptors, the four transfer types and the data toggle have not
+moved since 1996 and will outlast every API written on top of them. The
+kernel side is exactly the text-mediated work the criterion marks down —
+a `usb_driver` skeleton is boilerplate an agent writes correctly. What sits
+in between is the part that earns the time, and it is measurement-bound in
+the same way the RF course is: an enumeration that fails at step four, a
+descriptor read back off the wire with `usbmon`, a device that NAKs forever
+and looks alive. None of that is arguable from a datasheet, and it is why
+the project's plan is built around deliberate breakage rather than around
+getting a driver to work once.
+
+Reading order rather than dependency: the note is worth having read before
+the bare-metal course reaches the custom board, since the descriptor set is
+designed at schematic time and the 5.1 kΩ CC resistors are decided before
+anything is programmable at all.
+
 ## Topics the projects do not cover, and should
 
 These came out of writing the Linux course. Each one is genuinely part of
