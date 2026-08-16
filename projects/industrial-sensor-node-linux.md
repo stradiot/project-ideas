@@ -129,9 +129,11 @@ Rough estimates.
 This device does not get built twice. [[embedded-linux-course]]'s capstone
 *is* this node — same BeagleBone, same PIR, same wall, same Home Assistant
 entities — and the course builds every piece of it along the way: the
-overlay in module 4, the threaded IRQ driver in 5, the subsystem rewrite in
-6, the socket-activated daemon with its watchdog and D-Bus in 9, and then
-the whole thing productionised in the capstone with a Yocto BSP layer, a
+overlay in [[linux-devicetree]], the threaded IRQ driver in
+[[linux-char-drivers-and-irqs]], the subsystem rewrite in
+[[linux-driver-model-and-subsystems]], the socket-activated daemon with its
+watchdog and D-Bus in [[systemd-dbus-embedded]], and then the whole thing
+productionised in the capstone with a Yocto BSP layer, a
 signed FIT image and A/B updates that roll back.
 
 So what lives here is the *design* — what the device must do, why the

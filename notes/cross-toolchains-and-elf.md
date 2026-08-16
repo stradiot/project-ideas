@@ -5,10 +5,10 @@ created: 2026-08-10
 
 # Cross-Toolchains and ELF
 
-Reference note. Module 1 of [[embedded-linux-course]]. Every other module
-compiles something for a machine that is not the one compiling it, and this
-is the module that makes that stop being a magic incantation copied off a
-wiki.
+Reference note. The [[embedded-linux-course]] module that follows
+[[reading-a-soc-trm]]. Every other module compiles something for a machine
+that is not the one compiling it, and this is the module that makes that
+stop being a magic incantation copied off a wiki.
 
 The question it answers: what is actually inside `arm-linux-gnueabihf-gcc`,
 and why does the same source produce a binary that runs here and not there?
@@ -196,7 +196,8 @@ have an answer, and on a lot of projects it does not.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 1 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[reading-a-soc-trm]] — the previous module; `-mcpu` and NEON only make
   sense knowing what core is in the chip
 - [[linux-boot-chain-uboot]] — the first real thing built with this toolchain

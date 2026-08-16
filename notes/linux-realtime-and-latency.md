@@ -5,7 +5,8 @@ created: 2026-08-10
 
 # Real-Time and Latency
 
-Reference note. Module 11 of [[embedded-linux-course]]. It exists because
+Reference note. The [[embedded-linux-course]] module after
+[[linux-networking-and-netdev]]. It exists because
 [[beaglebone-pru-realtime]] reaches for a dedicated real-time core without
 anything first establishing what the CPU could have done — which is the
 wrong order, and the reason that project is correctly deferred until this
@@ -219,7 +220,8 @@ bounded latency at a cost. Knowing the cost is the expertise.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 11 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[linux-char-drivers-and-irqs]] — threaded IRQs, which PREEMPT_RT makes
   universal
 - [[linux-memory-and-dma]] — the shared-memory interface to the PRU

@@ -5,10 +5,11 @@ created: 2026-08-10
 
 # Kernel Memory and DMA
 
-Reference note. Module 7 of [[embedded-linux-course]]. The drivers so far
-have moved bytes a register at a time with the CPU doing the work. This is
-the module about moving them properly, and about the fact that the address
-the CPU uses and the address the hardware uses are not the same number.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-driver-model-and-subsystems]]. The drivers so far have moved bytes a
+register at a time with the CPU doing the work. This is the module about
+moving them properly, and about the fact that the address the CPU uses and
+the address the hardware uses are not the same number.
 
 The question it answers: why does the data look right in the kernel and
 wrong in the device?
@@ -209,7 +210,8 @@ here is exactly the class that is undebuggable without them, which
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 7 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[linux-char-drivers-and-irqs]] — where `kmalloc` and atomic context first
   appeared
 - [[linux-driver-model-and-subsystems]] — `devm_` allocations and `ioremap`

@@ -5,9 +5,10 @@ created: 2026-08-10
 
 # Kernel Debugging and Performance
 
-Reference note. Module 12 of [[embedded-linux-course]]. Every earlier module
-planted bugs deliberately; this is the one about finding them on purpose,
-with the right tool rather than by staring.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-realtime-and-latency]]. Every earlier module planted bugs
+deliberately; this is the one about finding them on purpose, with the right
+tool rather than by staring.
 
 The question it answers: the board is misbehaving and there is no debugger
 attached — now what?
@@ -272,7 +273,8 @@ it is the thing that most reliably separates people under pressure.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 12 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[linux-char-drivers-and-irqs]] — the bugs planted there, found properly
 - [[linux-memory-and-dma]] — KASAN and the DMA coherency bug
 - [[linux-realtime-and-latency]] — the latency tracers in their own context

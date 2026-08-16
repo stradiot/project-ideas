@@ -5,9 +5,10 @@ created: 2026-08-10
 
 # Building and Configuring the Kernel
 
-Reference note. Module 3 of [[embedded-linux-course]]. Between a U-Boot
-prompt and a driver there is a kernel that has to be built, configured,
-booted and — when it does not boot — diagnosed.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-boot-chain-uboot]]. Between a U-Boot prompt and a driver there is a
+kernel that has to be built, configured, booted and — when it does not
+boot — diagnosed.
 
 The question it answers: what am I actually choosing when I build a kernel,
 and how do I find out what it did before it said anything?
@@ -188,7 +189,8 @@ probing things you do not have", is the expected level.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 3 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[linux-boot-chain-uboot]] — what hands control to this
 - [[linux-devicetree]] — the description this kernel is given of the board
 - [[linux-char-drivers-and-irqs]] — the first module built against this

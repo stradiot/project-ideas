@@ -89,9 +89,10 @@ Shares the device-tree and driver ground covered in
 [[industrial-sensor-node-linux]], which is the prerequisite: pin muxing and
 overlays are assumed here rather than taught.
 
-The deferral gets decided rather than assumed in module 11 of
-[[embedded-linux-course]], which measures what a tuned PREEMPT_RT kernel can
-actually hold on this board and then measures the same GPIO toggle on a PRU.
+The deferral gets decided rather than assumed in
+[[linux-realtime-and-latency]], the [[embedded-linux-course]] module that
+measures what a tuned PREEMPT_RT kernel can actually hold on this board and
+then measures the same GPIO toggle on a PRU.
 Two numbers and a ratio are what should settle whether this project is worth
 un-deferring, and reaching for a real-time core before taking that
 measurement is the wrong order.

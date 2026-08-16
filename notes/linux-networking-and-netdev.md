@@ -5,9 +5,10 @@ created: 2026-08-10
 
 # Networking and `net_device`
 
-Reference note. Module 10 of [[embedded-linux-course]]. The last driver
-module, and the one where a radio stops being a device you talk to and
-becomes a network interface the whole system can use.
+Reference note. The [[embedded-linux-course]] module after
+[[systemd-dbus-embedded]], and the last driver module — the one where a
+radio stops being a device to be talked to and becomes a network interface
+the whole system can use.
 
 The question it answers: what does it take for `ping` to work over something
 you built?
@@ -200,7 +201,8 @@ Specifically probed:
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 10 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[linux-driver-model-and-subsystems]] — `net_device` as the subsystem the
   CC1101 finally belongs in
 - [[linux-memory-and-dma]] — `sk_buff` as the networking answer to buffer

@@ -5,9 +5,10 @@ created: 2026-08-10
 
 # The Linux Boot Chain and U-Boot
 
-Reference note. Module 2 of [[embedded-linux-course]]. Every project note in
-this vault begins at a booted Linux, which quietly assumes the hardest and
-least documented part of embedded work has already happened.
+Reference note. The [[embedded-linux-course]] module after
+[[cross-toolchains-and-elf]]. Every project note in this vault begins at a
+booted Linux, which quietly assumes the hardest and least documented part of
+embedded work has already happened.
 
 The question it answers: what runs between power-on and `start_kernel`, and
 what do I do when the board says nothing at all?
@@ -208,7 +209,8 @@ field bricking comes from.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 2 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[reading-a-soc-trm]] — the 64 KB of SRAM that forces the two-stage split
 - [[cross-toolchains-and-elf]] — the toolchain used to build all of it
 - [[linux-kernel-build-and-config]] — the next link in the chain

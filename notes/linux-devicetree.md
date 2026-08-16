@@ -5,10 +5,11 @@ created: 2026-08-10
 
 # Linux Devicetree
 
-Reference note. Module 4 of [[embedded-linux-course]]. The counterpart to
-[[zephyr-devicetree]], which describes the same syntax with an entirely
-different lifecycle — and which is worth reading alongside this, because the
-contrast is what makes both stop being mysterious.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-kernel-build-and-config]]. The counterpart to [[zephyr-devicetree]],
+which describes the same syntax with an entirely different lifecycle — and
+which is worth reading alongside this, because the contrast is what makes
+both stop being mysterious.
 
 The question it answers: how does a kernel that has never heard of this board
 find out what is on it?
@@ -226,7 +227,8 @@ The specific things that get probed:
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 4 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[zephyr-devicetree]] — the same language, resolved at build time, with
   nothing left at runtime
 - [[reading-a-soc-trm]] — the control module registers `pinctrl` is

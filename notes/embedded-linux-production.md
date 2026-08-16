@@ -5,10 +5,11 @@ created: 2026-08-10
 
 # Shipping It: Security, Updates and Production
 
-Reference note. Module 13 of [[embedded-linux-course]], and the last one
-before the capstone. Everything so far produces a board that works on a
-bench. This is the module about the distance between that and a device that
-can be sold, deployed and updated — which is most of the distance.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-kernel-debugging]], and the last one before the capstone. Everything
+so far produces a board that works on a bench. This is the module about the
+distance between that and a device that can be sold, deployed and updated —
+which is most of the distance.
 
 The question it answers: what has to be true before a thousand of these can
 go somewhere I cannot drive to?
@@ -237,7 +238,7 @@ what "production ready" actually means.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 13 of; the capstone
+- [[embedded-linux-course]] — the course this closes; the capstone
   assembles all of this
 - [[linux-boot-chain-uboot]] — the FIT image that now carries signatures, and
   the `bootcount` that now means something

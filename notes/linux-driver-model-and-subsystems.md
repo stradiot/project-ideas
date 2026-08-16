@@ -5,9 +5,10 @@ created: 2026-08-10
 
 # The Driver Model and Subsystems
 
-Reference note. Module 6 of [[embedded-linux-course]], and the module that
-separates someone who can make hardware work from someone who can write a
-driver that would be accepted upstream.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-char-drivers-and-irqs]], and the one that separates someone who can
+make hardware work from someone who can write a driver that would be
+accepted upstream.
 
 The question it answers: [[linux-char-drivers-and-irqs]] produced a working
 sensor driver — why would anyone reject it?
@@ -206,7 +207,8 @@ probe deferral, and does not need its own bespoke userspace.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 6 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[linux-char-drivers-and-irqs]] — the "before" this module rewrites
 - [[linux-devicetree]] — `compatible` matched against `of_match_table`
 - [[linux-memory-and-dma]] — what happens when the buffers get large enough
@@ -216,5 +218,7 @@ probe deferral, and does not need its own bespoke userspace.
 - [[subghz-linux-router]] — the CC1101 driver started in exercise 9 is that
   project's phase 2
 - [[usb-device-and-linux-driver]] — the same driver model with USB as the bus
+- [[usb-protocol-and-linux-stack]] — where those devices come from, since
+  enumeration rather than devicetree is what registers them
 - [[industrial-sensor-node-linux]] — its sensors, written the way that would
   survive review

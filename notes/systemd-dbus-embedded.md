@@ -5,8 +5,9 @@ created: 2026-08-10
 
 # systemd and D-Bus on Embedded
 
-Reference note. Module 9 of [[embedded-linux-course]]. The drivers work; this
-is the module about what runs on top of them and how it stays running.
+Reference note. The [[embedded-linux-course]] module after
+[[rootfs-buildroot-yocto]]. The drivers work; this is the module about what
+runs on top of them and how it stays running.
 
 The question it answers: what is the difference between a daemon and a
 supervised service, and why does it matter on a device nobody can log into?
@@ -238,7 +239,8 @@ flash, systemd is not an option and that is the end of it.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 9 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[rootfs-buildroot-yocto]] — where the units and rules get packaged
 - [[linux-char-drivers-and-irqs]] — the `poll` support this daemon depends on
 - [[linux-kernel-debugging]] — when the daemon is slow rather than broken

@@ -5,10 +5,11 @@ created: 2026-08-10
 
 # Reading a SoC TRM
 
-Reference note. Module 0 of [[embedded-linux-course]], and the one that
-looks skippable. It is not: every later module is a question whose answer is
-in a document nobody reads front to back, and knowing how to find things in
-a five-thousand-page manual is a real skill that is never taught anywhere.
+Reference note. The module [[embedded-linux-course]] opens with, and the one
+that looks skippable. It is not: every later module is a question whose
+answer is in a document nobody reads front to back, and knowing how to find
+things in a five-thousand-page manual is a real skill that is never taught
+anywhere.
 
 The question it answers: what *is* this chip, and where do I look when the
 kernel tells me nothing?
@@ -182,7 +183,8 @@ question there is.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 0 of
+- [[embedded-linux-course]] — the course this module opens; its plan holds
+  the order the modules run in
 - [[linux-boot-chain-uboot]] — the 64 KB of SRAM above is why that module
   exists at all
 - [[linux-devicetree]] — clocks, pin mux and interrupts are the three things

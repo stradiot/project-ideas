@@ -228,6 +228,12 @@ The whole arc, in build order. Fourteen modules; each one has a note in
 `notes/` holding the theory and the exercises, and the boxes here are the
 milestones from it.
 
+This list is the order of record, which is why no module note carries a
+number. Numbering them meant that inserting or moving one silently falsified
+thirteen other notes and every project that pointed at them, and a field
+nothing recomputes is a field that goes stale. A note names the module it
+follows instead, and the sequence below is where the order actually lives.
+
 **Ground — the board and the manual** ([[reading-a-soc-trm]])
 
 - [ ] Serial console up on J1, `picocom` at 115200, watch the stock eMMC image boot

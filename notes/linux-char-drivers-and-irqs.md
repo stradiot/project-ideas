@@ -5,11 +5,11 @@ created: 2026-08-10
 
 # Char Drivers and Interrupts
 
-Reference note. Module 5 of [[embedded-linux-course]], and the first module
-that writes kernel code. It is also the module whose lesson is partly
-"do not do it this way" — the char driver is the right way to *learn* the
-kernel's shape and usually the wrong way to ship a sensor, which is what
-[[linux-driver-model-and-subsystems]] is for.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-devicetree]], and the first one that writes kernel code. It is also
+the module whose lesson is partly "do not do it this way" — the char driver
+is the right way to *learn* the kernel's shape and usually the wrong way to
+ship a sensor, which is what [[linux-driver-model-and-subsystems]] is for.
 
 The question it answers: what does kernel code have to obey that userspace
 code does not?
@@ -234,7 +234,8 @@ and having built the char version first is what makes the answer land.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 5 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[linux-devicetree]] — where the driver's interrupt and pins come from
 - [[linux-driver-model-and-subsystems]] — the right way to write most of
   this, and why
@@ -245,3 +246,5 @@ and having built the char version first is what makes the answer land.
   kernel side, already written
 - [[usb-device-and-linux-driver]] — the same `file_operations` with a USB
   peripheral underneath instead of a GPIO
+- [[usb-protocol-and-linux-stack]] — what a URB is doing under that
+  `read()`, and why its completion runs in interrupt context

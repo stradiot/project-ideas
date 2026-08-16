@@ -107,7 +107,8 @@ transmit-capable SDR, not here. Doing both eventually is the interesting
 part: a MAC of mine on someone else's PHY, then a PHY of mine underneath it,
 and a comparison between them.
 
-Phases 2 and 3 are modules 6 and 10 of [[embedded-linux-course]], using this
+Phases 2 and 3 are [[linux-driver-model-and-subsystems]] and
+[[linux-networking-and-netdev]] in [[embedded-linux-course]], using this
 same CC1101: the SPI driver with GDO0 as a threaded IRQ, then the
 `net_device` on top of it. The course also insists on measuring what the
 resulting link can actually carry, which is the honest version of the

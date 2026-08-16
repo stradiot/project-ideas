@@ -5,10 +5,11 @@ created: 2026-08-10
 
 # Root Filesystems, Buildroot and Yocto
 
-Reference note. Module 8 of [[embedded-linux-course]]. Everything so far ran
-on an NFS root someone else assembled. This is the module about building the
-userspace half of the system, and it is the largest single gap between the
-project notes in this vault and the actual embedded Linux job.
+Reference note. The [[embedded-linux-course]] module after
+[[linux-memory-and-dma]], and the first that leaves kernel space. Everything
+so far ran on an NFS root someone else assembled. This is the module about
+building the userspace half of the system, and it is the largest single gap
+between the project notes in this vault and the actual embedded Linux job.
 
 The question it answers: how does a directory full of files become a
 reproducible product image that another person can rebuild in two years?
@@ -258,7 +259,8 @@ one who fixes it, and that is a durable, well-paid position to be in.
 
 ## Where this leads
 
-- [[embedded-linux-course]] — the course this is module 8 of
+- [[embedded-linux-course]] — the course this is a module of; its plan holds
+  the order
 - [[cross-toolchains-and-elf]] — all of that drudgery, absorbed correctly
 - [[linux-kernel-build-and-config]] — the defconfig becomes a recipe and a
   fragment
