@@ -11,15 +11,30 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-Toolchain and discovery are underway; nothing has been flashed. ESP-IDF
-v5.5.5 is installed, a factory firmware backup is taken and hashed, and a
-no-GPIO diagnostic build compiles clean. Nine of thirteen board pins are
-confirmed by tracing the vendor schematic; four remain (power latch,
-backlight enable, LCD DC, LCD reset). Next step is reading those off the
-PDF by hand, then deciding whether to run the first flash.
+Thirteen of sixteen board pins are confirmed from the schematic, including
+the full power tree, `USER_BTN` and the I2C bus. `PWR_EN` turned out to
+gate a second 3.3V rail for peripherals with no sleep command of their own
+(radio, audio amp, IR, RGB LED), not a latch on the SoC's own supply.
+Backlight enable, LCD DC, LCD reset and the panel offsets are what's left.
+Next step is reading those off the LCD sheet, then checking the full map
+against Bruce's firmware header as an independent second source before the
+first flash.
 
 ## Lessons
 
+- **`PWR_EN` gates a second, switched rail (`VCC3V3`) that only the parts
+  with no software off-switch sit on — not a latch on the SoC's own
+  supply.** The LDO feeding it (ME6217) has an active-high enable with no
+  internal pull-up, so it can't be the rail powering the S3 that drives it
+  — a chip can't enable its own supply. The always-on rail (`VDD3V3`)
+  carries the S3 and everything with its own sleep or power-down command;
+  `VCC3V3` carries the radio, audio amp, IR receiver and RGB LED, none of
+  which have one. The firmware consequence: `PWR_EN` must go high, and the
+  rail must settle, before any SPI or GPIO traffic touches a `VCC3V3`
+  peripheral, not merely before the first real transaction — an SPI master
+  reports success whether or not anything is listening, and driving an
+  unpowered chip's input pins back-powers it through its own ESD clamp
+  diodes. [[home-assistant-rotary-controller-log#2026-08-17]]
 - **A shared SPI bus is capped by its worst-routed signal.** The S3's
   IO_MUX gives a direct, low-latency path to 80 MHz for a fixed pin per
   peripheral signal, but IDF documents that once any one signal on a bus
