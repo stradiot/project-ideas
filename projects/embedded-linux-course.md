@@ -153,10 +153,15 @@ board and no JTAG probe appear in the budget: there is nothing to brick.
 ### Where the exercises land
 
 The exercises are not toys where they do not have to be. Three of them are
-the first real steps of projects already in this vault:
+the first real steps of projects already in this vault — and the direction
+runs one way only, which is the part worth stating. The exercise comes first
+and stands on its own, on the board and the parts in the budget below; the
+project is where it is later taken further. No module here waits on a project
+having been started, and none may.
 
-- The GPIO interrupt driver and its D-Bus daemon are
-  [[industrial-sensor-node-linux]], finished and on the wall.
+- The GPIO interrupt driver and its D-Bus daemon are what
+  [[industrial-sensor-node-linux]] specifies. Reading that note before the
+  driver modules is the whole of what the course takes from it.
 - The CC1101 SPI driver and the `net_device` on top of it are phases 2 and 3
   of [[subghz-linux-router]], using the radio already on the bench.
 - The PRU latency comparison is what decides whether
@@ -399,6 +404,15 @@ consumes — putting it in the graph would park the entire Linux track behind
 a fourteen-module syllabus, which is the shape that graph was pruned to
 remove. Every project below can be started tomorrow. Doing this first only
 makes them easier.
+
+The converse is the newer half of that rule and matters more day to day: every
+module above can be started tomorrow too, on the board and the 58 € of parts,
+with no project note underway first. A module is theory and then exercises
+that finish inside the module — that is what makes a course something to pick
+up on a Tuesday evening rather than a build to schedule.
+[[embedded-learning-curriculum]] now states it as a rule for all five, and
+records the cycle that made it necessary: one of the unwritten courses had a
+module defined as a project whose board a later course had to design first.
 
 [[industrial-sensor-node-linux]] is the closest thing to an exception, and
 even there the relationship runs the other way: that note is the

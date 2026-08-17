@@ -139,8 +139,15 @@ signed FIT image and A/B updates that roll back.
 So what lives here is the *design* — what the device must do, why the
 interrupt splits where it does, why the daemon is socket-activated, and why
 the MQTT bridge is the last thing built. What lives there is the sequence
-that gets it made. Reading this note is how you know what to aim at; working
+that gets it made. Reading this note is how I know what to aim at; working
 through the course is how it ends up on the wall.
+
+Which means nothing here has to be started for that course to run. Reading
+this note is the entire input, and it costs an evening. That is the general
+rule in [[embedded-learning-curriculum]] rather than something special about
+this pair: a project can be a course's source material, its specification or
+its later practice, and never its prerequisite. A module that could not be
+begun until a build was underway would not get begun.
 
 One thing this note is honest about that the course cannot be: the sensing
 is a pretext. A €50 mains-powered SBC detecting motion is a job a €15

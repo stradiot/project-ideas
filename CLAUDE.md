@@ -118,6 +118,18 @@ a `depends:` for the same reason: they teach a skill, they do not produce an
 artifact anything consumes. Six edges across nineteen projects is the current
 state, and it should stay closer to that than to one edge per note.
 
+That rule runs in both directions, and the second half is the one that is easy
+to break because `depends:` does not model it. **A course module may not
+require a project either.** A module is theory and then exercises that start
+and finish inside the module, on hardware the course's own budget already
+covers — a course is picked up on a Tuesday evening, a module at a time. A
+project can be a module's source material, the specification an exercise is
+the first step of, or where the skill is practised for real afterwards; it is
+never a step in the arc and never the exercise itself. Writing a module *as* a
+project is what once put the second course behind the fourth, through a board
+neither of them owned. `notes/embedded-learning-curriculum.md` holds the rule
+and the case.
+
 A project is **ready** when every entry in its `depends:` is `built`. That set is
 what `README.md`'s "Up next" section lists, and it is derived, not authored —
 recompute it after any `status:` or `depends:` change:

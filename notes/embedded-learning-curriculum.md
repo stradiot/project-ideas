@@ -238,11 +238,56 @@ order they are meant to be done, which is argued below.
 | **Hardware design** | Datasheets → KiCad → layout and SI → fab and assembly → bring-up | 3 | ~120 € plus fab runs |
 | **Control and real-time** | Sensors → filtering → PID → state estimation → sensor fusion | 3 | shares the RC gear |
 
-"Feeds" is not a dependency. No project in the vault has a course in its
-`depends:`, and none should — a course is where a skill is learned, not an
-artifact another project consumes. Putting one in the graph would park half
-the vault behind a fourteen-module syllabus, which is exactly the shape the
-dependency graph was pruned to remove.
+### "Feeds" is not a dependency, in either direction
+
+No project in the vault has a course in its `depends:`, and none should — a
+course is where a skill is learned, not an artifact another project consumes.
+Putting one in the graph would park half the vault behind a fourteen-module
+syllabus, which is exactly the shape the dependency graph was pruned to
+remove.
+
+The reverse edge is the one this note had wrong, and it is the worse of the
+two because `depends:` does not model it at all. **No course waits on a
+project either.** A module is theory and then exercises that start and finish
+inside the module, on hardware the course's own budget already covers. A
+project may be source material for a module, a specification an exercise is
+the first step of, or the place the skill is practised for real afterwards. It
+is never a step in the arc, never the exercise itself, and never something
+that has to exist before the module can be started.
+
+Why the outlines drifted the other way is legible. They were written after
+nineteen project notes existed, so the shortest way to describe a module was
+to name the project that would exercise it, and three of them ended up
+describing a module *as* a project. The cost of that is not ordering, it is
+blocking. A course is done in evenings, a module at a time; a project is a
+build with its own hardware, its own bring-up and its own stall risk. Fusing
+them makes the syllabus inherit all three, and a module that cannot be picked
+up on a Tuesday is a module that does not get done.
+
+The sharpest case was a cycle rather than a delay. The bare-metal course's
+Zephyr module read *an out-of-tree board port, which is
+[[ble-sensor-node-pcb]]*, and that board does not exist until the hardware
+design course has drawn it and a fab has made it. That puts course two behind
+course four, through a project neither course owns, and nothing here would
+have caught it: `depends:` tracks projects, the ordering argument above tracks
+courses, and this edge is in neither.
+
+[[embedded-linux-course]] is the shape the other four have to match, and it
+already had it. Fourteen modules, each with its own note, its own exercises
+and a stated success condition, all of them on one board and 58 € of parts
+bought module by module. Three of its exercises are the first real steps of
+projects, and that direction is the safe one — the exercise produces something
+a project later reuses, rather than the project having to be underway first.
+
+What the rule costs is worth stating, because it is a real loss rather than a
+free tidy-up. A module that borrows a whole project inherits a genuinely hard
+target; a module that has to be finishable in evenings gets a smaller one. The
+bootloader module now ends at a loader that flashes and rolls back on a
+devkit rather than at a product, and the control course now tunes a motor on
+the bench before anything drives. The trade is still right: an unstartable
+module teaches nothing at all, and the harder target has not gone anywhere —
+it is in the project, which is where practice under real consequences was
+always going to be the more honest test.
 
 ### The order, and what would change it
 
@@ -319,12 +364,15 @@ the five from where the work is aimed. It scores second only to RF on
 durability, so if the aim changes this is the one that moves, and it moves a
 long way.
 
-What would change this order: the RF course being written is what unlocks
-it — the two projects the Cortex-M course is built around are already
-specified while the RF course is still an outline, and an outline cannot be
-started. If that stays true for long, bare-metal goes first by default rather
-than by argument, and that should be recorded as what happened rather than
-presented as the plan.
+What would change this order: the RF course being written is what unlocks it,
+and an outline cannot be started. Both are outlines today, but the Cortex-M
+one is the cheaper of the two to turn into modules — [[bare-metal-bootloader]]
+and [[freertos-pocket-console]] already describe most of its subject matter in
+enough detail to write exercises from, which the RF course has nothing
+equivalent to. Those modules still have to be written, and under the rule
+above they will not be those two projects. If the RF course stays an outline
+for long, bare-metal goes first by default rather than by argument, and that
+should be recorded as what happened rather than presented as the plan.
 
 ### RF and wireless, in outline
 
@@ -339,7 +387,9 @@ register level, spread spectrum, and the 802.15.4 and BLE link layers.
 
 It also finishes the open problem in [[subghz-collar-remote-clone]]
 properly, since the encoding that fits none of the standard schemes is
-exactly what the receive-chain and coding modules are for.
+exactly what the receive-chain and coding modules are for. What the module
+takes from that project is its captures, which already exist — the direction
+is source material, not a build to be completed first.
 
 **The capture-and-replay module**, which absorbed a project that used to
 stand on its own. Take an arbitrary signal off the air with the RTL-SDR,
@@ -369,7 +419,9 @@ the Linux one.
 The PHY module is also the other half of a split that starts in
 [[subghz-linux-router]]: a MAC and an L2 of mine on someone else's
 modulation there, a modulation of mine here, and a comparison between them
-that neither project could produce alone.
+that neither could produce alone — if both get built. The module does not wait
+on that. Its acceptance test is its own: a receiver that either recovers the
+frame or does not.
 
 This is the course the criterion above weights up hardest. Propagation and
 noise figure do not get a version bump, and almost every step is
@@ -385,11 +437,22 @@ that had this course second; it is the argument for the present one.
 Cortex-M architecture, the vector table and the reset handler, linker
 scripts, `.data` and `.bss` by hand, then peripherals driven from the
 reference manual with no HAL. Interrupts and the NVIC. A serial bootloader
-with A/B slots — [[bare-metal-bootloader]] entire. Then RTOS concepts where
-getting them wrong is visible: stack sizing, priority inversion, starvation
-under trace. Then Zephyr, devicetree and Kconfig and an out-of-tree board
-port, which is [[ble-sensor-node-pcb]]. Then low power measured in µA,
-testing and HIL, and MCUboot in production.
+with A/B slots: a loader that takes an image over UART, checks a CRC, marks a
+slot and jumps to it, with the failure cases forced rather than waited for — a
+corrupted image, a power cut mid-write, a slot that boots and never confirms.
+Then RTOS concepts where getting them wrong is visible: stack sizing, priority
+inversion, starvation under trace. Then Zephyr, devicetree and Kconfig, and an
+out-of-tree board port for a variant of a devkit already on the bench, which
+is the same work as porting to a new board with none of the waiting. Then low
+power measured in µA, testing and HIL, and MCUboot in production.
+
+All of that runs on one Cortex-M devkit and the ~35 € in the table above.
+Where the projects come in is afterwards: [[bare-metal-bootloader]] is where
+that loader gets a real update path and a real recovery story, and
+[[freertos-pocket-console]] is where the RTOS half gets a workload that is not
+synthetic. The board port meets a board that did not exist before in
+[[ble-sensor-node-pcb]], and that is the one to keep out of the module,
+because it sits behind a fab run and therefore behind the fourth course.
 
 The split inside this course is the sharpest of the five. The concepts —
 memory map, linker script, interrupt latency, priority inversion, stack
@@ -404,8 +467,15 @@ mode, rather than on writing the driver a second time.
 Reading datasheets and reference designs, schematic capture, the power tree,
 footprint discipline, stackup and return paths, signal integrity, RF layout
 and antenna keepouts, DFM and JLCPCB, hand SMD assembly, and bring-up.
-[[ble-sensor-node-pcb]] is already at `planning` and is this course's
-project.
+
+Its exercises are fragments rather than boards, because a fab run is two weeks
+and a module is an evening: a power tree drawn from a regulator's datasheet, a
+footprint checked against the package drawing that produced it, a stackup
+chosen and justified in current-loop terms, a DRC run until it is clean, a
+panel priced. [[ble-sensor-node-pcb]] is at `planning` and is where those
+fragments become one board that actually gets ordered, assembled and brought
+up — the practice, deliberately downstream. The course is finishable without
+it; the board is a great deal cheaper in mistakes after it.
 
 Durable in the physics, disposable in the tooling. Stackup, return paths,
 signal integrity and the power tree are spatial judgement about where current
@@ -413,14 +483,32 @@ actually flows, checked by a fab run that takes two weeks to tell me I was
 wrong. KiCad is the part that will be replaced, and is the part worth the
 least time.
 
+The reading half — "datasheets and reference designs" as it used to read — has
+been pulled out of this course and put in front of all five as module zero.
+See [[reading-a-schematic]] and the section above for why. What is left here
+is authoring, which is what the fab run and the cost belong to.
+
 ### Control and real-time, in outline
 
 Sensor characterisation and noise, filtering, PID properly — including
 anti-windup and derivative kick, which is where hand-tuned loops actually
 fail — then state estimation and complementary filters, then sensor fusion.
-[[rc-car-custom-controller]], [[printed-rc-plane]] and
-[[custom-flight-controller-drone]], in that order: a loop that surges, then
-a loop that glides when it is wrong, then a loop that falls.
+
+The plant is a bench rig rather than a vehicle, which is what makes the course
+startable at all. A DC motor with an encoder driven from a devkit shows every
+failure mode the theory names, at the cost of a plot: a step response that
+overshoots, an integrator winding up while the motor is stalled, derivative
+kick on a setpoint change, and a loop oscillating because the sample rate was
+chosen by accident rather than against the plant's time constant. Sensor
+fusion adds an IMU on a rig that can be tilted by hand — a better test than a
+vehicle, because the true angle is known and the estimate can be scored
+against it.
+
+Then the vehicles, as practice, in the order the consequence of being wrong
+gets worse: [[rc-car-custom-controller]] is a loop that surges,
+[[printed-rc-plane]] is a loop that glides when it is wrong, and
+[[custom-flight-controller-drone]] is a loop that falls. None of the three has
+to exist for the course to run, and all three are safer after it.
 
 Second only to RF on the criterion above, and for the same reason: the
 mathematics is from the 1960s and still governs, and the plant is physical, so
@@ -434,6 +522,57 @@ any repository — so unlike the Linux course there is no covered ground to
 subtract. That is an argument for its value and not for its position; it is
 last because it is furthest from where the work is aimed, and those are
 different things.
+
+### The module before the courses
+
+Reading a board — the schematic, and the silicon side of the pins it draws —
+is a prerequisite to all five, is taught by none of them, and is written up in
+[[reading-a-schematic]]. It is **module zero**: it runs before the first
+course and belongs to no course.
+
+Both halves, because a pin map is their intersection. The schematic says which
+pad a signal reaches; whether the chip has no mux at all (ATmega), a fixed
+per-pin menu (AM335x, STM32) or a full crossbar (ESP32) decides how much of
+the answer the datasheet could have given and how much has to be discovered.
+The module carries that, what else a datasheet's pin table has columns for,
+what firmware configures on a pad that no schematic shows, and the ring of
+subjects around it that decide whether firmware works at all — clock gating,
+oscillator accuracy, brownout, bus recovery, level shifting, the ADC front
+end, debug transport, eFuses, reset sources, EMC.
+
+It was buried inside hardware design, and that was wrong in the same way the
+Linux ordering was wrong: the gap was sized against the wrong thing. That
+course is about *authoring* a board — capture, footprints, stackup, a fab run
+two weeks long. This is about *reading* one, and the two come apart. Every
+course already assumes the reading half: bare-metal opens with a pin map only
+a schematic supplies, RF's first two modules are circuits to be read before
+they are built, and [[reading-a-soc-trm]] says it outright — *only the board
+schematic says whether it is wired to P9 pin 21 or to nothing at all* — and
+then never teaches how to find out.
+
+It is not USB-shaped either. USB splits cleanly into thirds that attach to
+three courses. This does not decompose, because all five need the identical
+skill, so splitting it would teach it five times.
+
+Against the criterion at the top of this note it scores higher than the course
+it was inside. Authoring is split — the physics durable, KiCad disposable —
+and reading is not. A schematic is a claim about where copper goes on one
+specific board, recoverable from no text that exists anywhere else, and it is
+the hardware instance of the item ranked as *rising*: reading and judging a
+system I did not write. The generated-code argument applies at full force. An
+agent will produce a plausible pin map for a board it has never seen, in prose
+indistinguishable from a correct one, and only the schematic and a meter can
+separate them. That happened on
+[[home-assistant-rotary-controller#2026-08-17]], where a published pin number
+turned out to be an I²S clock.
+
+The reason it goes first rather than merely somewhere is scheduling. This note
+already records the stall risk — RF is first, is still an outline, and *an
+outline cannot be started*. Module zero needs no hardware, no fab run and no
+further writing, and every course behind it is blocked in a way none of them
+notices. It is what the stall is for. Its exercises run on boards already
+owned: an Arduino clone, an ESP32 devkit, a C3/C6, the T-Embed and the
+BeagleBone Green, in that order of how much each hides.
 
 ### The subject that is not a course
 
@@ -575,6 +714,9 @@ disappeared.
   know which 287 lines were safe to remove is precisely this skill. One
   instance five years ago is not coverage, but it is not zero, and it is the
   only evidence for the durable skill this note ranks as rising fastest.
+  Its *hardware* half is now covered — [[reading-a-schematic]] is this same
+  skill applied to somebody else's board — which leaves the software half,
+  read at the level of judging rather than using, still uncovered.
 - **Functional safety and coding standards** — MISRA, static analysis,
   requirements traceability. Dull, and not optional the moment the firmware
   can hurt someone.
@@ -599,13 +741,16 @@ test — that a project has to end up used, not demonstrated:
 
 ## Where this sits
 
+- [[reading-a-schematic]] — module zero, ahead of all five, and the cheapest
+  thing here to start today
 - [[embedded-linux-course]] — the only one written, now third in the order
   rather than first, and the source of most of the list above
 - [[subghz-collar-remote-clone]] — the RF course's starting material and its
   one open problem, and the project that supplies most of the evidence for
   the criterion this note is ordered by
-- [[bare-metal-bootloader]] and [[freertos-pocket-console]] — the two
-  projects the second course would be built around, and between them the
-  most reused skill set in the vault
+- [[bare-metal-bootloader]] and [[freertos-pocket-console]] — where the
+  second course's skills get practised once it has been done, and the two
+  notes with enough detail in them to write its modules from; between them
+  the most reused skill set in the vault
 - [[zephyr-devicetree]] — the first reference note written here, and a good
   example of the shape the course modules take
