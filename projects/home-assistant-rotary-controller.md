@@ -11,17 +11,28 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-Thirteen of sixteen board pins are confirmed from the schematic, including
-the full power tree, `USER_BTN` and the I2C bus. `PWR_EN` turned out to
-gate a second 3.3V rail for peripherals with no sleep command of their own
-(radio, audio amp, IR, RGB LED), not a latch on the SoC's own supply.
-Backlight enable, LCD DC, LCD reset and the panel offsets are what's left.
-Next step is reading those off the LCD sheet, then checking the full map
-against Bruce's firmware header as an independent second source before the
-first flash.
+Every board pin this project needs is now resolved: backlight enable and
+LCD DC are confirmed on GPIO21/16, and LCD reset is concluded to have no
+GPIO at all, running on its own passive RC power-on reset. Only the panel's
+row/column offset is still open, and it was never going to be on the
+schematic — that comes from the vendor init sequence or from lighting the
+panel and measuring the shift. Next step is reading `RESX` off the LCD
+sheet for the record, then checking the whole map against Bruce's firmware
+header as an independent second source before the first flash.
 
 ## Lessons
 
+- **A vendor schematic's typed annotation blocks are documentation, not
+  netlist, and a partially-updated one is more dangerous than a wholly wrong
+  one.** Only symbols, wires and net labels carry real connectivity in the
+  EDA tool; a legend box of hyphens-and-arrows has none, so it can claim two
+  nets are the same without making them so, and nothing checks it the way
+  DRC checks the netlist. On the LCD sheet the legend was right about seven
+  of ten lines — matching the traced `LCD_CS`, SPI trio, I²C pair and
+  `BL_EN` exactly — which is what made the two wrong ones (leftover
+  touch-panel signals from a different T-Embed variant, one of them
+  contradicting the traced `LCD_DC`) worth believing until the netlist was
+  checked directly. [[home-assistant-rotary-controller-log#2026-08-18]]
 - **`PWR_EN` gates a second, switched rail (`VCC3V3`) that only the parts
   with no software off-switch sit on — not a latch on the SoC's own
   supply.** The LDO feeding it (ME6217) has an active-high enable with no

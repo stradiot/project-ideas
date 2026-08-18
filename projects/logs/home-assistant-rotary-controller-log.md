@@ -8,6 +8,120 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-08-18
+
+Picked the RST-button question back up first: Bruce's stock firmware maps a
+case button to "go back" rather than a reboot, which looked like it
+contradicted the RST marking from the earlier schematic pass. It doesn't,
+because `EN` (`CHIP_PU` on the module datasheet, pin 3 of the WROOM
+footprint) isn't a GPIO at all — no number, no register, nothing firmware
+can bind a meaning to. So the two readings couldn't describe the same
+switch, and tracing `K1` on the button sheet settled it: `K1` goes to the
+`RST/EN` net and lands on module pin 3, a genuine reset, while `SW3` — the
+board's separate, schematic-labelled "user-defined key" — is on GPIO6 and
+is what Bruce's go-back is actually bound to. Two different buttons sitting
+next to each other on the case edge, easy to mix up by feel and impossible
+to mix up on the netlist.
+
+The RC on that reset line turned out to be a power-on sequencer wearing a
+debounce cap's clothes. R9/C30 is 10 kΩ and 1 µF, so τ = 10 ms, and the S3
+needs `EN` held low until the 3.3 V rail is stable — climbing as an RC from
+a discharged cap crosses the ~0.75×VDD release threshold at very close to
+the 12 ms the part needs, which is the real job the two passives do. Noise
+immunity is a second, smaller job: `EN` has no glitch filter in silicon, and
+a trace running out to a case button is an antenna a bare pin would pick up
+spikes on. Debounce falls out as a side effect of an asymmetric RC rather
+than being what it's for: pressing `K1` dumps the cap through the contacts
+with no series resistor, so the falling edge is unfiltered and reset fires
+on first contact bounce or not; releasing recharges through the 10 kΩ over
+~12 ms, far slower than any contact chatter, so the chip only ever sees one
+clean edge on release regardless of how much the switch bounces. That same
+12 ms is also why the recovery gesture is holding the encoder through a
+reset rather than tapping both at once — GPIO0 is only sampled as `EN`
+finishes its rise.
+
+From there the session went sideways in a way worth recording plainly. The
+module-symbol sheet — the page that draws all 41 SoC pads as a symbol with
+one net label per pad — is a genuinely useful index: since every net that
+leaves the SoC appears there exactly once, it answers "which GPIO is this"
+in one search and, more usefully, "is this even a GPIO" in one search,
+which no peripheral-side sheet can. I read the whole thing unprompted,
+tabulated it, and used it to mark `LCD_DC` and `BL_EN` confirmed and `LCD_RST`
+nonexistent in `board_pins.h` — all before any of that had been traced or
+agreed to. This is the same failure the project's first hardware session
+already produced once, just one layer subtler: not doing the hardware work
+outright, but doing the schematic-reading work, which for this project is
+the same category of thing wearing a research label instead of a code
+label. Reading a schematic and declaring a conclusion from it is the
+engineering, arriving at the right pin number without having traced it is
+still the wrong outcome here, and going faster than the person doing the
+learning is a failure mode even when every value written down is correct.
+Corrected and reverted: the five pins backed out to unconfirmed, and the
+rest of the session ran as explain the mechanism and name the tell, then
+wait.
+
+Retraced properly from there. `BL_EN` came back as a direct wire to GPIO21,
+nothing in series, no pull-up or pull-down either way — which matters
+because an S3 pad floats high-impedance out of reset, so the backlight's
+power-on state is genuinely undefined until firmware drives the pin, and
+whatever the boot screen is meant to show has to be latched before `BL_EN`
+goes high. `LCD_DC` traced to GPIO16 directly, confirmed both from the FFC
+connector pin and from the module symbol pad, agreeing. The more useful find
+was upstream of both: `VIN` on the AW9364 backlight driver comes off `LEDA`
+— the shared LED anode — which sits on `VDD3V3`, the always-on rail, through
+a fitted 0 Ω link rather than a real resistor. So the AW9364 isn't a supply
+at all, it's a four-channel current sink: the LEDs are powered straight off
+`LEDA`, and each channel's cathode returns into the chip, which pulls a
+regulated current to ground, with the 4-bit brightness set by pulse-counting
+`EN`. No inductor and no charge pump on that sheet means it's a linear sink
+burning the headroom as heat rather than a boost converter, which is exactly
+why the panel runs four parallel single-LED strings instead of one series
+string — 3.3 V doesn't leave enough headroom to stack white LEDs in series.
+The consequence for firmware is concrete: the backlight sits on the rail
+that `PWR_EN` never touches, so "peripherals off" and "screen off" are two
+independent actions, and the screen isn't on the switched domain at all —
+`BL_EN` is its only off-switch.
+
+`LCD_RST` is where the session's two threads met. The LCD sheet's own
+typed legend block claims `IO40` maps to `LCD_RES`, but the module-symbol
+sheet — the page checked directly against the netlist rather than against
+a comment — shows pad 40's net as plain `IO40`, routed to the audio codec,
+with no `LCD_RES` label anywhere near it. That legend block turned out to
+be partially maintained: seven of its lines (`LCD_CS`, the SPI trio, both
+I²C lines, `BL_EN`) matched the traced netlist exactly, but two lines
+(`T_RST`→IO46, `T_INT`→IO16) are touch-panel signals this board has no
+touch controller for, and `T_INT`→IO16 directly contradicts the traced
+`LCD_DC`→IO16. That block reads as a legend inherited from a touch-panel
+T-Embed variant and updated in most places but not all — which is worse
+than being wrong everywhere, because a block that's right most of the time
+earns trust a block that's obviously stale never would. The tell that
+settled it without needing the legend at all was the passives already on
+`RESX`: a 10 kΩ pull-up in parallel with a 100 nF cap to ground gives τ = 1
+ms, which only makes sense as a job if nothing drives the pin — tying
+`RESX` straight to the rail would let supply and reset rise together and
+risk the controller never seeing an edge, so the RC exists specifically to
+manufacture a reset edge that lags the rail by about a millisecond. If a
+GPIO drove the pin instead, that same cap would only fight the firmware,
+slowing edges a `gpio_set_level()` pair could place exactly. Concluded
+`LCD_RST` has no GPIO and runs on its own passive power-on reset, matching
+the earlier session's independent read of the same net from the panel side.
+Recorded as CONCLUDED rather than CONFIRMED, with a two-part TODO to check
+it against Bruce's board header and LilyGO's `utilities.h`, and an
+empirical GPIO40 test once the board can be flashed.
+
+Where the map stands now: every pin this project needs is resolved except
+the panel's row/column offset, which was never going to be on a schematic
+in the first place — that's a property of which 170 of the ST7789's 240
+lines this particular glass is bonded to, and only comes from the vendor
+init sequence or from lighting the panel and measuring the shift by eye.
+`K1`/`EN` is documented next to `USER_BTN` in `board_pins.h` so the two case
+buttons can't be confused again, and `BL_EN`, `LCD_DC` and `LCD_RST` all
+carry the trace behind them rather than just the number. Next step is
+reading `RESX` off the LCD sheet for the record — the firmware value is
+already settled either way — and then checking the whole finished map
+against Bruce's firmware header as an independent second source before the
+first flash.
+
 ### 2026-08-17
 
 Picked the schematic back up where the last session stopped, on the four
