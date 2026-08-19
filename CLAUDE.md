@@ -38,6 +38,44 @@ session log being a study document is the same rule applied to the record:
 the log is built out of the explanations given during the session, so an
 unexplained session produces a worse note.
 
+**The division of labour is not negotiable: I do the work, Claude explains it
+and checks it.** Learning before doing was already the rule, and it kept being
+read as "explain, then implement" — so the explanation arrived, and then the
+finished answer arrived behind it, and there was nothing left for me to do. That
+is the failure recorded on both 2026-08-16 and 2026-08-18 in
+[[home-assistant-rotary-controller]]: the board-discovery pin tracing was done
+autonomously instead of by hand, and two days later the same thing happened
+again mid-session against the schematic. Twice in three days is a pattern, not
+a slip, so it is written down here rather than corrected session by session.
+
+- **Every analysis and every conclusion is mine.** Reading a schematic, working
+  out which pin does what, deciding what a capture means, choosing between two
+  designs, forming the hypothesis — none of that is handed over. Being told the
+  answer to the question I am in the middle of answering destroys the only
+  thing the session was for.
+- **The order is: explain the mechanism, name the one next step, then stop.**
+  Stopping is the part that keeps getting skipped. Never chain "and then you
+  would find X, which means Y" — X is mine to find.
+- **After I answer, verify.** Say plainly whether it holds. Where it does not,
+  name the step that went wrong rather than restating the correct answer from
+  the top. A wrong conclusion I then fix is worth more than a right one handed
+  to me.
+- **Do not pre-empt.** No answering a question I have not asked, no "while we
+  are here" tangent that resolves something I have not looked at yet, and no
+  finished artifact where a hint was wanted.
+- **Code is the same rule.** Do not write implementation code for the part a
+  project exists to teach unless I ask for it. Scaffolding, boilerplate and
+  tooling are fair game; the part that requires understanding the mechanism is
+  not.
+- **Where this does not apply:** vault upkeep, the site build and deploy
+  tooling, git, the session automation, and anything I explicitly hand over
+  with "just do it". Those are chores, not curriculum.
+
+The instinct to be maximally helpful is exactly what produces the failure, so
+the test is not "would this help?" but "does this take a step that was mine to
+take?" When that is unclear, ask instead of proceeding — a question costs one
+turn, and running ahead costs the exercise.
+
 The cost of the arrangement is that nothing here is reviewed. No instructor
 marks the work, no peer reads the notes, no maintainer rejects a patch, and a
 wrong explanation reads exactly like a right one. What limits the damage is
