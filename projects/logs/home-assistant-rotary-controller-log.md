@@ -10,6 +10,143 @@ The project note is [[home-assistant-rotary-controller]].
 
 ### 2026-08-19
 
+Moved from proven hardware to LVGL's architecture, without writing any
+application code yet. The first question was what LVGL actually owns: not
+the framebuffer — the ST7789 keeps its own GRAM and refreshes the glass from
+it independently — but a draw buffer, a staging area LVGL renders into and
+hands off through a flush callback, one chunk at a time. Its size is the
+whole design decision. Worked the numbers from both ends: 320×170×2 bytes is
+108,800 bytes for a full RGB565 frame, and at the crossbar-routed bus's
+current 20 MHz that's 43.5 ms to shift out, 46 fps ceiling. Against that,
+LVGL's own recommendation for partial mode is roughly a tenth of the screen,
+10,880 bytes, close to the 20,480-byte strip buffer already built for the
+tearing fix. Landed on partial render mode, two buffers of about 1/10th
+screen in internal SRAM, no PSRAM — the arithmetic (11 KB at 20 MHz is 4.4
+ms per chunk, 227 chunks/s, 22.7 full screens/s) held up on its own, and 22
+KB is noise against the roughly 280–300 KB of internal heap expected free
+after Wi-Fi and TLS.
+
+The more useful correction landed on top of that number. Partial mode
+doesn't render a fixed fraction of the screen every frame — LVGL tracks
+dirty rectangles, so a widget that changes invalidates only its own
+bounding box, and the 43.5 ms full-frame figure is the cost of a screen
+*transition*, not steady state. A label ticking from `21.5` to `22.0`
+invalidates maybe 8,000 bytes, one chunk, ~1.6 ms — a fiftieth of the
+worst case. That reframes the buffer choice: it isn't a compromise against
+a bigger one, because a bigger buffer would only help the transition case,
+which is rare. Two things still cost more than the ideal and are within my
+control later: invalidation is bounding-box granularity, not pixel-exact,
+so a full-width row with three changed digits invalidates the whole row;
+and any transparency forces LVGL to recompose everything underneath it, so
+opaque backgrounds are the cheap default. `LV_USE_REFR_DEBUG` tints redrawn
+regions on the panel itself, which is the tool for actually seeing this
+rather than reasoning about it.
+
+From there the question became power, since this is a handheld remote and
+whatever runs the render loop runs indefinitely. The reflex answer —
+hand-wire LVGL instead of using `esp_lvgl_port` — needed justifying rather
+than assuming, so I read the port layer's actual source instead of guessing
+from memory, and one thing I'd said before reading it turned out wrong: its
+task loop isn't a fixed-rate poller, it blocks on a FreeRTOS event group and
+wakes on input, which is already the good shape. What's actually different
+is the tick. LVGL needs wall-clock time, and there are two ways to supply
+it. The port layer *pushes*: a periodic `esp_timer` fires every 5 ms,
+forever, calling `lv_tick_inc()`, whether or not anything is happening on
+screen. LVGL 9 also supports *pull*, `lv_tick_set_cb()`, where LVGL asks for
+elapsed time via a callback backed by `esp_timer_get_time()` — a counter
+that's running anyway — so no periodic timer exists at all. The port layer
+still uses push because it also has to support LVGL 8, where the pull API
+didn't exist.
+
+That distinction turned out to gate something structural rather than
+marginal. ESP-IDF's automatic light sleep rides on FreeRTOS tickless idle,
+which only engages once the idle task can prove a run of
+`CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP` ticks (default 3) with nothing
+pending — 30 ms at the stock 100 Hz tick rate. A timer due in 5 ms caps the
+provable idle window at 5 ms, which never satisfies 30 ms, so light sleep
+never engages at all — not degraded, switched off. The pull tick removes
+the wake source itself rather than requiring a `lvgl_port_stop()` to be
+remembered later, which settled hand-wiring LVGL as the call.
+
+Chasing the same source turned up why the port loop ends in
+`vTaskDelay(1)`, which matters because a hand-wired loop has to solve the
+same problem. Its blocking call, `xEventGroupWaitBits`, is level-triggered
+and sticky: it returns immediately if a requested bit is already set,
+which under sustained input (a knob spun hard) means the producer sets bits
+faster than the loop clears them and the wait stops blocking at all. LVGL
+runs at priority 4 by default, and FreeRTOS never preempts a runnable task
+for a lower-priority one, so a spinning priority-4 task starves everything
+below it, including the idle task — which is exactly what the task
+watchdog (`CONFIG_ESP_TASK_WDT_TIMEOUT_S=5`, watching IDLE0) exists to
+catch. `vTaskDelay(1)` is a blunt fix applied at the bottom of the loop
+rather than at the cause — but it's *also* a value in ticks, not
+milliseconds, and the component's own test config runs at
+`CONFIG_FREERTOS_HZ=1000`, where that's 1 ms. On ESP-IDF's stock 100 Hz
+default it's 10 ms per iteration: identical line, ten times the cost, a
+correct-on-my-machine bug hiding in one call. The takeaway for the loop
+still to be written: block on a queue rather than an event group, since a
+queue is edge-triggered and drains one item per receive, which bounds the
+work per wake regardless of producer speed.
+
+That pointed at raising the tick rate, which needed its own cost check
+before going in the config. Each tick is an interrupt plus a possible
+context switch, order ~3 µs, run per core on the dual-core S3. Going from
+100 Hz to 1000 Hz adds 900 ticks/s/core, ~2.7 ms/s, about 0.27% CPU duty
+per core — bounded from above at roughly 0.1 mA against an ~80 mA active
+budget, under 0.15%. The more interesting effect points the other way:
+`IDLE_TIME_BEFORE_SLEEP`'s 3-tick window drops from 30 ms to 3 ms, and an
+encoder's inter-detent gaps (tens of milliseconds of nothing happening)
+are long enough to start qualifying for light sleep at the higher rate but
+never do at 30 ms — so 1000 Hz plausibly makes active duty *cheaper* once
+`CONFIG_PM_ENABLE` is actually on, though that's a measurement rather than
+something the arithmetic alone proves. Settled on `CONFIG_FREERTOS_HZ=1000`
+on the strength of the bounded direct cost alone, with the second-order
+claim left for a later USB-power-meter session.
+
+That closed out the design pass, so I built the scaffolding it was blocking:
+LVGL 9.5.0 pinned in a new `main/idf_component.yml`, resolved via the IDF
+component manager into `managed_components/` (gitignored, nothing vendored);
+`sdkconfig.defaults` gained `CONFIG_FREERTOS_HZ=1000` and
+`CONFIG_LV_COLOR_DEPTH_16` (already LVGL's default, pinned because every
+buffer size upstream derives from it); the old `sdkconfig` was deleted and
+regenerated so the new default actually took effect, and diffing confirmed
+the tick rate was the only real change. Build stayed green, LVGL compiles
+but nothing references it yet so the linker drops it entirely — the right
+shape for an empty scaffold. Wrote all of the above into `README.md` before
+it existed only in this conversation.
+
+Before any of that could go up, a repo-wide check turned up something that
+would have mattered a lot more than a stale comment: `.secrets.yaml`,
+holding the Home Assistant long-lived token, was untracked but *not*
+ignored. `.gitignore` covered `secrets.h`, `credentials.h`, `.env`,
+`*.token` — plausible secret patterns, just not this filename — so a plain
+`git add -A` would have pushed a live token to a public repo. Caught by
+scanning `git add -An .`'s actual output rather than trusting the existing
+ignore rules, fixed with a `*secrets.yaml`/`*secrets.yml` pattern, file
+left on disk untouched. With that closed, pushed the repo for the first
+time: nine files, `b506b28..cfae925`, verified afterward with a full-history
+grep that no secret-shaped file ever entered any commit, including the
+first one.
+
+Last thing this session: two comments that earlier decisions had made
+quietly false. `sdkconfig.defaults` still said PSRAM "arrives at stage 5" —
+stage 5 was the encoder, already done, without it — and now explains the
+actual reason PSRAM stays off: partial-mode rendering into two ~11 KB SRAM
+buffers doesn't want it, and what will trigger enabling it later is the
+entity cache, on its own commit with heap numbers either side. `README.md`'s
+IDF-5.5-over-6.0 argument had led with `esp_lvgl_port` targeting the 5.x
+API, which is no longer being used at all — rewrote it to rest on `esp_lcd`'s
+ST7789 driver and PCNT instead, which is what's actually load-bearing.
+
+Where it stands: the repo is pushed and clean, LVGL resolves as a managed
+dependency but is linked into nothing yet, and `main.c` is still the
+stage-5 encoder jig. The one real fork left open — what the render loop
+blocks on, its priority, and whether other tasks touch LVGL under a mutex
+or only through a queue — got set aside deliberately as needing more
+thought than a keyboard session allows. Power is its own separate later
+pass: Wi-Fi power-save mode, backlight timeout, and `CONFIG_PM_ENABLE` with
+light sleep against a live socket.
+
 Picked LCD_RST back up with two independent cross-checks against the netlist
 reading of "no GPIO at all": LilyGO's own `examples/utilities.h`, and Bruce's
 `pins_arduino.h` — the firmware actually running on the board, so genuinely

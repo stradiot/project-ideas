@@ -11,18 +11,33 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-The display and the encoder are both driven and proven on hardware: LCD_RST
-is confirmed to not exist (GPIO40 pulsed with no effect, panel survived),
-the panel's column offset is measured at 35 in both native and landscape
-orientation, an async-DMA tearing bug is fixed, and the encoder is decoded
-in hardware via PCNT with direction, resolution and bounce all measured
-rather than assumed. Nothing left in the pin map is inherited from a vendor
-header. LVGL hasn't been touched yet, so plan item one isn't finished, only
-its hard sub-problems are. Next step is either LVGL on top of now-proven
-hardware, or exploring the Home Assistant WebSocket API with `websocat`.
+LVGL's architecture is decided but nothing is wired in yet: partial render
+mode, two ~11 KB draw buffers in internal SRAM, no PSRAM, LVGL hand-wired
+rather than through `esp_lvgl_port` so it can run a pull tick
+(`lv_tick_set_cb()`) instead of a periodic timer that would block light
+sleep outright. LVGL 9.5.0 is scaffolded in as a managed component,
+`sdkconfig.defaults` carries the tick-rate and colour-depth decisions, and
+the repo is pushed to `origin/main` for the first time. `main.c` is still
+the stage-5 encoder jig — plan item one is still open. The one real fork
+left, the render loop's own design (what it blocks on, its priority,
+whether other tasks touch LVGL under a mutex or only a queue), was set
+aside deliberately as needing more thought than a keyboard session allows;
+that's the next step.
 
 ## Lessons
 
+- **A periodic tick timer, not the render loop, is what actually blocks
+  light sleep.** `esp_lvgl_port`'s task loop already blocks on a FreeRTOS
+  event group and wakes on input rather than polling — that part is fine.
+  What isn't is its 5 ms periodic `esp_timer` pushing `lv_tick_inc()`
+  forever: FreeRTOS tickless idle only engages once the idle task can prove
+  a run of `CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP` ticks (3, i.e. 30 ms at
+  100 Hz) with nothing pending, and a timer due in 5 ms caps the provable
+  window below that unconditionally — not degraded sleep, no sleep at all.
+  LVGL 9's `lv_tick_set_cb()` (pull: LVGL asks for elapsed time via
+  `esp_timer_get_time()`, a counter already running) removes the wake
+  source instead of requiring it to be stopped and remembered later.
+  [[home-assistant-rotary-controller-log#2026-08-19]]
 - **`esp_lcd_panel_draw_bitmap()` queues a DMA transaction and returns; it
   only blocks once the transaction-queue pool is exhausted.** Reusing one
   shared strip buffer for the next draw before the previous DMA transfer has
