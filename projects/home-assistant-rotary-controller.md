@@ -11,21 +11,32 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-LVGL's architecture is decided but nothing is wired in yet: partial render
-mode, two ~11 KB draw buffers in internal SRAM, no PSRAM, LVGL hand-wired
-rather than through `esp_lvgl_port` so it can run a pull tick
-(`lv_tick_set_cb()`) instead of a periodic timer that would block light
-sleep outright. LVGL 9.5.0 is scaffolded in as a managed component,
-`sdkconfig.defaults` carries the tick-rate and colour-depth decisions, and
-the repo is pushed to `origin/main` for the first time. `main.c` is still
-the stage-5 encoder jig — plan item one is still open. The one real fork
-left, the render loop's own design (what it blocks on, its priority,
-whether other tasks touch LVGL under a mutex or only a queue), was set
-aside deliberately as needing more thought than a keyboard session allows;
-that's the next step.
+The render-loop and message-model design (single task owns LVGL, fact
+messages over commands, doorbell-plus-cache) got three decisions deep before
+the spec question surfaced: none of it can be finished without knowing what
+domains this device controls, what's on screen per domain, and how entities
+get bound to Home Assistant. A 27-question requirements questionnaire exists
+to answer that, organised into what the object is, the entity set, binding,
+the one-knob-one-button model, the display fields, staleness handling, and
+scope — going through it together is the next session, ahead of resuming the
+render loop. `main.c` is still the stage-5 encoder jig; plan item one is
+still open.
 
 ## Lessons
 
+- **A message or data model designed before the requirements exist gets
+  derived from implementation convenience, not need — and the tell is
+  answering "fixed or variable length" before answering "what does the
+  screen show".** Three plausible-looking decisions (ownership model over a
+  lock, fact messages over commands, doorbell-plus-cache over inline
+  payloads) all landed correctly in isolation, but the payload-length
+  question underneath them turned out to depend on domain-specific HA
+  attributes (`source_list`, `fan_modes`, `effect_list` — all
+  variable-length string arrays) and on the entity-binding requirement
+  itself, since binding by something other than a hardcoded `entity_id`
+  makes the ID a piece of runtime string data. None of that is answerable
+  without a written spec of what domains the device controls and what each
+  screen shows. [[home-assistant-rotary-controller-log#2026-08-19]]
 - **A periodic tick timer, not the render loop, is what actually blocks
   light sleep.** `esp_lvgl_port`'s task loop already blocks on a FreeRTOS
   event group and wakes on input rather than polling — that part is fine.

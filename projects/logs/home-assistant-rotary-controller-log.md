@@ -10,6 +10,79 @@ The project note is [[home-assistant-rotary-controller]].
 
 ### 2026-08-19
 
+Picked the render-loop question back up and got two things explained before
+stalling on a bigger one. First, what a "managed component" actually is in
+ESP-IDF: everything in the build — mine or Espressif's — is a component, a
+directory with a `CMakeLists.txt` calling `idf_component_register()`; `main`
+is the one special case that implicitly links every other component in the
+build, which is why `main/CMakeLists.txt` names no dependencies and still
+pulls in LVGL. What the component manager adds on top is declare-and-resolve
+instead of hand-vendoring: `main/idf_component.yml` states a version
+constraint, a Python tool the CMake configure step invokes resolves and
+downloads a matching release from Espressif's registry into
+`managed_components/`, and `dependencies.lock` records both the resolved
+version and a hash of what actually landed, checked against the package's own
+`CHECKSUMS.json`. The directory name (`lvgl__lvgl`) is the namespace/name pair
+flattened with `__`, and it's that directory name the build system treats as
+the component's own name.
+
+Then back to the render loop. LVGL 9 keeps all its mutable state — display
+list, timer list, object tree, its own TLSF heap — behind one global struct
+with no internal locking unless `LV_USE_OS` is set, so two tasks calling into
+it concurrently don't race an int, they corrupt a free list or a display's
+invalidated-area array, and the failure surfaces later as a wild pointer
+rather than at the racing call. Between the two ways to make that safe — a
+recursive mutex around every call site, or letting only the render task ever
+touch `lv_*` and having everything else post to a queue — the ownership model
+won on the grounds that it makes the wrong thing structurally impossible
+rather than merely wrong at every site forever, including ones not written
+yet. That settled, the queue's payload shape needed deciding: a message can
+describe an operation on a widget ("set label text") or a fact about the
+world ("entity N now reads X"), and the second is the one worth having,
+because its type count is bounded by the number of data sources rather than
+the number of widgets — the render task alone knows the widget tree exists,
+and adding a screen adds zero message types. Doorbell-plus-cache followed
+from that: the network task doesn't hand the render task data, it writes
+into a shared cache and rings a fixed, cheap "something changed" doorbell;
+the render task decides what to redraw by reading the cache, not from what's
+in the message.
+
+That's where it stalled. The payload-length question — fixed struct per
+message vs. something that needs a pointer and a lifetime — turned out to
+depend entirely on what fields the screen shows and how entities get named,
+and none of that is decided anywhere. It surfaced concretely: HA's
+per-domain attributes that a real profile table needs (`source_list` on a
+`media_player`, `fan_modes` and `hvac_modes` on a `climate` entity,
+`effect_list` on a `light`) are all variable-length arrays of strings, not
+scalars, and the plan's own stated requirement — bind an entity by something
+stable in Home Assistant rather than hardcode its `entity_id`, so replacing a
+sensor is an HA config change rather than a reflash — makes `entity_id`
+itself a piece of runtime string data with an unknown length, resolved at
+connect time rather than known at compile time. Three sessions deep into
+board bring-up and one session into LVGL, there still isn't a written answer
+for what domains this device controls, what's on the glass for each, or how
+staleness and rejected optimistic updates get shown — the render-loop and
+message-shape questions are all downstream of that and were being decided by
+implementation convenience instead.
+
+So the session stopped there rather than pushing a data-model decision that
+would only have to be redone. What got built instead is a 27-question
+requirements questionnaire, seven sections, each question offering lettered
+options plus a free-answer row and a line naming what the answer downstream
+decides — entity set and domains, binding mechanism, the one-knob-one-button
+state machine, the on-screen field list, staleness/reconciliation behavior,
+and scope boundaries. Four of the questions can't fully close without the
+plan's own `websocat`-against-HA session first, since they depend on what the
+WebSocket API actually returns rather than what's assumed.
+
+Nothing in the repo changed this session — no commits, no code. The
+render-loop and message-shape work from earlier in the day stands as
+written, just confirmed as premature. Next step is the requirements session
+itself, working through the questionnaire before touching the render loop
+again.
+
+### 2026-08-19
+
 Moved from proven hardware to LVGL's architecture, without writing any
 application code yet. The first question was what LVGL actually owns: not
 the framebuffer — the ST7789 keeps its own GRAM and refreshes the glass from
