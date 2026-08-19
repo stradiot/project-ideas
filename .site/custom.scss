@@ -1,0 +1,261 @@
+@use "./base.scss";
+
+// The visual layer for the published vault. Copied over
+// quartz/styles/custom.scss by build.sh, which is the one file Quartz imports
+// for exactly this and otherwise ships as a two-line stub.
+//
+// Everything here is either a Quartz default that reads wrong for a vault of
+// long technical prose, or a thing this vault tracks that the stock stylesheet
+// has no reason to know about — `status:`, `depends:`, 302 plan checkboxes,
+// and a journal folder whose notes are named after the date they already
+// display. The palette itself is not here: Quartz generates the CSS variables
+// from `theme.colors` in quartz.config.yaml, so that is where the colours are.
+//
+// Two selectors below depend on markup that patch-plugin-markup.py adds
+// (`data-key` / `data-value` on a properties row). Nothing else needs a patch.
+
+// ---------------------------------------------------------------------------
+// Plan progress
+// ---------------------------------------------------------------------------
+// `## Plan` is the whole arc of a project as checkboxes, and an unticked box is
+// load-bearing here — it means not done, rather than merely unrecorded. So the
+// two states have to be told apart at a glance while both stay readable.
+//
+// Base scores completed items through with `text-decoration: line-through`,
+// which suits a shopping list and not this: a plan item is a sentence, read as
+// prose, and a section of struck-out sentences is unreadable at exactly the
+// moment it becomes interesting. Muted instead, with the checkbox itself
+// carrying the state in the accent colour — which base already does, once the
+// palette underneath it is not stock.
+
+.page article {
+  li.task-list-item {
+    &[data-task="x"] {
+      text-decoration: none;
+      color: var(--gray);
+    }
+
+    // An open item is the default weight, not a dimmed one: this is the half
+    // of the plan that still means something.
+    &[data-task=" "] {
+      color: var(--darkgray);
+    }
+  }
+
+  // The list is a plan rather than a paragraph, so it gets to breathe.
+  ul.contains-task-list {
+    padding-left: 1.4rem;
+
+    & > li.task-list-item {
+      margin: 0.35rem 0;
+      line-height: 1.5;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// `status:` and `depends:`
+// ---------------------------------------------------------------------------
+// The two fields that carry the state of the vault. Nineteen project notes each
+// declare one of five states, and reading them as a word in a table cell means
+// reading every note to learn where anything stands.
+//
+// The value is only reachable because patch-plugin-markup.py stamps it onto the
+// row: CSS cannot select on text content, so `data-value` is the whole reason a
+// badge is possible at all.
+
+.note-properties-row[data-key="status"] {
+  .note-properties-text {
+    display: inline-block;
+    padding: 0.05em 0.6em;
+    border: 1px solid currentcolor;
+    border-radius: 999px;
+    font-family: var(--codeFont);
+    font-size: 0.8em;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  // Built and active are the two states worth spotting from across the page —
+  // one is finished, the other is where hands are now. The rest are quieter on
+  // purpose, and deferred is quietest of all: parked with the reason written
+  // down is still parked.
+  &[data-value="built"] .note-properties-text {
+    color: var(--secondary);
+    background-color: var(--highlight);
+  }
+
+  &[data-value="active"] .note-properties-text {
+    color: var(--tertiary);
+    background-color: var(--highlight);
+  }
+
+  &[data-value="planning"],
+  &[data-value="idea"] {
+    .note-properties-text {
+      color: var(--gray);
+    }
+  }
+
+  &[data-value="deferred"] .note-properties-text {
+    color: var(--gray);
+    border-style: dashed;
+    opacity: 0.75;
+  }
+}
+
+// A dependency is a slug — a filename, not prose — so it is set as one. An
+// empty `depends: []` renders as nothing at all, which is correct: most
+// projects have no prerequisites and the row says so by being blank.
+.note-properties-row[data-key="depends"] .note-properties-text {
+  font-family: var(--codeFont);
+  font-size: 0.9em;
+}
+
+// ---------------------------------------------------------------------------
+// Folder listings
+// ---------------------------------------------------------------------------
+
+ul.section-ul {
+  margin-top: 1.5em;
+
+  li.section-li {
+    margin-bottom: 0.15em;
+    border-bottom: 1px solid var(--lightgray);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    & > .section {
+      align-items: baseline;
+      padding: 0.55em 0;
+
+      & .meta {
+        font-family: var(--codeFont);
+        font-size: 0.8rem;
+        opacity: 1;
+        color: var(--gray);
+      }
+
+      & > .desc > h3 {
+        font-size: 1rem;
+      }
+    }
+  }
+}
+
+// The journal notes are named after their date and titled with it, and the
+// listing then prints that same date a third time in the meta column. Hidden
+// only on that one page — everywhere else the date is the useful half of the
+// row, because a note's title says nothing about when it was last touched.
+body[data-slug="journal/index"] ul.section-ul li.section-li > .section {
+  grid-template-columns: 0 3fr 1fr;
+
+  & .meta {
+    display: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Prose
+// ---------------------------------------------------------------------------
+// Mono headings are set in quartz.config.yaml. What they need from here is
+// tighter tracking and a lighter weight — a mono at heading size and bold is
+// far heavier than the proportional face it replaced, and a note that opens
+// with four `##` sections should not read as four announcements.
+
+.page article {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+
+  h2 {
+    margin-top: 2.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--lightgray);
+  }
+
+  // These notes argue with themselves — rejected options, killed hypotheses,
+  // what something is deliberately not. That is what the blockquotes are, so
+  // they read as an aside rather than a pull quote.
+  blockquote {
+    border-left: 2px solid var(--secondary);
+    padding-left: 1rem;
+    color: var(--gray);
+    font-style: normal;
+  }
+
+  // Part numbers, register names, frequencies and pin numbers are the content
+  // here, not decoration, so inline code is legible rather than shouty.
+  p > code,
+  li > code,
+  td > code {
+    font-size: 0.9em;
+    padding: 0.1em 0.35em;
+    border: 1px solid var(--lightgray);
+    border-radius: 3px;
+  }
+
+  // Every table in the vault is a budget or a pin map: columns of numbers and
+  // part numbers that only line up in a mono face.
+  table {
+    font-size: 0.9rem;
+
+    & td,
+    & th {
+      font-family: var(--codeFont);
+    }
+
+    & th {
+      border-bottom: 1px solid var(--gray);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Chrome
+// ---------------------------------------------------------------------------
+
+// The site title is the repository name, so it is set as one.
+.page-title {
+  font-family: var(--codeFont);
+  font-size: 1.1rem;
+  letter-spacing: -0.03em;
+
+  &::before {
+    content: "~/";
+    color: var(--gray);
+  }
+}
+
+// A wikilink is a claim that two notes are related, and the graph is built out
+// of them, so they should not look like an ordinary underline.
+a.internal {
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--secondary) 40%, transparent);
+
+  &:hover {
+    border-bottom-color: var(--tertiary);
+  }
+}
+
+// The tag pills, the explorer and the backlinks panel all sit in the margins
+// and are navigation rather than reading.
+.tags > li > a.tag-link,
+.section > .tags > li > a.tag-link {
+  font-family: var(--codeFont);
+  font-size: 0.75rem;
+}
+
+.explorer,
+.backlinks,
+.toc {
+  font-size: 0.9rem;
+}

@@ -33,34 +33,49 @@ configuration:
   # the vault, so every birthtime is the instant of the copy. stamp-dates.py
   # synthesises one for them on that copy instead.
   defaultDateType: created
+  # Dark-first, and deliberately not Quartz's stock palette — every site built
+  # from the default config is #284b63 and #84a59d. The dark side is GitHub's
+  # dark surface set, which the pinned github-dark syntax theme is already drawn
+  # against, so code blocks sit on the page instead of floating on a slab of the
+  # wrong grey. The light side is the same idea inverted, for anyone who flips
+  # the toggle; patch-plugin-markup.py makes dark the default when nothing has
+  # been chosen.
+  #
+  # The slots are Quartz's, not free-form: `light` is the page background and
+  # `dark` the strongest text, which reads backwards in dark mode and is why
+  # they look swapped below. `secondary` is links, `tertiary` is their hover,
+  # `gray` is muted meta text, `lightgray` is every border.
   theme:
     fontOrigin: googleFonts
     cdnCaching: true
     typography:
-      header: Schibsted Grotesk
+      # Mono headings against a proportional body: the one taste-forward choice
+      # here, and the whole of the terminal feel. Revert this line to
+      # `Schibsted Grotesk` to undo it without touching anything else.
+      header: IBM Plex Mono
       body: Source Sans Pro
       code: IBM Plex Mono
     colors:
       lightMode:
-        light: "#faf8f8"
-        lightgray: "#e5e5e5"
-        gray: "#b8b8b8"
-        darkgray: "#4e4e4e"
-        dark: "#2b2b2b"
-        secondary: "#284b63"
-        tertiary: "#84a59d"
-        highlight: rgba(143, 159, 169, 0.15)
-        textHighlight: "#fff23688"
+        light: "#fbfbfa"
+        lightgray: "#e1e4e8"
+        gray: "#6e7681"
+        darkgray: "#1a1d21"
+        dark: "#0b0d0f"
+        secondary: "#1a7f37"
+        tertiary: "#2da44e"
+        highlight: rgba(26, 127, 55, 0.08)
+        textHighlight: "#1a7f3733"
       darkMode:
-        light: "#161618"
-        lightgray: "#393639"
-        gray: "#646464"
-        darkgray: "#d4d4d4"
-        dark: "#ebebec"
-        secondary: "#7b97aa"
-        tertiary: "#84a59d"
-        highlight: rgba(143, 159, 169, 0.15)
-        textHighlight: "#b3aa0288"
+        light: "#0d1117"
+        lightgray: "#21262d"
+        gray: "#6e7681"
+        darkgray: "#c9d1d9"
+        dark: "#e6edf3"
+        secondary: "#7ee787"
+        tertiary: "#56d364"
+        highlight: rgba(126, 231, 135, 0.1)
+        textHighlight: "#7ee78740"
 plugins:
   - source: github:quartz-community/created-modified-date
     enabled: true

@@ -37,6 +37,11 @@ git clone --quiet --depth 1 --branch "$QUARTZ_TAG" \
 
 cp "$VAULT/.site/quartz.config.yaml" "$WORK/quartz.config.yaml"
 
+# The one file Quartz imports for site-specific CSS, and which it otherwise
+# ships as a two-line stub. The palette is not in here — that is generated from
+# `theme.colors` in the config above.
+cp "$VAULT/.site/custom.scss" "$WORK/quartz/styles/custom.scss"
+
 # One-line fixes taken from the v5 branch head rather than by bumping the tag.
 # Core is compiled from source on every build, so no rebuild step follows this.
 # Unconditional: none of it has anything to do with SITE_BASE.
@@ -69,25 +74,35 @@ python3 "$VAULT/.site/prune-lockfile.py" quartz.config.yaml quartz.lock.json
 # quartz.config.yaml must not name a plugin the tag's default config lacks.
 npx quartz plugin install
 
+# Both patch scripts below edit a plugin's readable src/ rather than rewriting
+# the minified dist/ that plugin install produced. dist/ is what the bundler
+# consumes, so it has to be regenerated afterwards — hence the tsup run, and
+# hence each script printing the plugins it touched.
+#
+# --no-dts because the plugins' type-declaration step fails on a missing
+# vitest/globals type that has nothing to do with either patch, while the ESM
+# build it would otherwise mask succeeds.
+
+# Two things custom.scss cannot do for itself: colour a badge by the word it
+# contains, and decide the theme before any stylesheet has run.
+patched=$(python3 "$VAULT/.site/patch-plugin-markup.py" .quartz/plugins)
+
 # The explorer, search and graph plugins build URLs in the browser by putting
 # "/" in front of a slug, which is only right at a domain root. Under
 # /project-ideas that breaks twice over: the content index 404s so all three
 # panels come up empty, and the links they do build point at
 # stradiot.github.io/projects/... See patch-base-path.py for the full account.
-#
-# The patch edits each plugin's readable src/ and then rebuilds it, rather than
-# rewriting the minified dist/ that plugin install produced. dist/ is what the
-# bundler consumes, so it does have to be regenerated — hence the tsup run.
-#
-# --no-dts because the plugins' type-declaration step fails on a missing
-# vitest/globals type that has nothing to do with this patch, while the ESM
-# build it would otherwise mask succeeds.
 if [ -n "${SITE_BASE:-}" ]; then
-  patched=$(python3 "$VAULT/.site/patch-base-path.py" .quartz/plugins "$SITE_BASE")
-  for plugin in $patched; do
-    (cd ".quartz/plugins/$plugin" && npx tsup --no-dts >/dev/null)
-  done
-  echo "rebuilt after base-path patch: $(echo "$patched" | tr '\n' ' ')"
+  patched=$(printf '%s\n%s' "$patched" \
+    "$(python3 "$VAULT/.site/patch-base-path.py" .quartz/plugins "$SITE_BASE")")
 fi
+
+# One rebuild pass over the union: a plugin both scripts touch has to be built
+# once, after both, or the first patch is compiled away again.
+patched=$(printf '%s\n' "$patched" | sort -u | grep .)
+for plugin in $patched; do
+  (cd ".quartz/plugins/$plugin" && npx tsup --no-dts >/dev/null)
+done
+echo "rebuilt after patches: $(echo "$patched" | tr '\n' ' ')"
 
 npx quartz build "$@"
