@@ -50,8 +50,11 @@ cp -R "$VAULT/projects" "$VAULT/notes" "$VAULT/journal" "$WORK/content/"
 # the vault that would then need maintaining alongside the README.
 cp "$VAULT/README.md" "$WORK/content/index.md"
 
-# Operates on the copy, never on the vault. See the script for why.
+# Both operate on the copy, never on the vault. See the scripts for why.
 python3 "$VAULT/.site/lift-titles.py" "$WORK/content"
+# After the lift, which is what gives the logs and journal notes a frontmatter
+# block to write into.
+python3 "$VAULT/.site/stamp-dates.py" "$WORK/content"
 
 cd "$WORK"
 npm ci

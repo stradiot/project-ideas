@@ -28,8 +28,10 @@ configuration:
   ignorePatterns:
     - templates
     - .obsidian
-  # Project and reference notes carry `created:`; logs and journal notes do not
-  # and fall back to file mtime.
+  # Project and reference notes carry `created:` in the vault. Logs and journal
+  # notes do not, and the filesystem fallback is useless here — build.sh copies
+  # the vault, so every birthtime is the instant of the copy. stamp-dates.py
+  # synthesises one for them on that copy instead.
   defaultDateType: created
   theme:
     fontOrigin: googleFonts
@@ -243,10 +245,15 @@ plugins:
       includeAll: false
       # The state fields the vault actually tracks, so `status:` and `depends:`
       # are visible on the page rather than buried in frontmatter.
+      #
+      # `created` is deliberately absent: content-meta already prints it under
+      # the title on every page, and stamp-dates.py now synthesises one for the
+      # logs and journal notes, so listing it here put the same date on a daily
+      # note three times over — as the title, as a property, and as the meta
+      # line.
       includedProperties:
         - status
         - depends
-        - created
         - repo
         - github
         - tags
