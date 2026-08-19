@@ -37,6 +37,11 @@ git clone --quiet --depth 1 --branch "$QUARTZ_TAG" \
 
 cp "$VAULT/.site/quartz.config.yaml" "$WORK/quartz.config.yaml"
 
+# One-line fixes taken from the v5 branch head rather than by bumping the tag.
+# Core is compiled from source on every build, so no rebuild step follows this.
+# Unconditional: none of it has anything to do with SITE_BASE.
+python3 "$VAULT/.site/patch-quartz-core.py" "$WORK"
+
 rm -rf "$WORK/content"
 mkdir -p "$WORK/content"
 cp -R "$VAULT/projects" "$VAULT/notes" "$VAULT/journal" "$WORK/content/"
