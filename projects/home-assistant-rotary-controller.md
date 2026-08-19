@@ -11,17 +11,43 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-Every board pin this project needs is now resolved: backlight enable and
-LCD DC are confirmed on GPIO21/16, and LCD reset is concluded to have no
-GPIO at all, running on its own passive RC power-on reset. Only the panel's
-row/column offset is still open, and it was never going to be on the
-schematic — that comes from the vendor init sequence or from lighting the
-panel and measuring the shift. Next step is reading `RESX` off the LCD
-sheet for the record, then checking the whole map against Bruce's firmware
-header as an independent second source before the first flash.
+The display and the encoder are both driven and proven on hardware: LCD_RST
+is confirmed to not exist (GPIO40 pulsed with no effect, panel survived),
+the panel's column offset is measured at 35 in both native and landscape
+orientation, an async-DMA tearing bug is fixed, and the encoder is decoded
+in hardware via PCNT with direction, resolution and bounce all measured
+rather than assumed. Nothing left in the pin map is inherited from a vendor
+header. LVGL hasn't been touched yet, so plan item one isn't finished, only
+its hard sub-problems are. Next step is either LVGL on top of now-proven
+hardware, or exploring the Home Assistant WebSocket API with `websocat`.
 
 ## Lessons
 
+- **`esp_lcd_panel_draw_bitmap()` queues a DMA transaction and returns; it
+  only blocks once the transaction-queue pool is exhausted.** Reusing one
+  shared strip buffer for the next draw before the previous DMA transfer has
+  finished reading it corrupts whatever is still in flight — and the damage
+  shows up as doubled edges and truncated regions at strip boundaries, which
+  reads exactly like a row-offset or geometry bug rather than a timing one.
+  The fix is waiting on the `on_color_trans_done` callback (a semaphore is
+  enough for a test pattern; LVGL's own double-buffer-plus-flush-callback
+  exists to solve the same problem for real UI). Cost most of a session
+  before the cause separated from the genuine geometry measurement running
+  in parallel. [[home-assistant-rotary-controller-log#2026-08-19]]
+- **A rotary encoder needs no debounce because its value is an integral of
+  change, not an instantaneous state — and the cancellation is exact
+  arithmetic, not a statistical tendency.** A button's reading *is* its
+  current level, so a bounce burst is indistinguishable from repeated
+  presses and can only be removed by waiting out time. A quadrature
+  decoder's count only changes by +1/-1 pairs during contact chatter on one
+  line while the other holds steady, so those pairs cancel regardless of how
+  long the bounce lasts or how it's sampled — measured directly on this
+  encoder as 780 raw edges, 522 net counts, 258 cancelled, against exactly
+  261 genuine edges per line. The one thing this guarantees is that the
+  *sum* is right, not that the *sequence* is glitch-free — a poll that lands
+  mid-burst reads a value strictly between the pre- and post-transition
+  counts, never a wrong one, so it can only appear stale for up to one poll
+  period, never spuriously reversed. [[home-assistant-rotary-controller-log#2026-08-19]]
 - **A vendor schematic's typed annotation blocks are documentation, not
   netlist, and a partially-updated one is more dangerous than a wholly wrong
   one.** Only symbols, wires and net labels carry real connectivity in the
