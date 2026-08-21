@@ -47,12 +47,33 @@ decoding the protocol.
 - **Tune off-centre, because the DC spike belongs to the receiver.** The
   RTL2832U puts a spike at whatever frequency it is tuned to, so a carrier
   captured dead centre sits under an artefact that is not in the air. The
-  869.525 MHz beep was captured at 869.275 MHz — 250 kHz low — at 2 MSps
-  with `rtl_sdr`, then read in GNU Radio running in a UTM Linux VM, since it
-  is not usable natively on the Mac. URH did the signal view; Inspectrum was
-  skipped because URH covers the same ground. Capture several presses in one
-  recording, not one — the whole validation below depends on having repeats
-  to compare. [[subghz-collar-remote-clone-log#2026-08-09]]
+  869.525 MHz beep was captured at 869.275 MHz — 250 kHz low — at 2 MSps in
+  GNU Radio Companion running in a UTM Linux VM, since GNU Radio is not
+  usable natively on the Mac, and fed from `rtl_tcp` on the Mac rather than
+  USB passthrough, which drops samples at that rate. URH did the signal view,
+  back on the Mac; Inspectrum was skipped because URH covers the same ground.
+  Capture several presses in one recording, not one — the whole validation
+  below depends on having repeats to compare.
+  [[subghz-collar-remote-clone-log#2026-08-09]]
+- **An overloaded receiver invents signals, and distorts the edges you came
+  to measure.** With the remote held a few centimetres from the dongle and
+  the gain up, the waterfall showed three marks, not one: the real burst at
+  +245 kHz, its I/Q image at exactly −245 kHz (the tuner's I and Q paths are
+  never perfectly balanced, so a ghost appears mirrored about the tuned
+  centre), and a strong mark at −745 kHz — ≈3× the baseband offset, the
+  signature of third-order intermodulation from a front end pushed out of its
+  linear range. None of it is a harmonic; those are integer multiples and sit
+  hundreds of MHz away. The generic test is to **retune and see what moves**:
+  real transmissions stay put on an absolute axis, images and distortion
+  products are manufactured relative to your tuning and follow it. So gain is
+  a trade, not a level — early (LNA/RF) gain buys sensitivity because Friis
+  makes the first stage dominate the noise figure, late gain preserves
+  linearity — and with a transmitter in the hand you want the lowest RF gain
+  that clears the noise floor, Gain Mode on Manual so an AGC cannot modulate
+  the amplitudes being measured. Check the tuner rather than assuming it:
+  `rtl_test -t` reported an Elonics E4000, where librtlsdr's per-stage IF
+  gain is real, not the R820T2 where it is a no-op.
+  [[subghz-collar-remote-clone-log#2026-08-09]]
 - **A tool that has not been run against a known answer is not evidence.**
   `tools/analyze_capture.py` — IQ to envelope to run lengths to base tick to
   frame to encoding tests — was validated against two synthetic captures

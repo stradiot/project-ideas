@@ -445,6 +445,198 @@ once the collar confirms the change works.
 
 ### 2026-08-09
 
+Second session of the day, and the one that produced the captures everything
+after it is measured from. It turned out to be mostly about the *receiver*
+rather than the collar.
+
+One repo change first, made before touching real data.
+`tools/analyze_capture.py` could only read `rtl_sdr`'s interleaved `uint8`, and
+the files this session was going to produce are int16 (URH `.complex16s`) and
+float32 (GNU Radio's File Sink). Identical `I,Q,I,Q` layout on disk, different
+sample type — read one as the other and you get plausible-looking noise with no
+error at all. Added `--iq-format {u8,s16,f32}`. A misparse there would have been
+read as a property of the signal, which is the same failure mode the synthetic-
+capture validation was built to catch.
+
+**Doing the capture in a GNU Radio GUI meant building a VM, and two of those
+decisions were real ones.** Virtualization, not emulation: the host is an M1
+Max and Ubuntu 26.04 LTS ships a native arm64 desktop ISO with `gnuradio`
+3.10.12 and `gr-osmosdr` 0.2.6 built for it, so emulating x86_64 through QEMU's
+TCG interpreter would have cost roughly 10× for nothing. The subtler one is
+*which* UTM backend: Apple Virtualization and QEMU are both hardware-accelerated
+on Apple Silicon — "QEMU" does not mean slow, it still runs guest ARM64 code
+directly through Hypervisor.framework — but USB passthrough exists only on the
+QEMU backend, and that choice can't be changed later without rebuilding the VM.
+Picked QEMU, gave up Rosetta, which is worthless here.
+
+Then didn't use the passthrough at all. RTL-SDR through QEMU's USB emulation
+drops samples at exactly the rates that matter (2 MSps), so the actual path was
+`rtl_tcp -a 0.0.0.0` on the Mac with the guest reaching it over UTM's shared
+network at `192.168.64.1:1234`, pasted straight into the Osmocom Source's device
+argument. The backend decision that looked load-bearing was insurance, not the
+mechanism — worth remembering as the shape of the thing rather than as a
+regret, since it cost nothing to keep the option.
+
+Disk sizing was settled by reading the qcow2 header directly (`>IIQIIQ`
+unpacked from the first 32 bytes) rather than trusting `du`: the Yocto VM's
+image declares 549.8 GB virtual against ~120 GB actually consumed. qcow2 is
+sparse, so a 512 GiB "disk" is a ceiling, not a reservation — but it also never
+shrinks on its own, so deleting build artifacts inside a guest frees space to
+the guest and not to macOS. That is the argument for the arrangement that
+shipped: IQ captures live on the *host* side of a VirtFS (9p) share at
+`~/UTM/sdr-captures`, so a bad capture deleted is space actually returned, and
+`analyze_capture.py` reads the files in place with no copy step. Two 9p details
+that bit or nearly bit: the `/etc/fstab` line got pasted into a shell because a
+fenced code block made it look runnable (`Command 'share' not found`), and 9p
+throughput is uneven enough that capturing 8 MB/s straight onto the share risks
+a stall and a hole in the recording you'd never see — so capture to the guest's
+local disk and `cp` afterwards.
+
+Two of my UTM instructions were simply wrong and got corrected by screenshots:
+the display device (the default `virtio-gpu-gl-pci` was already the right one;
+`virtio-ramfb-gl` is the compatibility fallback) and the location of the USB
+settings, which live under **Input**, not Sharing or QEMU, because UTM groups
+the USB controller with the emulated keyboard and mouse that hang off the same
+bus. The useful part of that exchange was incidental: the screenshot showed
+`Use Hypervisor` ticked, which is the concrete confirmation that "QEMU backend"
+here still means hardware virtualization.
+
+`rtl_tcp` then said `No supported devices found`, and the tempting theory —
+UTM had already claimed the dongle into the guest, which would make the host
+lose it — was wrong. `ioreg -p IOUSB` enumerated all three of the M1 Max's XHCI
+controllers with *zero* devices on any of them. Nothing was plugged in at all,
+which explained the host and guest symptoms in one go. Enumerating the bus beat
+reasoning about who might be holding the device.
+
+## What IQ and gr-osmosdr actually are
+
+Written down because the whole capture rests on it. **I = in-phase,
+Q = quadrature.** Sampling an 869.525 MHz carrier directly would need 1.74 GSps
+by Nyquist, so the SDR mixes it against a local oscillator at the tuned
+frequency and keeps the difference — the carrier collapses to near 0 Hz and the
+modulation riding on it fits in 2 MSps. But mixing down *once* destroys the sign
+of the offset: +10 kHz and −10 kHz produce an identical output. So it mixes
+twice, against oscillators 90° apart — `cos` gives I, `sin` gives Q — and the
+pair, treated as `I + jQ`, recovers everything: magnitude `√(I²+Q²)` is carrier
+strength, `atan2(Q,I)` is phase, and the rate of change of phase is the signed
+frequency offset. Complex sampling is also why observable bandwidth equals the
+sample rate rather than half of it, which is what `2MSps-2MHz` in the old
+filenames meant. **For OOK only the magnitude matters** — the carrier is either
+on or off, phase is thrown away — and that is literally one line of
+`analyze_capture.py`: `np.hypot(iq[0::2], iq[1::2])`.
+
+**gr-osmosdr** is the bridge between GNU Radio (deliberately hardware-agnostic
+DSP) and real radios: an Osmocom Source/Sink pair behind one uniform interface,
+where the *only* thing that changes between an RTL dongle on USB, an rtl_tcp
+stream, a HackRF or a Pluto is the device argument string. That is also why a
+Pluto purchase later would cost no rework.
+
+## The three marks on the waterfall
+
+With the flowgraph running (osmocom Source → Waterfall + Frequency sink, no
+processing at all) and tuned deliberately 250 kHz low at 869.275 MHz — the
+RTL2832U parks a DC spike in its exact centre bin, so a carrier captured dead
+centre sits under an artefact the receiver invented, which is the flaw in the
+March captures — pressing the remote produced *three* marks, not one. My first
+read of the axis was also wrong: the span was ~27 kHz where `samp_rate = 2e6`
+demands 2 MHz, because the `samp_rate` variable block was still at its 32k
+default. Every frequency read off that plot was scaled wrong until it was fixed.
+
+Corrected, the picture was: DC spike at 869.275, the real signal at 869.52
+(+245 kHz, exactly where `signal.h` says the carrier is), a weak mark at 869.03
+(−245 kHz), and a strong one at 868.53 (−745 kHz).
+
+The proposed reading was "harmonic", and the arithmetic kills that instantly —
+a harmonic is an integer multiple, so the second harmonic of 869.525 MHz is
+1739.05 MHz, never a few hundred kHz away. The three real candidates are
+sidebands (which *are* your signal — keying a carrier on and off smears energy
+either side at multiples of the keying rate; an OOK burst that looked like one
+infinitely thin line would mean nothing was being sent), an I/Q image (the
+dongle's I and Q paths are never perfectly balanced, producing a ghost mirrored
+about the tuned centre), and dongle spurs (fixed, and indifferent to the
+button).
+
+−245 kHz against +245 kHz is equal and opposite about the centre: that one is
+the I/Q image. **−745 kHz is ≈ 3 × the baseband offset, which is the textbook
+signature of third-order intermodulation** — the front end pushed out of its
+linear range by a transmitter held a few centimetres away, manufacturing
+frequencies that were never transmitted. It fit everything: it vanished on
+button release, so the remote caused it; and it was strong, because third-order
+products grow three times faster in dB than the signal producing them. Dropping
+the gain and moving a few metres away made it disappear entirely while the real
+burst faded gradually — the different rate of decay being the confirmation. The
+general-purpose version of that test, worth more than the specific diagnosis:
+**retune, and see what moves.** Real transmissions stay put on an absolute axis;
+images and intermodulation products are manufactured relative to your tuning and
+follow it.
+
+This mattered for the actual goal rather than being trivia. A front end in
+compression distorts pulse edges, and pulse edges to sub-microsecond precision
+are the entire measurement this project needed.
+
+## Gain, and the tuner I got wrong
+
+RF, IF and BB are three amplifiers at three points in the chain:
+`antenna → [LNA: RF gain] → [mixer] → [VGA: IF gain] → [BB] → ADC`. The tension
+between them is the whole of receiver setup. **Early gain buys sensitivity** —
+by Friis, noise added by the first stage is amplified by everything after it, so
+the LNA dominates the receiver's noise figure and weak signals need it.
+**Late gain preserves linearity** — every amplifier is linear only over a range,
+and the 868.53 MHz mark was what exceeding it looks like. Distant weak signal →
+more RF gain; transmitter in your hand → far less. VGA is just "variable gain
+amplifier", the stage an AGC loop would normally drive, which is exactly why
+Gain Mode stays **Manual** here: an AGC chasing the level mid-burst would
+modulate the very amplitudes being measured.
+
+I asserted the dongle was an R820T2, where the single tuner gain maps to RF and
+IF/BB do nothing. `rtl_test -t` said **Elonics E4000** — rarer, discontinued,
+52–2185 MHz with a PLL gap at 1094–1236 MHz that doesn't matter at 869 — and on
+the E4000 librtlsdr's per-stage IF gain control is real, so there are two live
+knobs here, not one. Gain is quantised to 14 discrete steps from −1.0 to 42.0 dB
+with no zero. That correction exists only because the tuner was checked instead
+of assumed.
+
+## The capture, designed to answer a question
+
+The observation that a held button produces repeated frames prompted a
+hypothesis — the collar beeps for as long as it keeps receiving, so the remote
+streams frames while the button is down. That is already what the firmware
+assumes (`TRANSMIT_REPEAT` is a duration knob, not a retry count). But it has
+two versions that differ in a way that matters: **purely gated**, where a quick
+tap sends one or two frames, versus **fixed minimum burst**, where a tap fires a
+set number regardless. One tap cannot distinguish them, so `press.cfile` was
+recorded as *three separate quick taps* in one run, spaced seconds apart, so the
+frame counts can be compared against each other. `hold.cfile` is one 3–4 s hold.
+Designing the recording around the discriminating comparison, rather than
+recording one instance and reasoning about it afterwards, is the same move that
+the shock/B-channel decode plan rests on.
+
+Both files came back at 245× and 250× peak-to-noise, better contrast than the
+March captures and no clipping. Two things about them worth carrying forward:
+**the first ~1 second of each file is junk** — a strong burst at 40–170 ms in
+both, at near-identical positions, which is `rtl_tcp` starting to stream and the
+tuner's gain settling, not the remote. And at 5 ms resolution the three taps all
+landed in the same length bucket, which *hints* at the fixed-minimum-burst
+version, but 5 ms blocks are far too coarse to claim it. Events: taps at 4980,
+10045 and 14725 ms in `press`; one hold from 6635 to 10750 ms (~4.1 s) in
+`hold`. Cut those out into `tap1/tap2/tap3.complex` (6.4 MB each) and
+`hold_seg.complex` (24 MB) so URH isn't chewing on 41 million samples — same
+bytes, renamed to the extension URH recognises as complex float32.
+
+One number fell out along the way that is uncomfortable independent of the
+timing question: a real tap is on air for roughly 85–137 ms, while the firmware
+was sending 50 repeats, about 3 seconds. The clone transmits something like 25×
+longer than the original ever does — which matters for the band's duty-cycle
+limit and for how long the scheduler stays suspended.
+
+Stopped deliberately without measuring a single pulse. The hand measurements in
+URH — 15–20 individual runs recorded as raw *sample counts* rather than rounded
+microseconds, cluster means rather than modes, and above all whether any 3× or
+4× run exists — are the independent evidence, and `analyze_capture.py` is only
+allowed to be the check afterwards.
+
+### 2026-08-09
+
 Created a CLAUDE.md for the codebase and fixed three documentation bugs in
 esphome/CLAUDE.md (frequency was listed as 433 MHz not 869.525 MHz,
 pinout.h was claimed to be encrypted when it isn't, and TRANSMIT_GAP_US was
