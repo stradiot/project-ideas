@@ -11,19 +11,69 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-The render-loop and message-model design (single task owns LVGL, fact
-messages over commands, doorbell-plus-cache) got three decisions deep before
-the spec question surfaced: none of it can be finished without knowing what
-domains this device controls, what's on screen per domain, and how entities
-get bound to Home Assistant. A 27-question requirements questionnaire exists
-to answer that, organised into what the object is, the entity set, binding,
-the one-knob-one-button model, the display fields, staleness handling, and
-scope — going through it together is the next session, ahead of resuming the
-render loop. `main.c` is still the stage-5 encoder jig; plan item one is
-still open.
+The requirements questionnaire is ten of twenty-seven answered and sections
+1–3 are closed. The device is settled as a carried, deep-sleeping remote for
+`light`, `media_player`, `climate` and `cover`, plus `scene` and `script` as
+fire-and-forget; bound to Home Assistant by a label resolved once by an
+explicit manual sync into `entity_id` + friendly name + domain + area in NVS,
+with no resolve phase at startup; showing only the attribute the knob is
+moving, and nulling every value on wake so nothing on screen is ever a
+remembered lie. That settled the payload question the render-loop design
+stalled on — topology is in the cache before the socket exists, and the
+variable-length arrays that blocked it turned out to be state rather than
+topology. Q11, whether the top level is type-first as sketched or room-first
+on the locality argument, is open and gets re-taken first thing next session,
+followed by the rest of section 4. `main.c` is still the stage-5 encoder jig;
+plan item one is still open.
 
 ## Lessons
 
+- **Splitting an entity's data into topology and state — by how often each
+  changes, not by where it comes from — is what makes a deep-sleeping display
+  usable, and it dissolves the message-payload question rather than answering
+  it.** What entities exist, what they are called, which area they are in and
+  what shape they are changes when the HA config is edited, months apart;
+  their values change constantly. Persisting the first in NVS across deep
+  sleep while nulling the second on wake gives a carousel that is navigable
+  the instant the screen lights — two levels deep before the socket is up —
+  with values filling in behind it. The corollary is what it deletes:
+  `source_list`, `hvac_modes`, `fan_modes` and `effect_list`, the
+  variable-length string arrays that stalled the render-loop design, are
+  state rather than topology, so they arrive inside the entity's state object
+  and are null-on-wake like every other value. Nothing is remembered and
+  re-displayed, so there is no wake-time reconciliation and the render
+  queue's payload can be a cache index.
+  [[home-assistant-rotary-controller-log#2026-08-20]]
+- **Deep sleep on the ESP32-S3 does not pause the device, it deletes it — and
+  both halves of "wake on knob turn" break on that in ways that look like UX
+  choices.** PCNT lives in the digital power domain and does not survive deep
+  sleep, so every edge between the wake and the point where PCNT is
+  reconfigured lands on an unconfigured peripheral: a counted wake-turn would
+  count an arbitrary fraction of the motion, which is worse than counting
+  none, so swallowing it is forced rather than chosen. And `ext1` wake is
+  *level*-triggered, not edge-triggered — it arms a pin mask and one polarity,
+  and any pin already at the wake level on entry wakes immediately, giving a
+  boot loop instead of rest. Contact-closed pulls these lines low, so the
+  polarity has to be low, which makes the encoder's resting levels the fact
+  that decides whether wake-on-turn is possible at all: this part detents
+  every half quadrature cycle, so its resting states alternate between two of
+  the four, and if one line rests low on alternate detents then half the knob
+  positions make deep sleep impossible — a symptom that would depend on where
+  the knob happened to stop last time. Not yet measured.
+  [[home-assistant-rotary-controller-log#2026-08-20]]
+- **`idf.py flash` does not erase NVS, so "wipe and re-sync by hand after a
+  flash" is a policy with no mechanism behind it.** Flashing writes only the
+  partitions in the flash args — bootloader, partition table, app — so new
+  firmware boots straight onto records written by the previous layout and
+  reads four fields out of a blob that now has five, filling the UI with
+  garbage at exactly the moment you are least likely to remember. A schema
+  version constant compared on boot buys *invalidation* — erase, mark empty,
+  prompt for a re-sync — which is a handful of lines, as opposed to
+  *migration*, which means keeping every old layout's reader alive forever.
+  The scoping detail that makes the wipe safe is that Wi-Fi credentials live
+  in NVS too: without a separate namespace for the topology, every flash
+  re-provisions Wi-Fi as well.
+  [[home-assistant-rotary-controller-log#2026-08-20]]
 - **A message or data model designed before the requirements exist gets
   derived from implementation convenience, not need — and the tell is
   answering "fixed or variable length" before answering "what does the

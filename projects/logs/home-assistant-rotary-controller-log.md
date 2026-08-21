@@ -8,6 +8,185 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-08-20
+
+Ran the requirements questionnaire built last session — in chat, one question
+at a time, rather than in the worksheet artifact, because the worksheet turned
+out to be unfillable. It was published as static HTML in a sandbox: the A/B/C
+letters in front of the options are CSS counters
+(`content: counter(opt, upper-alpha)`), the "own answer" row is another `<li>`
+with a dashed border, and there is no `<input>`, `<label>` or `<script>`
+anywhere in the file. Swapping the list items for radio buttons would have made
+them clickable, but the selection would live only in that tab's DOM and never
+come back — a genuinely fillable sheet needs a declared runtime storage
+capability, not a markup fix. Going question by question in chat also puts the
+reasoning where the spec actually wants to be, which is this log.
+
+Ten of the twenty-seven answered; sections 1–3 closed.
+
+**Section 1, what the object is.** It's carried, not fixed (Q01 = C): active
+while in use, then light sleep on a short timeout, then deep sleep on a longer
+one, and in deep sleep upward of 99% of the time. The reason that's question
+one is that the HA WebSocket API is push-based — authenticate once, subscribe,
+and events arrive — but the subscription exists only as long as the TCP
+connection does. Modem-sleep and light sleep keep the association, the IP and
+the socket, so the subscription survives and wake is sub-millisecond. Deep
+sleep resets the SoC: socket, TLS session, association and DHCP lease are all
+gone, and waking means a full re-association, handshake and auth before
+anything on the glass is true. So the deep-sleep tier's real cost isn't
+current, it's time-to-truthful-screen — and the TV-remote analogy stops there,
+because a remote transmits and displays nothing while this device's whole job
+is to show state. Q02 = A: only me and my partner, both expert users, no
+guests. That removes discoverability as a requirement but not consistency,
+because memory is per-frequency — a mode used every evening is free, one used
+twice a winter is forgotten — so the modality budget is generous on daily
+paths and near zero on rare ones, which argues for a uniform gesture grammar
+across domains rather than per-device idioms. The scope note attached to it is
+more load-bearing than the answer: the device's justification is that it beats
+*unlock phone → open app → find entity → tap*. That's a latency benchmark, and
+the deep-sleep reconnect sits inside it. Q03 = A: screen fully off, wake on an
+encoder turn or either button, and the wake turn is swallowed. Half of that is
+forced by hardware rather than chosen — PCNT lives in the digital power domain
+and doesn't survive deep sleep, so every edge between the wake and the point
+where PCNT is reconfigured lands on an unconfigured peripheral; a "counted"
+wake turn would count an arbitrary fraction of the motion. All four candidate
+wake pins are usable: encoder A/B on GPIO4/5, the encoder press on GPIO0 and
+SW3 on GPIO6 are inside the RTC range 0-21, and their 10K pull-ups go to
+`VDD3V3`, the always-on rail, so their levels stay meaningful while the SoC is
+down. The trap is that `ext1` is level-triggered, which turns the encoder's
+resting levels per detent into the fact that decides whether wake-on-turn works
+at all — unmeasured, now on the bench list. Also asked and not settled: whether
+there's an IMU to wake on. Nothing in the traced rails or on the I²C bus (the
+BQ25896 charger and BQ27220 gauge, and nothing else) says yes, but that trace
+wasn't looking for one, so the answer is an I²C scan with those two parts as
+the positive control.
+
+**Section 2, the entity set.** Q04 = B, about six things — three light groups,
+TV, AC, blinds — with the four-level carousel sketched: device type, then
+device, then attribute, then value, one item per screen, encoder rotates,
+GPIO0 selects, GPIO6 backs out, settings at the end of level 1. The correction
+that mattered is at level 3: in HA those aren't separate entities. A `light` is
+one entity whose state is on/off and which carries `brightness`,
+`color_temp_kelvin` and `effect` as attributes of the same state object; a
+`climate` carries `temperature`, `hvac_mode`, `fan_mode`. So level 3 picks an
+*attribute* of an entity already selected — one subscription feeding several
+screens, all updating together in a single `state_changed` event, rather than
+several independent cache rows with their own staleness. The exception to watch
+for is integrations that expose separate `number`/`select` entities for things
+that look like attributes, which is a fact about this HA instance and belongs
+to the `websocat` session. Q05 = A–D — `light`, `media_player`, `climate`,
+`cover` — with a Xiaomi robovac and the d-control ESPHome remote known to be
+coming. Those four are, not coincidentally, exactly the domains that fit one
+shape: a bounded number the knob moves, with an enum or two attached. Both
+future items break it in different directions — a vacuum has no number to turn,
+only commands to fire, and the d-control's "Trigger Collar Beep" is momentary
+despite arriving as a template `switch` (declared as an ESPHome `button:` it
+would arrive as a `button` entity, so the shape the controller has to handle is
+partly a choice made on the other device). The profile table therefore needs
+three widget shapes — bounded numeric, enumerated choice, action — and the
+third isn't in v1's domains at all, which is precisely how it gets designed out
+and retrofitted painfully. Q06 = A, and the principle stated underneath it is
+sharper than the option text: display only what the room can't tell you. The TV
+shows what's playing, the lamp shows it's on, the blinds show where they are.
+That initially kept `current_temperature` on the climate entity and then killed
+it too, on the argument that the setpoint is absolute — 23 inside regardless of
+what's outside — so level 4 shows exactly one value with no per-domain context
+attributes anywhere. What survives for a different reason is the attribute
+being edited: the encoder is *relative*, it reports change and not position, so
+the value on screen is the cursor, not a readout. Two further decisions came
+out of the same answer. Values are null on boot and on wake, never the last
+remembered ones, which deletes the entire class of bug where the screen
+confidently shows something that changed while it was asleep, and deletes
+wake-time reconciliation with it. And notifications are a popup where the
+action is taken, covering most of the screen, while continuous facts — battery
+charge from the gauge, link status, staleness — live in a persistent status
+strip: a clean condition-versus-event split. Null-on-wake collided head-on with
+the dynamic hierarchy sketched in Q04, since a carousel fetched at connect time
+means there's nothing to render on wake at all — no values *and* no items — and
+that collision is what produced the topology/state split below. Q07 closed as
+scenes and scripts in, automations out, with the logic living in HA and the
+controller only triggering it. The route there was a real automation: a
+"Bedroom lights day" that a Matter/Thread button triggers, whose action is
+purely a state assignment and therefore converts to a scene — with the unit
+trap that scenes store raw `brightness` 0-255 while service calls take
+`brightness_pct`, so 70% is 179. What a scene can't absorb is sequences,
+delays, conditions or any service that isn't a state assignment; those need a
+script, which is also the escape hatch for keeping the automation's sun
+condition out of the carousel instead of listing day and night variants
+separately. The responsibility boundary is delivery: the controller's job ends
+when HA has the call. One mechanism correction — that isn't an HTTP ACK, it's a
+WebSocket command carrying an `id` and a `result` message coming back with the
+same `id` and `success: true/false`, which is also how you know which of
+several in-flight calls failed. And one behaviour to know: a script's default
+`mode: single` drops a re-entrant call *while still returning success*, so a
+stray double-press on a slow script looks like it worked and did nothing.
+
+**Section 3, how a thing is named.** Q08 didn't match any option as written —
+it's C's discovery mechanism feeding B's storage. The binding rule is: label
+chosen in HA, resolved to an `entity_id` by an explicit manual sync, stored in
+NVS along with the friendly name, domain and area, and never re-resolved
+automatically. The consequence worth having deliberately is that startup has no
+resolve phase at all — a cold boot goes from Wi-Fi straight to subscribing, and
+every way that can fail has been moved onto one deliberate action taken while
+standing in front of the screen, which is the best possible place for it. Under
+a literal "resolve at connect", every wake would carry a registry round-trip
+inside the latency budget being measured against the phone. The cost accepted
+in exchange is drift: between syncs, NVS can name an entity HA no longer has.
+Domain becomes a small integer known at sync time, so the profile lookup never
+parses a domain string at runtime; the string caps fall out of the 320 px panel
+rather than being guessed, and a truncation is visible during the sync. Q09 = C
+splits the two failure modes along the same condition/event line: an entity
+whose device is offline reports `unavailable`, is transient and shows as a
+dimmed entry; an entity gone from HA entirely never arrives at all, means NVS
+has drifted, and gets a popup. Q10 = C and D together — HA owns the
+configuration, the knob triggers the sync — and then a reversal worth recording,
+because it's the better answer: schema validation on boot, with a mismatch
+raising an actionable popup whose re-sync action is pre-selected, rather than
+"wipe and re-sync when I remember". What forced it is that `idf.py flash`
+doesn't erase NVS, so new firmware boots onto records written by the old layout.
+A version tag used for invalidation rather than migration is about five lines
+and keeps no old-format parsers alive. Two things fell out: Wi-Fi credentials
+also live in NVS, so the topology needs its own namespace or every flash
+re-provisions Wi-Fi; and schema-mismatch and never-synced are the same state, so
+the empty-topology screen isn't an edge case to handle grudgingly, it's the
+genuine initial state every device passes through.
+
+**What actually moved.** The previous session stalled on the render queue's
+payload — fixed struct, or something needing a pointer and a lifetime — and it
+stalled because the question wasn't answerable yet. It didn't get answered here
+so much as dissolved, by three requirements decisions: topology (`entity_id`,
+name, domain, area) is written once at sync, capped, into NVS, so it isn't
+payload at all — it's in the cache before the socket exists; the
+variable-length arrays that blocked it (`source_list`, `hvac_modes`,
+`fan_modes`, `effect_list`) are state rather than topology, so they arrive
+inside the entity's state object and are null-on-wake like everything else; and
+null-on-wake means nothing is ever remembered and re-displayed, which removes
+wake-time reconciliation entirely. The doorbell-plus-cache decision survives
+intact, with a cache index as its payload. The runtime command vocabulary is
+now closed too — authenticate, fetch state, subscribe to changes, call a
+service, with registry access existing only inside the sync action — which is a
+small enough fixed set to hand-roll rather than needing a general-purpose
+client.
+
+**Parked, carried forward.** Bench: the I²C scan with charger and gauge as
+positive control; board deep-sleep current; the encoder's resting levels at
+successive detents. Design: when the config-drift popup fires given it arrives
+unprompted during the wake window, what it says when an integration takes out
+fifteen entities at once, what a press does on a dimmed entry, whether the knob
+moves between actions inside a popup, and the Wi-Fi provisioning path that
+"credentials persisted across updates" quietly assumes. Needs the wire: HA
+labels live in the entity registry rather than in state and registry commands
+may want an admin token; and whether any of the six devices exposes attributes
+as separate `number`/`select` entities.
+
+Nothing in the repo changed — no code, no commits. Q11 (top level type-first as
+sketched, or room-first on the locality argument, which is newly available for
+free now that `area` is stored) was left open deliberately and gets re-taken
+first thing next session, followed by the rest of section 4.
+
+Written a day late, by hand: the SessionEnd writer died mid-response when the
+Mac went to sleep, so this entry was reconstructed from the session digest.
+
 ### 2026-08-19
 
 Picked the render-loop question back up and got two things explained before
