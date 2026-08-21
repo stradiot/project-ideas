@@ -8,6 +8,228 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-08-21
+
+Carried on through the requirements questionnaire in chat, Q11 to Q17, taking
+the count to seventeen of twenty-seven. Section 4 is closed, section 5 is
+closed bar its last two, and Q18 was answered and then reopened for a re-take.
+One process correction landed early and is worth recording because it changed
+the rest of the session: I had been paraphrasing each question's options
+rather than reading them out, which meant the answer was being given to my
+interpretation of the choice rather than the choice. Read verbatim from there
+on. The same applies to Home Assistant itself — none of its API, entity model
+or hierarchy has been studied yet, so it gets explained from the bottom rather
+than assumed.
+
+The thread running through all seven answers is that the shape of the
+interface turned out to decide the shape of the data model, and mostly by
+deletion.
+
+**Q11, the top level, is type-first, and rooms are not a level at all.** The
+mechanism that makes this a small question rather than a large one is that the
+four-level carousel is not four data structures. It is one flat array of the
+topology records written into NVS at sync — `entity_id`, friendly name, domain,
+area — plus a selection path, meaning a level index and a cursor per level.
+Each level is a filter over that array and a projection of the distinct values
+of one key. So the question is only which key level 1 projects. `domain` is a
+small integer drawn from a set bounded at compile time, so its labels are
+static strings in flash with nothing stored per entity; `area` would have
+needed de-duplicating into a normalised table with entities holding an index.
+Three or four rooms across six devices buys nothing at the top, and the
+friendly name already carries the room because that is how things get named in
+a small flat — "Bedroom lights" is both the entity and its location. I first
+rejected showing the room as a second line on level 2 on the grounds that it
+breaks one-item-per-screen, and that reason does not hold: the uniformity that
+matters is the gesture grammar, and a second line inside an item adds no
+carousel item and changes nothing a detent does. The reason that does hold is
+Q06's own principle — display only what the room cannot tell you — under which
+the room name is the most redundant thing that could be on the glass, because
+I am standing in it. Worth keeping the distinction: the weaker argument would
+also have banned the units and the pending mark.
+
+**Q12 is plain short presses only, on both buttons.** The worksheet wrote this
+question for a single-button device; there are two, GPIO0 to descend and GPIO6
+to ascend, so long-press-as-back was never needed. What the question is really
+about underneath is the button's event vocabulary, and the cost of a
+duration-based second meaning is not the timer. A press is two interrupts, and
+if short press is the only meaning it dispatches on the **down** edge and the
+up edge is discarded. The moment any gesture depends on how long the button is
+held, dispatch cannot happen on the down edge any more, because at that instant
+it is not yet known which gesture this is — so every short press on that button
+becomes late by the whole hold threshold, typically 300 to 500 ms. Acting on
+the down edge and undoing it if the threshold arrives is worse, because the
+screen then shows something it takes back. The input queue message is therefore
+`{which button}` and nothing else. Press-and-hold-to-repeat is what this gives
+up.
+
+**Q13 took two attempts to even parse, and the confusion was mine but useful.**
+I read it as "what screen does a wake land on" and answered that instead —
+which turned out to answer a real question anyway: the selection path is not
+preserved across sleep, so wake lands on the same default level-1 screen as a
+cold boot, meaning no `RTC_DATA_ATTR` cursor and one entry point rather than
+two. The question actually asked about the awake device with the screen still
+lit and no input arriving. Two independent timers were hiding in it: the power
+timeout that Q03 already settled, and a position timeout that would reset where
+you are in the tree. Deep sleep wipes RAM so the path dies for free there, but
+light sleep keeps RAM, the socket and the subscription, so landing at the top
+after a light-sleep wake is a choice and not a consequence.
+
+What a position reset buys is exactly one thing, and naming it is what settled
+the question: it disarms the knob. Levels 1 to 3 only move a cursor; level 4 is
+the only place where a detent becomes a service call, so a device parked at
+level 4 with the screen lit is one where a bump changes a real lamp. A
+separate, shorter lit-screen timer would cut that armed window from thirty
+seconds to ten, at the cost of a screen that moves while being looked at — and
+a screen that changes without input is the failure a single-control interface
+actually dies of, since the next detent then means something different from
+what it meant three seconds earlier. So: **no separate inactivity timer.** One
+thirty-second one-shot that pops level 4 up to level 3, drops the backlight and
+enters light sleep as a single event.
+
+Two things fall out of that. The first is that **the state machine now has no
+timer-driven transitions at all** — every transition is a button, a detent or a
+network event, the render task's timer list stays empty of UI timers, and the
+only one-shot in the system belongs to the power manager. That is precisely
+what the question was for. The second is a hardware consequence: the pop should
+happen at sleep *entry*, not at wake. The ST7789 holds its own GRAM and
+refreshes the glass from it independently of the SoC — LVGL never owned a
+framebuffer — so a screen flushed before `BL_EN` goes low is still sitting in
+the panel through the whole sleep. Wake then costs one GPIO write and the right
+screen is already there. Doing it at wake instead would put a full screen
+transition, the 43.5 ms worst case measured on 2026-08-19, inside the
+time-to-first-pixel that Q02 said is being benchmarked against the phone.
+
+**Q14 is no acceleration, ever, with a per-domain default step that HA
+overrides where HA reports one.** Home Assistant carries `target_temp_step`
+alongside `min_temp` and `max_temp` on a `climate` entity, and `step`/`min`/`max`
+on the `number` domain; it carries no step at all for `light`, `media_player`
+or `cover`, where brightness is simply 0–255, `volume_level` a float 0.0–1.0
+and position an integer 0–100. So both halves of the conditional I wrote are
+true simultaneously across different domains, and the profile table needs the
+default column regardless, because a `climate` entity can omit the attribute
+and the knob cannot be allowed to do nothing when it does. Step, min and max
+all arrive inside the state object, which makes them **state rather than
+topology** — none of them go into NVS and all of them are null on wake, which
+is self-consistent, since with a null value there is nothing to nudge anyway.
+And a second unit trap of the same shape as the `brightness` 0–255 versus
+`brightness_pct` one found on 2026-08-20: `volume_level` is a float from 0 to
+1, so a two-percent step is `0.02` and the percentage on the glass is something
+the controller computes for display. Two representations of one quantity in one
+firmware, and the conversion goes in exactly one place or it goes in five.
+
+The genuinely wrong step in my own reasoning here was the exception I built the
+case on. I argued that most adjustment is local nudging around a remembered
+value — true, and it is why acceleration buys so little — but then made blinds
+the counter-example, on the grounds that they go end to end. They do not do it
+by turning: `cover` exposes `open_cover`, `close_cover` and `stop_cover`, which
+take no argument at all, with `set_cover_position` as the secondary control. So
+full travel was already one service call and never a step-size problem. It is
+also a bad interaction independently of step size, because a cover takes ten or
+twenty seconds to travel and reports a position that lags the knob for the
+whole gesture. That correction found the third widget shape — bounded numeric,
+enumerated choice, **action** — which the 2026-08-20 entry predicted would be
+absent from v1's domains and retrofitted painfully. It is not absent; it is
+inside `cover`, and it was being modelled as an awkward number. Domain-native
+actions cost nothing to discover because they are properties of the domain, not
+of the instance, so they live in the profile table as static flash data keyed by
+the domain integer already stored. Arbitrary presets like "blinds at 40%" are
+the opposite — instance-specific, invented by me, nothing in HA implies them —
+and Q07 already said where those live: a scene in HA, triggered by the
+controller.
+
+Acceleration would not, incidentally, have been expensive. PCNT cannot
+timestamp anything, but one `esp_timer_get_time()` per batch read gives
+velocity as `delta / elapsed` without per-edge stamps. It lost on behaviour:
+the same physical gesture producing different results by wrist speed makes
+overshoot correction require a deliberately slow turn. The encoder queue message
+stays a plain accumulated delta with no timestamp in it.
+
+**Q15 is that the knob's meaning is always on the glass**, and the carousel had
+already dissolved the question it was asking — level 3 *is* the sub-mode
+selector, so colour temperature, source and volume are sibling attributes of
+one entity rather than modes to design. What survives is the failure the
+question exists for, a mode whose indicator is off-screen, since in this
+structure the knob's meaning is established by the path taken and a path is a
+memory. The answer is large `<` and `>` at the screen edges: at levels 1 to 3
+they mean *there is more this way*, and at level 4 they stop being navigation
+and become the unit, `-0.5` and `+0.5` flanking `23`. That answers "what is one
+detent worth", which nothing else on the screen answers. Enums fall back to
+plain chevrons, because an enum in HA is a current value plus a companion list —
+`hvac_mode` out of `hvac_modes`, `source` out of `source_list` — so the step in
+a list is "one item" and there is no delta to print. Two consequences: the
+chevrons need the profile table's default step to draw anything before state
+arrives, giving that constant a second consumer; and they show granularity, not
+identity, so `-5 · 40 · +5` could be brightness or volume. The residual
+ambiguity is two enum attributes on one entity — an AC's `hvac_mode` and
+`fan_mode` both render as a bare string between chevrons. Left unresolved.
+
+**Q16 is value plus unit and nothing else.** The bar or arc went out for
+readability on a 170 px panel, with the argument noted as reversing for
+brightness and volume, which are percentages of a range that cannot be felt
+until the device responds; `min` and `max` arrive with state anyway, so adding
+it later is render-only with no data-model cost. Secondary state went out on
+two arguments and the second is the better one. Q06 covers it partially, but
+"this is a remote, not a monitor" covers more, because it also excludes facts
+the room genuinely cannot tell you — whether the AC two rooms away is actively
+cooling. HA models these as separate fields and it is a real distinction:
+`hvac_action` reports heating or idle while `hvac_mode` reports what was asked
+for, and a unit set to heat can sit idle because it reached the setpoint.
+
+**Q17 is a capped fixed buffer, scrolled when it overflows, no pointers
+anywhere.** I assumed at first that scrolling implied a heap pointer, and it
+does not: truncate-versus-scroll is a rendering decision and cap-versus-heap is
+a storage one. `LV_LABEL_LONG_SCROLL` scrolls a `char[N]` perfectly well, and
+the only thing that forces a pointer is deciding the text has no maximum length
+at all. That matters because with every field fixed-size the cache stays a plain
+struct array — a write is a `memcpy` into storage that already exists, the worst
+case is truncation, and the render task can read at any moment with no
+coordination. One heap pointer means malloc, swap and free racing a render task
+that may be mid-draw on the old pointer, which needs a lock, refcounting or
+deferred free, and the never-coordinate property is gone. That is the exact
+lifetime question the render loop stalled on back on 2026-08-19.
+
+I also overstated the cost of scrolling and had to walk it back. It is real —
+an LVGL animation timer fires every `LV_DEF_REFR_PERIOD`, 33 ms, invalidating
+and redrawing the label for as long as it is on screen and overflowing, which
+is structurally the same shape as the periodic-tick problem already solved for
+light sleep. But it only happens while the screen is lit, and a lit screen means
+the AW9364 backlight is drawing tens of milliamps, against which waking the CPU
+thirty times a second is noise. It also stops dead at the thirty-second sleep
+boundary. Font auto-scaling was rejected in its favour, and the reason kills a
+criterion I had been carrying: "legible from across the room" is the wrong test
+for something held in the hand, which makes option C an unlikely answer to Q27
+when that arrives.
+
+**Q18 was reached, explained and then deliberately reopened** rather than
+answered in a hurry at the end. What is on the table is that an enum attribute
+arrives with a companion array whose string lengths *and* element count are both
+unknown, so storing one costs `char options[MAX_OPTS][MAX_LEN]` plus a count
+and a policy for HA reporting more than fits. The trap is on the way out:
+`select_source` takes the source **name string**, exactly as HA gave it, with no
+index — HA does not accept "option 3". So a string truncated for display cannot
+be sent back, which makes the cap a hard correctness bound rather than a display
+convenience, and it must be at least as long as the longest option name the real
+devices report. That number is a `websocat` question. Enums are the only place
+in the design where what was stored has to be byte-exact; numeric attributes go
+out as numbers and display never affects correctness.
+
+Nothing in the repo changed — no code, no commits. The one artifact produced is
+[[home-assistant-rotary-controller-spec]], a vault note holding all seventeen
+answers with the mechanism each turned on, written because the answers had been
+accumulating only in log prose and the firmware needs one place to read them
+from. Q18 is marked in it as answered-then-reopened.
+
+Carried forward, unchanged from yesterday except where noted. Bench: the I²C
+scan with the BQ25896 charger and BQ27220 gauge as positive control, board
+deep-sleep current, and the encoder's resting levels at successive detents.
+Wire: whether `target_temp_step` actually appears in the AC's `attributes`
+object, the longest option string across the real `source_list` and mode lists,
+whether any device exposes attributes as separate `number`/`select` entities,
+and whether registry access for labels needs an admin token. Design, newly
+open: whether the carousel wraps or clamps at the ends of a level, which the
+chevrons imply an answer to; the level-4 ambiguity between two enum attributes
+of one entity; and `area`, which is now stored in NVS with no consumer at all.
+
 ### 2026-08-20
 
 Ran the requirements questionnaire built last session — in chat, one question

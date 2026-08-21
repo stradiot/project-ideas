@@ -11,23 +11,40 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-The requirements questionnaire is ten of twenty-seven answered and sections
-1–3 are closed. The device is settled as a carried, deep-sleeping remote for
-`light`, `media_player`, `climate` and `cover`, plus `scene` and `script` as
-fire-and-forget; bound to Home Assistant by a label resolved once by an
-explicit manual sync into `entity_id` + friendly name + domain + area in NVS,
-with no resolve phase at startup; showing only the attribute the knob is
-moving, and nulling every value on wake so nothing on screen is ever a
-remembered lie. That settled the payload question the render-loop design
-stalled on — topology is in the cache before the socket exists, and the
-variable-length arrays that blocked it turned out to be state rather than
-topology. Q11, whether the top level is type-first as sketched or room-first
-on the locality argument, is open and gets re-taken first thing next session,
-followed by the rest of section 4. `main.c` is still the stage-5 encoder jig;
-plan item one is still open.
+The requirements questionnaire is seventeen of twenty-seven answered, with
+sections 1–4 closed and 5 closed bar its last two; the answers and the
+mechanism each turned on are collected in
+[[home-assistant-rotary-controller-spec]], since the firmware needs one place
+to read them from rather than four log entries. The interface is a four-level
+carousel — domain, device, attribute, value — type-first with rooms not a
+level at all, driven by plain short presses on two buttons with no long-press
+anywhere, no encoder acceleration, and per-domain step sizes that Home
+Assistant overrides where it reports one. A single thirty-second one-shot pops
+level 4 back to level 3, drops the backlight and enters light sleep as one
+event, which leaves the state machine with no timer-driven transitions at all.
+Every stored string is capped and fixed-size, so the state cache stays a plain
+struct array with no pointer lifetimes in it. Q18 was reached, explained and
+deliberately reopened; it gets re-taken first next session. `main.c` is still
+the stage-5 encoder jig, and plan item one is still open.
 
 ## Lessons
 
+- **Whether stored text is capped and whether it scrolls are independent
+  decisions, and conflating them is what pushes a design onto heap pointers it
+  does not need — while the one place a cap is genuinely load-bearing is
+  correctness rather than display.** LVGL's `LV_LABEL_LONG_SCROLL` scrolls a
+  `char[N]` as happily as a malloc'd string, so "the title does not fit"
+  argues for a rendering mode and never for a lifetime. Keeping every field
+  fixed-size is what keeps a state cache a plain struct array: a write is a
+  `memcpy` into storage that already exists, the worst case is truncation, and
+  the render task can read at any instant without coordinating — whereas one
+  heap pointer means malloc, swap and free racing a task that may be mid-draw
+  on the old pointer, which costs a lock, refcounting or a deferred free. The
+  cap stops being cosmetic at Home Assistant's enums: `select_source` takes
+  the option's name string exactly as HA supplied it and has no index form, so
+  a string truncated to fit the panel cannot be sent back, and the cap has to
+  be at least as long as the longest option the real devices report.
+  [[home-assistant-rotary-controller-log#2026-08-21]]
 - **Splitting an entity's data into topology and state — by how often each
   changes, not by where it comes from — is what makes a deep-sleeping display
   usable, and it dissolves the message-payload question rather than answering
