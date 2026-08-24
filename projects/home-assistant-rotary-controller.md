@@ -146,17 +146,6 @@ item one is still open.
   `esp_timer_get_time()`, a counter already running) removes the wake
   source instead of requiring it to be stopped and remembered later.
   [[home-assistant-rotary-controller-log#2026-08-19]]
-- **`esp_lcd_panel_draw_bitmap()` queues a DMA transaction and returns; it
-  only blocks once the transaction-queue pool is exhausted.** Reusing one
-  shared strip buffer for the next draw before the previous DMA transfer has
-  finished reading it corrupts whatever is still in flight — and the damage
-  shows up as doubled edges and truncated regions at strip boundaries, which
-  reads exactly like a row-offset or geometry bug rather than a timing one.
-  The fix is waiting on the `on_color_trans_done` callback (a semaphore is
-  enough for a test pattern; LVGL's own double-buffer-plus-flush-callback
-  exists to solve the same problem for real UI). Cost most of a session
-  before the cause separated from the genuine geometry measurement running
-  in parallel. [[home-assistant-rotary-controller-log#2026-08-19]]
 - **A rotary encoder needs no debounce because its value is an integral of
   change, not an instantaneous state — and the cancellation is exact
   arithmetic, not a statistical tendency.** A button's reading *is* its
@@ -171,45 +160,21 @@ item one is still open.
   mid-burst reads a value strictly between the pre- and post-transition
   counts, never a wrong one, so it can only appear stale for up to one poll
   period, never spuriously reversed. [[home-assistant-rotary-controller-log#2026-08-19]]
-- **A vendor schematic's typed annotation blocks are documentation, not
-  netlist, and a partially-updated one is more dangerous than a wholly wrong
-  one.** Only symbols, wires and net labels carry real connectivity in the
-  EDA tool; a legend box of hyphens-and-arrows has none, so it can claim two
-  nets are the same without making them so, and nothing checks it the way
-  DRC checks the netlist. On the LCD sheet the legend was right about seven
-  of ten lines — matching the traced `LCD_CS`, SPI trio, I²C pair and
-  `BL_EN` exactly — which is what made the two wrong ones (leftover
-  touch-panel signals from a different T-Embed variant, one of them
-  contradicting the traced `LCD_DC`) worth believing until the netlist was
-  checked directly. [[home-assistant-rotary-controller-log#2026-08-18]]
-- **`PWR_EN` gates a second, switched rail (`VCC3V3`) that only the parts
-  with no software off-switch sit on — not a latch on the SoC's own
-  supply.** The LDO feeding it (ME6217) has an active-high enable with no
-  internal pull-up, so it can't be the rail powering the S3 that drives it
-  — a chip can't enable its own supply. The always-on rail (`VDD3V3`)
-  carries the S3 and everything with its own sleep or power-down command;
-  `VCC3V3` carries the radio, audio amp, IR receiver and RGB LED, none of
-  which have one. The firmware consequence: `PWR_EN` must go high, and the
-  rail must settle, before any SPI or GPIO traffic touches a `VCC3V3`
-  peripheral, not merely before the first real transaction — an SPI master
-  reports success whether or not anything is listening, and driving an
-  unpowered chip's input pins back-powers it through its own ESD clamp
-  diodes. [[home-assistant-rotary-controller-log#2026-08-17]]
-- **A shared SPI bus is capped by its worst-routed signal.** The S3's
-  IO_MUX gives a direct, low-latency path to 80 MHz for a fixed pin per
-  peripheral signal, but IDF documents that once any one signal on a bus
-  isn't on its IO_MUX-direct pin, the whole bus routes through the GPIO
-  matrix crossbar instead, capping around 40 MHz. On this board `SPI_SCK`
-  landed on GPIO11 (the MOSI slot), not GPIO12, so the LCD/SD/CC1101 bus
-  is crossbar-routed — not a problem here (46 fps ceiling on a 320×170
-  panel is plenty), but worth checking on any board before assuming 80 MHz.
-  [[home-assistant-rotary-controller-log#2026-08-16]]
-- **A pin map is a fact about the PCB, not the chip, and has to be
-  discovered accordingly.** The ESP32-S3's GPIO matrix lets almost any
-  peripheral signal route to almost any pad, unlike an STM32's fixed
-  alternate-function table, so "which pin drives the LCD chip-select" is
-  answered by the schematic or the running board, never by the datasheet
-  alone. [[home-assistant-rotary-controller-log#2026-08-16]]
+- **A pin map is a fact about the PCB, not the chip, and a vendor schematic's
+  typed annotation blocks are documentation rather than netlist — so a
+  partially-correct legend is more dangerous than a wholly wrong one.** The
+  ESP32-S3's GPIO matrix routes almost any peripheral signal to almost any pad,
+  unlike an STM32's fixed alternate-function table, so "which pin drives the LCD
+  chip-select" is answered by the board or the schematic and never by the
+  datasheet. And only symbols, wires and net labels carry connectivity in the EDA
+  tool: a legend box of hyphens-and-arrows can claim two nets are the same
+  without making them so, and nothing checks it the way DRC checks the netlist.
+  On the LCD sheet the legend was right about seven of ten lines — matching the
+  traced `LCD_CS`, SPI trio, I²C pair and `BL_EN` exactly — which is what made
+  the two wrong ones (leftover touch-panel signals from a different T-Embed
+  variant, one contradicting the traced `LCD_DC`) worth believing until the
+  netlist was checked directly. [[home-assistant-rotary-controller-log#2026-08-16]],
+  [[home-assistant-rotary-controller-log#2026-08-18]]
 
 ## Goal
 
@@ -455,4 +420,9 @@ game logic. The devices at the other end include
 
 ## Build log
 
-Session entries live in [[home-assistant-rotary-controller-log]].
+Session entries live in [[home-assistant-rotary-controller-log]]. The answers
+to the requirements questionnaire — what the device controls, what each screen
+shows, what the knob means and what it does when it stops knowing the truth —
+are collected in [[home-assistant-rotary-controller-spec]], which is what the
+firmware is written against rather than the log entries the answers were argued
+out in.
