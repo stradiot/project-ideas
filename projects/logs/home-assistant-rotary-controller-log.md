@@ -8,6 +8,269 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-08-24
+
+Re-took Q18 and ran the questionnaire through to Q23, taking the count to
+twenty-three of twenty-seven. Section 5 is closed and section 6 is half done.
+Nothing in the repo changed; all of it is specification.
+
+The session opened on a question about when a detent commits and everything
+after it turned out to be the same question from a different side: what the
+device is allowed to claim while it does not know something. Five of the six
+answers are about the honesty budget, and most of them were settled by deleting
+a mechanism rather than adding one.
+
+**Q18 is B — a list rotated through, press to select — with commit semantics
+that depend on the attribute's type.** Numeric attributes commit on the detent;
+enum attributes move a candidate and commit on the button. I first framed that
+as trading consistency for usability and it is the other way round. Levels 1 to
+3 already work exactly one way — detents move a cursor over an array, the button
+commits, nothing leaves the device while rotating — so an enum at level 4 is a
+fourth carousel level obeying the rule the first three already obey. It needs no
+new code shape at all: the selection path already carries a cursor per level,
+and entering the attribute costs one string match to place that cursor on the
+current value. The genuinely anomalous case in this interface is the *numeric*
+level 4, the one place where a detent has an outward effect.
+
+That exception is earned by a specific property, and naming it is what made the
+answer hold: **commit-on-detent is required exactly where the target cannot be
+known in advance and has to be felt for.** Volume is judged by ear, brightness
+by eye, temperature by the room; "right" is not a number nameable beforehand, so
+withholding the change until a press removes the signal being steered by. An
+enum is the opposite — the target is a name, known before the knob is touched.
+The same property runs the other way for the intermediates: every value passed
+through on a numeric sweep is a legal, cheap, on-the-way state, whereas every
+intermediate in an enum list is a **destination**. Scrolling past `Netflix` to
+reach `HDMI 2` means actually switching the TV to Netflix, which takes seconds
+and sometimes launches an app. Coalescing does not rescue that, because the
+failure case is a slow deliberate scroll — exactly what reading unfamiliar
+option names looks like.
+
+Option A, the blind cycle, was never the cheaper option it appeared to be.
+There is no `next_source` service, so advancing one still requires the ordered
+array and a string match to find the current position; A and B store the same
+thing and differ only in whether the candidate is visible before it is
+committed. B also produces a cancel for free — Q12 gave both buttons fixed,
+level-independent meanings, so ascend out of an enum level 4 discards the
+candidate. Scrolling a source list, finding nothing wanted and leaving the TV
+alone is possible only because rotation was not already committing.
+
+**Q19 is A — no age on the glass, ever — and it killed an assumption the
+project has been carrying since the note was written.** The reasoning I brought
+to it was that this is a controller and not a monitor: knowing when the AC was
+last set, or when the value arrived, changes no action I would take. What
+matters is whether the value on screen is current, and that is the link's
+business. The mechanism underneath turned out to be sharper than that. Under
+`subscribe_events` nothing is polled — Home Assistant pushes on change and is
+silent otherwise — so **the age of a value measures how often it changes, not
+whether it can still be trusted.** A lamp untouched since morning has a local
+arrival age of hours and is perfectly true. Silence is the healthy case.
+
+That is what disposes of option B, the stale-past-a-threshold mark, and on
+better grounds than redundancy: a lamp nobody has touched and a socket that died
+an hour ago accumulate age identically, so B raises a warning on healthy
+entities and stays silent about the one case that matters until link state
+reports it anyway. It is a false signal rather than a duplicate one. The corollary
+is that **the honest instrument is per-connection, not per-entity** — one number,
+not six — and its resolution is bounded by the keepalive interval rather than by
+anything in the data.
+
+Two smaller things came out of it. HA's own `last_changed` and `last_updated`
+are ISO 8601 strings on HA's clock, so rendering an age from them needs SNTP, a
+timezone and the assumption that the two clocks agree; a local arrival stamp from
+`esp_timer_get_time()` needs none of that. The local stamp is kept anyway, unrendered,
+because the project note already wants the coalescing interval derived from a
+measured tick-to-`state_changed` latency rather than a guessed 100 ms, and that
+measurement is exactly an arrival timestamp against a send time.
+
+**Q20 is B generalised into a conditional status bar, and the generalisation is
+the useful half.** Nothing is shown while everything is healthy; link state goes
+upper-left, battery upper-right, other system state upper-middle, on every level,
+overlaid in the corners rather than reserving vertical space — which is free only
+because Q16 keeps the centre to a value and a unit, so the corners are genuinely
+empty and nothing reflows when the bar appears.
+
+The argument that decided the battery half is worth keeping, because it
+generalises well beyond batteries. A warning that fires when the charge crosses
+20% fires while the device is dark in a drawer, and there is nobody to deliver it
+to. **On a device asleep upward of 99% of the time, an event-latched notification
+is structurally undeliverable; only state evaluated at wake works.** So the rule
+became: nothing is latched, every status entry is derived from current state at
+render time, and a pop-up is that same state's first-observation presentation
+rather than a separate object with its own lifetime. An ACK dismisses the
+presentation and never the condition. That also disposes of the un-ACKed pop-up
+at the thirty-second sleep boundary — sleeping on an unread warning costs nothing,
+because the condition still holds and re-presents itself at the next wake.
+
+The one class that breaks the model is informational — "sync successful" has no
+persisting condition to derive from — so those are restricted to the direct
+result of an action just taken, where the screen is lit and someone is looking by
+construction. Anything the device wants to say unprompted has to be a condition
+in the bar instead.
+
+Pop-ups got a universal grammar: either button acknowledges, the knob scrolls
+the text, and nothing auto-dismisses on a timer. Collapsing both buttons to one
+meaning is what defuses the modality trap rather than merely signposting it — a
+pop-up has nothing to navigate into or out of, so the two buttons have nothing
+left to distinguish, and **no press can be wrong.** That is a stronger property
+than an indicated mode, because the mode cannot be mispredicted. It also closed
+a gap I had raised a turn earlier: I thought the level-4 gate needed an explicit
+repeat rule or a spin would produce a pop-up per detent, and it does not, because
+a detent while a pop-up is up scrolls the message rather than attempting an
+action. A second gate cannot be reached without dismissing the first, so the
+sequence is self-limiting by construction.
+
+The reconnect pop-up was cut. A wake from deep sleep climbs the whole ladder —
+Wi-Fi association, TCP, the WebSocket upgrade, HA's `auth_required`/`auth`/`auth_ok`
+exchange, then `subscribe_events` — and only from the last rung is the cache
+trustworthy, but the whole thing is quick and the link indicator already
+distinguishes blanks-because-arriving from blanks-because-broken. A pop-up that
+appears and vanishes within two seconds on every single wake is noise on the most
+common interaction the device has, and it would give up what Q13 bought: a wake
+costing one GPIO write, because the ST7789 holds the finished screen in its own
+GRAM through sleep.
+
+**Q21 is C — immediate local application with a visible pending mark.** The
+protocol fact that shapes it is that a service call produces **two** returns and
+they are not the same claim. A `result` message carries the `id` assigned to the
+command and says HA *accepted* it; a `state_changed` event says the world
+*changed*, carries no `id`, and is the same event every other HA client sees.
+They can disagree — a bulb rounds 200 to 198, a Zigbee frame is lost, an AC
+routing through a vendor cloud takes seconds — so "confirmed" is ambiguous until
+it is said which return counts.
+
+The `Decides` line asked whether a cache entry holds one value or two, and the
+answer splits B from A and C rather than A from C. Even A needs an in-flight
+notion, because a `state_changed` generated before the command landed will
+otherwise snap the screen backwards through the old value — the visible failure
+the project note names. Since `state_changed` carries no correlation id, A and C
+need the identical desired/confirmed pair and differ only in whether the
+difference is drawn, which makes this a display decision and cheap to reverse.
+
+Pinning down what the mark asserts mattered more than choosing it. It means
+**"I asked for this and have not heard back"**, never "this value is uncertain" —
+so a change made from the TV's own remote arrives as a plain `state_changed`,
+updates the value and renders unmarked, which is right. That definition is also
+what later killed option A of Q23.
+
+The open problem the answer surfaces is that two requirements pull opposite
+ways: an external change arriving mid-command must be accepted, and a
+pre-command event must be rejected, and nothing in the message separates them.
+Ordering by HA's `last_updated` against the last one stored handles duplicates
+and out-of-order delivery, and needs no wall clock because HA timestamps are only
+ever compared to other HA timestamps — but it does not separate these two, since
+a pre-command event is still newer than its predecessor. That needs a local settle
+window sized to the measured command-to-`state_changed` latency.
+
+**Q22 is D — HA's own message verbatim.** A rejection is the one message in this
+protocol that is unambiguously mine: it comes back as a `result` with my `id`,
+`success: false`, and an `error` object carrying `code` and `message`. B dies
+because its entire information content, "this was an explicit reject", is a strict
+subset of D's. C dies twice over and the two reasons are independent — the table
+would have to be maintained by hand, and HA's `code` is coarse enough that
+integration failures surface as something generic with all the specifics in
+`message`, so the lookup would mostly resolve to "unknown error" for exactly the
+failures worth explaining.
+
+Storage is one global capped buffer rather than a per-entity field, since only
+one error can be presented at a time, which is what makes it affordable to be
+generous — 128 or 256 bytes is the difference between a sentence and a fragment.
+Truncation is safe here in the way Q18's enum cap was not, because the text is
+displayed and never sent back. Two traps follow from truncating it: the cut has
+to land on a UTF-8 codepoint boundary rather than a byte, or LVGL is handed an
+invalid sequence, and the font is compiled with a chosen character subset, so
+anything outside it renders as boxes — which reads as corruption rather than as a
+missing glyph. A one-branch fallback to `code` when `message` is empty costs
+nothing and is not the translate table that was rejected.
+
+D also means firmware bugs surface on the panel — a malformed message or an
+out-of-range command now shows HA's protocol error text on the glass. Under Q02,
+two expert users and discoverability explicitly not a requirement, that is a
+feature rather than a cost. And it retroactively justifies the scrolling pop-up
+body: without D every message would be a compile-time string written to fit, and
+the knob would have nothing to scroll.
+
+**Q23 is B extended with the pop-up as its explanation, which is C's
+informational value without C's new screen.** Two of the three options were
+already closed — Q19 killed per-value staleness marks, so the marking half of A
+and B is identical and lives in the corner chrome, and C would reverse Q20's
+choice of chrome over a takeover screen. What was actually live was whether the
+knob means anything when nothing is listening.
+
+The argument against A was mine and it is the stale-intent problem: a command
+queued while disconnected was correct when formed and wrong by the time it lands.
+Turn the TV on with the link down, turn it on and then off with the real remote,
+and the queued command switches it back on when the link returns. I said that
+would have to be resolved on HA's side, and that step is wrong — HA has no
+compare-and-swap in its service API, but the check is available on the device
+using the mechanism Q21 already established: store the entity's `last_updated`
+as of queueing, compare it to what comes back on reconnect, discard if it moved.
+The conclusion survives anyway, on cost rather than impossibility — a stored
+timestamp per queued command and a discard policy, buying a delayed action that
+has stopped being expected.
+
+A also breaks the pending mark's definition. With the link down nothing was
+asked, so a mark meaning "I asked and have not heard back" would be asserting
+something untrue about the device's own I/O — the one category of statement Q19
+decided it would always be honest about. The answer sidesteps it instead of
+patching it: a level-4 commit attempt stores nothing, changes nothing, sends
+nothing, and raises a pop-up that acknowledges away and re-arms for the next
+attempt.
+
+Generalising that to every blocking condition gave Q20's blocker/non-blocker
+split an operational definition it did not have: **a blocker is a condition that
+gates a commit.** Link down blocks. Config drift blocks, for the affected
+entities. Battery below 20% is real, belongs in the bar, and stops nothing.
+Values freeze and dim while the link is down, reusing the treatment Q09 already
+gave `unavailable`; blank is not available because it is already taken by the
+never-acquired state at a cold wake, and conflating "never knew" with "knew,
+cannot verify" would collide exactly where the difference matters. Dimming is a
+binary signal for a decay that is continuous — a value is nearly true one second
+after the drop and worthless ten minutes later, and the dim looks the same
+throughout — which is not a flaw in this answer but the price Q19 quoted when it
+decided not to render age.
+
+I first called the result read-only, and that is too broad. A settings page is
+going to exist holding local device-only configuration, and nothing that never
+leaves the board should care about HA's reachability. The gate is on **outbound
+network actions**; navigation on levels 1 to 3 runs from NVS topology and is
+unaffected. What that page contains, and where it lives in a four-level carousel
+that has no room for something which is not a domain, an entity or an attribute,
+is undecided and new.
+
+Two things I got wrong and corrected mid-session, both worth keeping because
+both were confident. I claimed the pending mark had already been chosen in the
+Q11 reasoning; it had not — it appeared there as a test case against a bad
+argument, and it survives either answer. And I read Q13 as having established
+that the screen never changes without input, which it did not: it protected the
+meaning of the *next input*, which a position reset changes and a value update
+does not. Notifications, status chrome and `get_states` filling in blanks at wake
+all change the screen and move no cursor, so there was never a conflict to
+resolve.
+
+Carried forward. Bench, unchanged: the I2C scan with the BQ25896 charger and
+BQ27220 gauge as positive control, board deep-sleep current, and the encoder's
+resting levels at successive detents. Wire, now with three more: whether
+`target_temp_step` appears in the AC's attributes, the longest option string
+across the real `source_list` and mode lists, whether any device exposes
+attributes as separate `number`/`select` entities, whether registry access for
+labels needs an admin token, whether HA's error `code` is as coarse as expected,
+whether `hvac_mode` really is the entity's `state` rather than an attribute, and
+the command-to-`state_changed` latency that sizes both the coalescing interval and
+the settle window. Design, open: the settings page and where it attaches; the
+keepalive interval and missed-ping threshold, which together are the worst-case
+window for displaying something untrue; the pending mark's resolution rule when
+confirmation never arrives, and whether a silent failure should look different
+from a rejection given the rejection now carries text; whether the pending mark
+should vary per domain, since the room already confirms a TV volume change faster
+than a glyph can; whether the carousel wraps or clamps; the level-4 ambiguity
+between two enum attributes of one entity; `area` stored in NVS with no consumer;
+and the Wi-Fi provisioning path that persisted credentials quietly assume.
+
+Q24 is effectively pre-answered — its option D is the inert-knob case Q23 chose —
+so next session confirms it rather than deriving it, then Q26 and Q27. Q25 stays
+blocked on the `websocat` session.
+
 ### 2026-08-21
 
 Carried on through the requirements questionnaire in chat, Q11 to Q17, taking

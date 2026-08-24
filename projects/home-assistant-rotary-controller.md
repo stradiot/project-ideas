@@ -11,24 +11,54 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-The requirements questionnaire is seventeen of twenty-seven answered, with
-sections 1–4 closed and 5 closed bar its last two; the answers and the
-mechanism each turned on are collected in
-[[home-assistant-rotary-controller-spec]], since the firmware needs one place
-to read them from rather than four log entries. The interface is a four-level
-carousel — domain, device, attribute, value — type-first with rooms not a
-level at all, driven by plain short presses on two buttons with no long-press
-anywhere, no encoder acceleration, and per-domain step sizes that Home
-Assistant overrides where it reports one. A single thirty-second one-shot pops
-level 4 back to level 3, drops the backlight and enters light sleep as one
-event, which leaves the state machine with no timer-driven transitions at all.
-Every stored string is capped and fixed-size, so the state cache stays a plain
-struct array with no pointer lifetimes in it. Q18 was reached, explained and
-deliberately reopened; it gets re-taken first next session. `main.c` is still
-the stage-5 encoder jig, and plan item one is still open.
+The requirements questionnaire is twenty-three of twenty-seven answered, with
+sections 1-5 closed and section 6 half done; the answers and the mechanism each
+turned on are collected in [[home-assistant-rotary-controller-spec]]. Enum
+attributes turned out to be a fourth carousel level — rotate a candidate, press
+to commit — which makes the *numeric* level 4 the only place in the interface
+where a detent has an outward effect, earned because a target judged by ear or
+by eye cannot be named in advance. Nothing on the glass carries an age: under a
+push subscription age measures how often a value changes rather than whether it
+can be trusted, so honesty is one per-connection signal rendered as conditional
+corner chrome, and every status entry is derived from current state at render
+time rather than latched to an event that would fire into a dark screen. A link
+drop makes the device read-only towards the network — navigation still runs from
+NVS topology, values freeze and dim, and a commit attempt raises a gate instead
+of queueing stale intent. `main.c` is still the stage-5 encoder jig, and plan
+item one is still open.
 
 ## Lessons
 
+- **Under a push subscription the age of a value measures how often it changes,
+  not whether it can still be trusted — so the honest instrument is
+  per-connection, not per-entity.** `subscribe_events` pushes on change and is
+  silent otherwise, which makes silence the healthy case: a lamp untouched since
+  morning carries hours of arrival age and is perfectly true, while a socket that
+  died an hour ago accumulates age identically. A per-entity staleness threshold
+  therefore raises a warning on healthy entities and stays quiet about the only
+  case that matters until link state reports it anyway — a false signal rather
+  than a redundant one. Two corollaries. Home Assistant's own `last_changed` and
+  `last_updated` are ISO 8601 on HA's clock, so rendering an age from them needs
+  SNTP and the assumption that two clocks agree, whereas a local arrival stamp
+  from `esp_timer_get_time()` needs neither and is still worth keeping unrendered,
+  because the coalescing interval is supposed to come from a measured
+  tick-to-`state_changed` latency. And the resolution of the honest signal is
+  bounded by the keepalive interval rather than by anything in the data, because
+  a half-open TCP connection is silent in exactly the way health is.
+  [[home-assistant-rotary-controller-log#2026-08-24]]
+- **On a device asleep upward of 99% of the time, an event-latched notification
+  is structurally undeliverable; only state evaluated at wake works.** A battery
+  crossing 20%, a sync result and a link drop all happen with the screen dark and
+  nobody to deliver to, so latching them means a queue, a lifetime and a policy
+  for a backlog. Deriving every status entry from current state at render time
+  instead makes a pop-up the first-observation *presentation* of a condition
+  rather than an object of its own — which is why an acknowledgement clears the
+  presentation and never the condition, and why sleeping on an unread warning
+  costs nothing, since the condition re-presents itself at the next wake. The one
+  class that breaks the model is informational, because a success message has no
+  persisting condition to derive from; those are restricted to the direct result
+  of an action just taken, where the screen is lit and someone is looking by
+  construction. [[home-assistant-rotary-controller-log#2026-08-24]]
 - **Whether stored text is capped and whether it scrolls are independent
   decisions, and conflating them is what pushes a design onto heap pointers it
   does not need — while the one place a cap is genuinely load-bearing is
