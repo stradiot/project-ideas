@@ -8,6 +8,179 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-08-26
+
+Closed the requirements questionnaire except for the one question that needs
+hardware: Q24, Q26 and Q27 answered, taking it to twenty-six of twenty-seven.
+Nothing in the repo changed — `main.c` is still the stage-5 encoder jig.
+
+All three are constraint questions rather than design questions, and the same
+mechanism decided each of them: **a constraint is only worth writing down if
+something would otherwise enforce the opposite.** A refusal the data model
+already makes impossible protects nothing. A criterion that can never be
+contested arbitrates nothing. Sorting the candidates by that test is what made
+these quick, and it is also what exposed two eliminations of my own that were
+confidently wrong.
+
+**Q24 is D, and it closes with no new data structure.** Q23 had already made a
+level-4 commit attempt with the link down store nothing, change nothing, send
+nothing and raise a pop-up, so the only live question was whether that pop-up is
+D's inert knob or A's "discarded, and the device says so". It is D: the pop-up
+is the gate firing on the *input* path, before any command is formed, not the
+funeral of one that was. Nothing is serialised, nothing acquires a lifetime,
+nothing needs a reconnect policy. The distinction matters because A implies a
+command object that exists long enough to be dropped, which is a queue with one
+slot and a discard rule, and D implies the code path returns before construction.
+
+The consequence worth carrying is that **there is no outbound queue.** The only
+latest-value slot in the firmware is the connected coalescer already living
+inside Q21's `desired`/`confirmed` pair, and its lifetime is one coalescing
+window. Q24's *Decides* line asked whether a queue exists at all and whether it
+is a queue or a per-entity slot; the answer is neither, plus a slot that was
+already there for a different reason.
+
+**Q26 sorts into three groups once "would the code drift towards this" is the
+test.** Option A, refusing any hierarchy deeper than two levels, is not available
+— the carousel is domain → entity → attribute → value, settled across Q11 to
+Q18, so it is already violated and cannot be refused. Options C and E are not
+enforceable in firmware at all, for different reasons. C, refusing anything with
+a safety consequence, cannot be held by the code because what this device
+controls is decided by which entities carry the tag in Home Assistant; a domain
+in the firmware is a small integer and a label in flash, and nothing there
+distinguishes a lock from a lamp in the safety sense. It is a policy about which
+tags get applied, enforced in HA's own UI — and it was declined on the merits
+anyway, since heating is wanted later. E, refusing any interaction longer than
+about three seconds, has no structure preventing it either; it would be found out
+by timing one, and the three-second argument in the project note was always about
+*control* actions rather than about a sync or a screen test.
+
+That leaves the two with teeth. **D, browsing entities it was not configured for,
+is refused outright**, and it costs nothing still wanted: the tag-based sync is a
+filter applied at sync time, so the topology in NVS never contains anything
+untagged, and the plan's stretch item — "an entity picker on the device, so the
+list is not compiled in" — is already half-obsolete, because the tag sync
+achieves "not compiled in" without any browsing. What D forbids is the unfiltered
+picker and the on-the-spot bind specifically. **B, text entry, is refused on the
+control path with the settings page exempt.** B is the one the code is actively
+pulling towards, and the reason is exact: text entry on a single rotary encoder
+is a character carousel — rotate an alphabet, press to commit, plus a backspace
+and a done — which is *the level-4 enum carousel with a bigger array*. Q18 built
+that shape already. It is not a feature away, it is an array away, which is
+precisely the "the code already almost does it" case a written boundary exists
+for.
+
+The settings exemption picked up a second consumer: the tag value itself becomes
+a configurable field rather than a compile-time constant. That is cheap, but not
+because it is small — it is cheap because it reuses a path already committed to.
+Changing the tag invalidates every topology record in NVS, since they were all
+written by a filter that no longer applies, and the erase / mark-empty / prompt
+for re-sync mechanism was already chosen on 2026-08-20 for the fact that
+`idf.py flash` does not erase NVS. A tag change is a second trigger into a
+handler that has to exist regardless. It also does not weaken the D refusal,
+which was the obvious objection: swapping the tag changes the filter wholesale,
+and every entity that appears still got there by being tagged in Home Assistant,
+whereas D refuses *per-entity* selection on the device.
+
+One new open item falls out of it. A mistyped tag syncs zero entities and
+produces an empty carousel with the link perfectly healthy — and under Q23's
+operational definition, where a blocker is a condition that gates a commit, this
+is not a blocker, so nothing in the current status model would explain it.
+
+**Q27 is B — what it shows is true, or it says it doesn't know.** Two of the four
+went out on prior answers. C, readable and operable from across the room, was
+provisionally doubted at Q17 on rendering grounds ("legible across the room is
+the wrong criterion for something held in the hand", which is why font
+auto-scaling lost to scrolling there) and is now settled on the form factor
+itself: the device is handheld. D, usable by someone who has installed nothing,
+cannot be the criterion whose failure makes the device pointless because Q02
+fixed the audience at two expert users and put discoverability explicitly outside
+the requirements. A user manual in the repo is worth having and changes nothing
+about that.
+
+The two corrections are the part of this session worth keeping, because both
+eliminations were confident.
+
+I first ruled out **A** — a turn produces a visible response instantly, every
+time — on the grounds that the first input out of deep sleep is swallowed
+anyway. That is the wrong step. What the PCNT lesson establishes is that the
+*counts* from the waking turn are lost, because the pulse counter lives in the
+digital power domain and does not survive deep sleep. The turn still produces a
+visible response, and an instant one: the screen comes on. The swallowed turn is
+a counterexample only under the reading "response" = "the number moves", not
+under "response" = "something happens". What is defensible in the objection is
+the word *every*, since A is stated absolutely and a deliberate structural
+carve-out sits awkwardly with that — but that is an argument about how tightly A
+is worded, not evidence that A had already failed, which is how I was using it.
+
+I then kept **B** alive with a fallback that does not survive the data model: that
+even without knowing an entity's current value the device is still useful blind,
+because an enum can be chosen by name regardless of where it currently sits. It
+cannot. The 2026-08-20 topology/state split put `source_list`, `fan_modes`,
+`hvac_modes` and `effect_list` on the **state** side — they arrive inside the
+entity's state object and are null on wake — so a device that does not know the
+current value does not have the candidate list either, and there is nothing to
+rotate through. The numeric case fails for a related reason: the commands are
+absolute (`volume_set`, `set_temperature`), computed from a `desired` value
+seeded by the confirmed one, so with no baseline there is no command to form.
+Q23 had already made this literal rather than hypothetical — link down means
+commits are gated and values freeze. **This device does not degrade into a blind
+controller; it declines.**
+
+Removing that fallback is what forced B to be argued on its actual failure, and
+that turned out to be narrower than the intuition. B is two clauses joined by
+*or*, and the second one is the escape hatch: a missing `state_changed` only
+fails B if the device goes on presenting the value as good, and the design
+already wires the alternative — values freeze, dim and gate commits, which *is*
+saying it does not know. Propagation delay does not fail it either; it is bounded
+and short, and the device has no reason to doubt what it holds during it. What
+fails B is the device being **confident and wrong**, and both instances of that
+are already on the open list: the half-open TCP connection, silent for up to
+keepalive × missed-ping threshold in exactly the way health is silent, and the
+silent service failure — `success: true`, no `state_changed` ever, an unreachable
+Zigbee bulb.
+
+So B is not unachievable and it is not about latency. It is a criterion with a
+number attached, and choosing it commits to making that number small.
+
+The pick reads as though it contradicts Q21, which chose immediate local
+application over waiting for HA to confirm, and it does not — because Q21 also
+bought the pending mark. The optimistic value is drawn *and labelled as
+unconfirmed*, which is A's speed with B's honesty intact, paid for with a glyph.
+The one place the two criteria collided head-on, the design satisfied both rather
+than choosing.
+
+What B decides going forward, since a tiebreaker is only worth having if it
+settles open questions: the keepalive interval and missed-ping threshold get the
+aggressive number and pay the wake-ups, rather than the lazy one and pay the
+window in which the device is confident and wrong; and the pending mark's
+resolution when confirmation never arrives resolves towards "I do not know",
+never quietly into a confident value. It does not reopen Q19, which is the
+question it looks most like — Q19 found that a per-entity age is a *false* signal
+under a push subscription, since a lamp untouched since morning and a dead socket
+accumulate age identically, so the per-connection indicator is B's instrument and
+rendering age would be a worse one.
+
+One asymmetry noted and deliberately not treated as decisive, because it cuts
+both ways: A is a property of the device alone and can be guaranteed by
+construction, while B is a property of a distributed system over a lossy link and
+can only ever be bounded. That argues for B, since a criterion that is simply
+satisfied never has to arbitrate anything; and it argues for A, since the
+trade-offs that have actually come up were decided A's way.
+
+Carried forward. Everything remaining is blocked on the same thing — plan item
+two, the `websocat` session against Home Assistant, which unblocks Q25 and seven
+of the wire questions in one sitting: whether `target_temp_step` appears in the
+AC's attributes, the longest option string across the real `source_list` and mode
+lists, whether any device exposes attributes as separate `number`/`select`
+entities, whether registry access for labels needs an admin token, whether HA's
+error `code` is as coarse as expected, whether `hvac_mode` really is the entity's
+`state` rather than an attribute, and the command-to-`state_changed` latency that
+sizes both the coalescing interval and Q21's settle window. Bench, unchanged: the
+I²C scan with the BQ25896 and BQ27220 as positive control, board deep-sleep
+current, and the encoder's resting levels at successive detents. Design, open:
+the same list as before, plus the empty-carousel-from-a-mistyped-tag case, minus
+Q26 and Q27.
+
 ### 2026-08-24
 
 Re-took Q18 and ran the questionnaire through to Q23, taking the count to

@@ -11,24 +11,55 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-The requirements questionnaire is twenty-three of twenty-seven answered, with
-sections 1-5 closed and section 6 half done; the answers and the mechanism each
-turned on are collected in [[home-assistant-rotary-controller-spec]]. Enum
-attributes turned out to be a fourth carousel level — rotate a candidate, press
-to commit — which makes the *numeric* level 4 the only place in the interface
-where a detent has an outward effect, earned because a target judged by ear or
-by eye cannot be named in advance. Nothing on the glass carries an age: under a
-push subscription age measures how often a value changes rather than whether it
-can be trusted, so honesty is one per-connection signal rendered as conditional
-corner chrome, and every status entry is derived from current state at render
-time rather than latched to an event that would fire into a dark screen. A link
-drop makes the device read-only towards the network — navigation still runs from
-NVS topology, values freeze and dim, and a commit attempt raises a gate instead
-of queueing stale intent. `main.c` is still the stage-5 encoder jig, and plan
-item one is still open.
+The requirements questionnaire is twenty-six of twenty-seven answered and the
+design phase is closed; only Q25 is left and it cannot be answered from a chair.
+Commands issued while disconnected produce no outbound queue at all — the gate
+fires on the input path before a command is formed, so the only latest-value slot
+is the coalescer already inside the `desired`/`confirmed` pair. The device
+refuses an on-device entity picker outright and refuses text entry on the control
+path with a settings page exempt, a boundary that is worth writing precisely
+because text entry on one encoder is the level-4 enum carousel with a bigger
+array. The tiebreaker for every argument not yet had is that what it shows is
+true or it says it does not know, which fixes two open defaults: the keepalive
+window takes the aggressive number, and a pending mark that never confirms
+resolves towards not knowing. `main.c` is still the stage-5 encoder jig, plan
+item one is still open, and everything remaining needs the wire.
 
 ## Lessons
 
+- **A refusal is only worth writing into a specification if the code is already
+  pulling towards the thing being refused — everything else on the list is either
+  already violated or not enforceable by the firmware at all.** Sorting five
+  candidate scope boundaries by that test left one: text entry, because text entry
+  on a single rotary encoder is a character carousel — rotate an alphabet, press
+  to commit, plus a backspace and a done — which is the level-4 enum carousel with
+  a bigger array, a shape the interface design had already built. It is an array
+  away, not a feature away, which is exactly the case a written boundary exists
+  for. The others failed the test in two distinct ways worth telling apart.
+  "No hierarchy deeper than two levels" was already violated by a four-level
+  carousel, so it could not be refused. "Nothing with a safety consequence" and
+  "nothing slower than three seconds" cannot be held by the code at all, because
+  what this device controls is decided by which entities carry a tag in Home
+  Assistant rather than by anything in the firmware, where a domain is a small
+  integer and a label in flash. A boundary the code cannot enforce is a
+  resolution, and resolutions lose to a Tuesday evening when the feature is forty
+  lines. [[home-assistant-rotary-controller-log#2026-08-26]]
+- **Splitting entity data into topology and state has a consequence the split
+  itself does not advertise: there is no blind-control fallback, because an
+  enum's candidate list is state.** The intuition is that a controller which has
+  lost track of a value is still useful for named choices — pick `HDMI 2` without
+  needing to know what is selected now. It is not, and the reason is the split
+  itself: `source_list`, `fan_modes`, `hvac_modes` and `effect_list` arrive inside
+  the entity's state object and are null on wake, so a device that does not know
+  the current value does not have the list of candidates either and there is
+  nothing to rotate through. The numeric case fails for a neighbouring reason —
+  the service calls are absolute (`volume_set`, `set_temperature`) and are computed
+  from a desired value seeded by the confirmed one, so with no baseline there is
+  no command to form. A device in this design does not degrade into a blind
+  controller when it stops knowing the truth; it declines, which is what makes
+  "what it shows is true, or it says it does not know" a criterion the whole
+  design already leans on rather than an aspiration bolted to it.
+  [[home-assistant-rotary-controller-log#2026-08-26]]
 - **Under a push subscription the age of a value measures how often it changes,
   not whether it can still be trusted — so the honest instrument is
   per-connection, not per-entity.** `subscribe_events` pushes on change and is
