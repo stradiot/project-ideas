@@ -446,8 +446,15 @@ note is what switches that repo to the wikilink form.
 Note names and repo names are independent on purpose — `subghz-collar-remote-clone`
 carries `repo: d-control-400-remote`, and that frontmatter field is the only thing
 connecting them. Two repos are linked: that one and `beaglebone-green-case`. The
-rest under `~/Documents/personal` — `fire-housing-sim`, `homepage`, `office_clock`
-— are deliberately not vault projects and journal under their own names.
+rest under `~/Documents/personal` — `homepage`, `office_clock` — are deliberately
+not vault projects and journal under their own names.
+
+A project can also opt out of the vault altogether by putting a `.no-vault-journal`
+file in its root: `personal_repo_from_cwd` returns nothing for it, so the hook
+writes no journal entry and touches no project note. Memory notes still run. This
+exists because the vault is a *public* repo and not every personal project belongs
+in it — and because declining `/wrap` is not a substitute, since the SessionEnd
+hook then writes the entry from a clipped digest and pushes it unread.
 
 Only `journal/` and `projects/` are staged — never `git add -A` here, which would
 sweep in unrelated Obsidian edits. Because of that the pull is
