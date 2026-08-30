@@ -11,22 +11,53 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-The requirements questionnaire is twenty-six of twenty-seven answered and the
-design phase is closed; only Q25 is left and it cannot be answered from a chair.
-Commands issued while disconnected produce no outbound queue at all — the gate
-fires on the input path before a command is formed, so the only latest-value slot
-is the coalescer already inside the `desired`/`confirmed` pair. The device
-refuses an on-device entity picker outright and refuses text entry on the control
-path with a settings page exempt, a boundary that is worth writing precisely
-because text entry on one encoder is the level-4 enum carousel with a bigger
-array. The tiebreaker for every argument not yet had is that what it shows is
-true or it says it does not know, which fixes two open defaults: the keepalive
-window takes the aggressive number, and a pending mark that never confirms
-resolves towards not knowing. `main.c` is still the stage-5 encoder jig, plan
-item one is still open, and everything remaining needs the wire.
+Plan item two is underway and the transport is measured everywhere except
+latency. `get_states` returns 134,043 bytes for 284 entities and takes no filter
+argument of any kind; the 22 entities across the four controlled domains weigh
+13,566 of them, about a tenth. `subscribe_events` filters by event type only, so
+the ongoing stream is unfiltered too — the entity filter is `subscribe_trigger`,
+which takes a list, runs the predicate inside HA, and does fire on the
+attribute-only changes this device lives on. A group entity re-emits its whole
+aggregate on every member report, measured at 15 events against a single
+member's 3 for one dim. What is left is the command-to-`state_changed` latency,
+which the burst data already shows is two numbers rather than one, and the
+transport decision it feeds. `main.c` is still the stage-5 encoder jig and no
+plan box is ticked.
 
 ## Lessons
 
+- **Home Assistant's WebSocket API has no entity filter on either `get_states`
+  or `subscribe_events` — the entity filter is `subscribe_trigger`, and finding
+  it means understanding that a trigger is not a kind of event.** `get_states`
+  takes no argument at all and returned 134,043 bytes for 284 entities, of which
+  the four controlled domains were 13,566; `subscribe_events` filters by event
+  *type*, so the ongoing stream is unfiltered too, and each `state_changed`
+  carries both `old_state` and `new_state` in full. HA's core is an event bus and
+  `subscribe_events` is a raw tap on it, which is why neither can select by
+  entity. A trigger is a **listener specification** — the same declarative config
+  an automation's trigger block holds, compiled by the automation engine into a
+  bus subscription plus a predicate — so `subscribe_trigger` is HA letting a
+  client instantiate one with no automation attached and take the firings
+  directly. The predicate exists either way; the only question is which side of
+  the network it runs on. It is not cheaper per event, since the payload wraps
+  everything in `event.variables.trigger` on top of full `from_state` and
+  `to_state`, so the whole saving is in the events never sent and its value is
+  exactly the ratio of instance to interest.
+  [[home-assistant-rotary-controller-log#2026-08-30]]
+- **A group entity multiplies the push stream by its member count, because it
+  has no state of its own and recomputes its whole aggregate on every single
+  member report.** One brightness drag on a five-bulb group produced 15 group
+  events against 3 from one member subscribed alongside it — exactly 3 reports
+  times 5 members — and 34,914 bytes for one dim of one lamp. The group's
+  messages are also the fatter ones, since each carries the member list twice, in
+  `from_state` and `to_state`. The tell that separates this from a chatty slider
+  is the interleaved zeros, `192 -> 0 -> 96 -> 0`, all with `state: "on"`: no
+  slider produces those, an average recomputed over members mid-transition does.
+  The consequence is that command flooding is not only an outbound problem —
+  roughly 15 messages of ~2.5 KB inside 400 ms arrive for one human gesture, and
+  the `desired`/`confirmed` pair has to survive rendering a confirmed zero during
+  a change the device itself initiated.
+  [[home-assistant-rotary-controller-log#2026-08-30]]
 - **A refusal is only worth writing into a specification if the code is already
   pulling towards the thing being refused — everything else on the list is either
   already violated or not enforceable by the firmware at all.** Sorting five

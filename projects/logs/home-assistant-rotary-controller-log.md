@@ -8,6 +8,155 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-08-30
+
+Opened plan item two — the `websocat` session against Home Assistant — and got
+the whole transport measured except the one number that needs a stopwatch.
+Nothing in the repo changed; `main.c` is still the stage-5 encoder jig. No plan
+box is ticked, because the latency measurement and the transport decision it
+feeds are both still open.
+
+The session opened on a stale pending-failure warning, which turned out to
+belong to a different project: the 2026-08-28 SessionEnd writer exited 1 with
+`You've hit your session limit`, on a `fire-housing-sim` session logged
+`vault=none`. Nothing was owed to this vault and nothing was unpushed. What the
+check did turn up was the opposite failure — 95 uncommitted lines in
+`notes/home-assistant-rotary-controller-spec.md`, mtime 2026-08-26 14:00,
+holding the Q24/Q26/Q27 answers that closed the questionnaire. That day's hook
+run committed the journal, log and project note and left the spec behind, so the
+decisions the session existed to produce were the one part of it that never
+reached the remote. Committed as `03c6f78`. Worth knowing that the hook stages a
+fixed set of paths rather than the working tree, so a note edited mid-session
+outside that set is silently left.
+
+**The auth handshake failed silently the first time, and the silence was the
+interesting part.** HA speaks first on connect — `auth_required` arrives
+unprompted — and a rejected token is answered loudly with
+`{"type":"auth_invalid","message":"Invalid access token or password"}` followed
+by a proper close frame. What I got instead was nothing at all, and then
+`websocat: WebSocketError: I/O failure` on the next write, which is just
+websocat discovering the socket had already gone. Pasting a long token by hand
+and hunting for Enter loses a race: the unauthenticated connection has a
+deadline, and when it expires HA disconnects with nothing to say, because
+nothing was rejected — the client simply never showed up. Having the shell emit
+the auth line the instant the socket opened produced `auth_ok` with the same
+token. The run that fixed it changed two things at once, though — instant send
+*and* no hand-typing — so it establishes the problem is gone rather than which
+half caused it. The control is what makes the reading defensible: a deliberately
+wrong token, sent the same fast way, printed `auth_invalid` and a close message,
+proving the setup could show a rejection if there had been one.
+
+**`get_states` returns 134,043 bytes for 284 entities**, and there is no
+argument to narrow it — no entity filter, no domain filter, no pagination. That
+is not an oversight but a fact about who the API was built for: its primary
+consumer is HA's own frontend, a browser tab with hundreds of megabytes that
+genuinely wants everything. The domain histogram put 22 of those 284 entities
+in the four domains this device controls — 14 `light`, 4 `media_player`,
+3 `cover`, 1 `climate` — weighing 13,566 bytes. About a tenth. Most of the
+remainder is `sensor` (67), `number` (60), `button` (36) and `update` (30),
+much of it a Xiaomi robovac integration. Tidying HA would move the number and
+not the shape, since a constraint that depends on the instance staying tidy is
+not a constraint.
+
+The size matters because of how cJSON works rather than because of the network.
+cJSON is a DOM parser: it takes a complete NUL-terminated document and builds a
+tree of structs, one per value, each with a type tag, pointers and its own copy
+of every string, all live at once and several times the input. A WebSocket
+message is also not a frame — the sender may fragment one message across many,
+and the receiver must reassemble before the message means anything — so the
+134 KB has to exist contiguously somewhere before parsing even starts. Against
+512 KiB of internal SRAM already carrying Wi-Fi buffers, LVGL draw buffers and
+task stacks, that is the whole argument for PSRAM, and the reminder that fitting
+is not solving. The alternative shape is a streaming parse that acts on each
+token and discards the rest — bounded memory regardless of input, paid for in a
+hand-written state machine.
+
+**`subscribe_events` filters by event type, not by entity**, which is worse than
+it first reads: the ongoing stream is unfiltered too, not just the connect-time
+snapshot. Every `state_changed` in the instance arrives forever, and each event
+carries both `old_state` and `new_state` in full, so an event is roughly twice
+an entity's weight in the snapshot.
+
+The entity filter does exist, and it is `subscribe_trigger`. That took
+understanding what a trigger actually is, because the automation UI makes it
+look like a kind of object HA emits. It is not. HA's core is an event bus, and
+`subscribe_events` is a raw tap on it. A trigger is a **listener specification**
+— the same declarative config an automation's trigger block holds, which the
+automation engine compiles into a bus subscription plus a predicate. A `state`
+trigger with `entity_id` and `to:` subscribes internally to `state_changed` and
+asks, per event, whether this entity is in my list and whether old→new matches.
+`subscribe_trigger` is HA letting a WebSocket client instantiate one *without an
+automation attached*, and receive the firings directly. The predicate exists
+either way; the only question is which side of the network it runs on. Its
+`entity_id` takes a list, so one subscription covers the lot. It is not cheaper
+per event — the payload wraps everything in `event.variables.trigger` and adds
+`id`, `idx`, `platform`, `for`, `attribute` and `description` on top of full
+`from_state` and `to_state` — so the entire saving is in the events never sent,
+which means its value is exactly the 262-to-22 ratio and improves with every
+chatty integration added.
+
+`config/entity_registry/list_for_display` is the other find, and it lines up
+with a decision already made. It returns abbreviated registry entries — `ei`
+entity id, `ai` area, `en` name, and `lb` **labels**, which is the tagging
+mechanism the sync was specified against — and carries no `state` and no
+`attributes` at all. That is the 2026-08-20 topology/state split appearing in
+HA's own API design: the registry and the state machine are separate endpoints
+because they change on completely different timescales. The split was not merely
+convenient for a sleeping device; it is the seam the platform already has.
+
+**Measured, not assumed: a bare `state` trigger fires on attribute-only
+changes.** This decides whether the whole path is usable, because what this
+device controls lives in attributes — brightness, volume, target temperature —
+while an entity's `state` is only the string, and a lamp going 40% to 80% never
+changes it. Subscribing to one light with no `from`/`to` and moving only the
+brightness produced events with `state` steady at `"on"` and `brightness`
+moving; toggling it off and on fired too, which was the positive control.
+
+**A group entity multiplies the event stream by its member count.** The first
+capture was noisy and the obvious explanation was the brightness slider sending
+many values, which is half of it. The tell the slider cannot explain is the
+interleaved zeros — `192 → 0 → 96 → 0 → 64 → 0 …`, all with `state: "on"` — and
+the entity's own attributes, where `entity_id` is a five-element list of member
+bulbs. `light.living_room_lights` is a group, and a group has no state of its
+own: it recomputes an aggregate and re-emits the whole thing every time any one
+member reports. Subscribing to the group and one member at once, so a single
+drag produced both streams, gave 15 group events to 3 member events — exactly
+3 reports × 5 members. 34,914 bytes for one dim of one lamp. The group's
+messages are also the fatter ones, since each carries the member list twice, in
+`from_state` and `to_state`.
+
+That reframes something the design already half-knows. Command flooding was
+scoped as an outbound problem — encoder ticks coalesced into one `call_service`
+— and this is the same problem pointed inbound, which nothing has looked at:
+roughly 15 messages of ~2.5 KB inside 400 ms for one human gesture. Q21's
+`desired`/`confirmed` pair has to survive those zeros too, since a device
+rendering each confirmed value as it lands would show its own brightness
+snapping to 0 and back during a change it initiated.
+
+Two tool facts cost time. `websocat`'s read buffer defaults to 64 KiB and
+*splits* a longer message into parts, injecting a newline between them in line
+mode — so the 134 KB snapshot landed as three chunks of a JSON document chopped
+mid-string, and `jq` failed at "Unfinished string at EOF" while `grep | wc -c`
+returned exactly 65536. `-B 2000000` fixes it. And zsh's builtin `echo`
+interprets backslash escapes by default, the way `echo -e` does in bash, so
+piping JSON through it silently ate nine bytes of `\"` and `\u` sequences and
+broke parsing 126 KB in — not an error, just a slightly shorter string.
+`printf '%s'` is escape-clean; keeping the document in a file avoids the
+question.
+
+Carried forward. The measurement left undone is the command-to-`state_changed`
+latency on a single bulb, and the burst data already shows it is two numbers
+rather than one: time to first confirming event, which sizes the coalescing
+interval, and time until the value stops moving, which decides how long the
+device keeps believing its optimistic value before treating an arrival as the
+truth. Reading the first arrival as final would snap the display to an
+intermediate. With that in hand the transport decision is fully informed —
+`get_states` against per-entity REST against the registry for the snapshot,
+`subscribe_events` against `subscribe_trigger` for the stream, and group against
+members — and it is not made yet. Q25 remains open. Bench, unchanged: the I²C
+scan with the BQ25896 and BQ27220 as positive control, board deep-sleep current,
+and the encoder's resting levels at successive detents.
+
 ### 2026-08-26
 
 Closed the requirements questionnaire except for the one question that needs
