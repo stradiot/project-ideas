@@ -10,13 +10,15 @@ sheet for the 27-question requirements questionnaire (the *Knob Spec
 Worksheet* artifact), which is being worked through in chat one question at a
 time because the artifact was published as static HTML and cannot be filled in.
 
-**State: 23 of 27 answered.** Sections 1–3 closed 2026-08-20; Q11–Q17 closed
-2026-08-21; Q18–Q23 closed 2026-08-24. Q24 is pre-answered by Q23 and needs
-only confirming. Q25 is blocked on the `websocat` session; Q26–Q27 not reached.
+**State: 26 of 27 answered.** Sections 1–3 closed 2026-08-20; Q11–Q17 closed
+2026-08-21; Q18–Q23 closed 2026-08-24; Q24, Q26 and Q27 closed 2026-08-26.
+Q25 is the only one left and is blocked on the `websocat` session.
 
 The reasoning behind each answer lives in the dated log entries
 ([[home-assistant-rotary-controller-log#2026-08-20]],
-[[home-assistant-rotary-controller-log#2026-08-21]]). This note is the
+[[home-assistant-rotary-controller-log#2026-08-21]],
+[[home-assistant-rotary-controller-log#2026-08-24]],
+[[home-assistant-rotary-controller-log#2026-08-26]]). This note is the
 decisions themselves, so the firmware has one place to read them from.
 
 ---
@@ -408,17 +410,93 @@ Cache holds `desired` and `confirmed` per entity.
   exist** holding local device-only config, writable with the link down; contents
   and location in the carousel undecided.
 
-**Q24 — pre-answered by Q23.** Its option D is literally "the question can't
-arise — the knob is inert while disconnected". Confirm, do not re-derive.
+**Q24 = D. The knob is inert while disconnected. No outbound queue exists.**
+
+- The pop-up Q23 raises is the **gate firing on the input path**, before any
+  command is formed — not the funeral of a command that was. A ("discarded, and
+  the device says so") implies a command object living long enough to be dropped,
+  i.e. a one-slot queue plus a discard rule. D returns before construction.
+- Consequence: **no outbound queue structure anywhere.** The only latest-value
+  slot in the firmware is the connected coalescer already inside Q21's
+  `desired`/`confirmed` pair, lifetime one coalescing window.
 
 **Q25 — blocked on the wire.** Reconnect resync path.
 
-## Section 7 — not reached
+## Section 7 — the scope boundary
 
-**Q26–Q27** scope boundary and the single tiebreaker.
+**Q26 = refuse D outright; refuse B on the control path, settings page exempt.**
+A unavailable, C and E declined as unenforceable.
 
-Provisional signal on **Q27**: option C ("readable and operable from across
-the room") looks unlikely, per Q17.
+- The test that sorts the list: **a refusal is only worth writing if the code is
+  already pulling towards the thing refused.**
+- **A** ("no hierarchy deeper than two levels") is **already violated** — the
+  carousel is domain → entity → attribute → value, settled Q11–Q18. Not
+  available as a refusal.
+- **B** (text entry) is the only one with teeth. Text entry on one encoder is a
+  character carousel — rotate an alphabet, press to commit, plus backspace and
+  done — which is *the level-4 enum carousel with a bigger array*. Q18 built that
+  shape. An array away, not a feature away.
+- **Settings page exempt.** Two consumers: Wi-Fi provisioning (still open —
+  off-device entry via SoftAP or BLE is the alternative class), and the sync tag
+  itself as a configurable field rather than a compile-time constant.
+- The tag-as-setting is cheap because it **reuses** the NVS invalidation path
+  already committed to on 2026-08-20 (schema version → erase, mark empty, prompt
+  re-sync); changing the tag invalidates every topology record, since all were
+  written by a filter that no longer applies.
+- It does **not** weaken D: swapping the tag changes the filter wholesale and
+  every entity that appears was still tagged in HA. D refuses *per-entity*
+  selection on the device.
+- **D** (browsing unconfigured entities) costs nothing still wanted. The tag sync
+  is a filter applied at sync time, so NVS topology never holds anything untagged;
+  the plan's stretch item "an entity picker on the device, so the list is not
+  compiled in" is half-obsolete, since the tag sync already achieves "not compiled
+  in". What D forbids is the unfiltered picker and the on-the-spot bind.
+- **C** (safety-consequence entities) is **not enforceable in firmware**: what the
+  device controls is decided by which entities carry the tag in HA, and a domain
+  in firmware is a small integer and a label in flash. Declined on the merits too
+  — heating is wanted later.
+- **E** (nothing slower than ~3 s) has no structure preventing it; it would be
+  found out by timing one. The three-second argument in the project note was made
+  about *control* actions, not a sync or a screen test.
+- New open item: a **mistyped tag** syncs zero entities → empty carousel with the
+  link healthy. Under Q23's definition (a blocker gates a commit) this is not a
+  blocker, so nothing in the current status model explains it.
+
+**Q27 = B. What it shows is true, or it says it doesn't know.** The tiebreaker
+for arguments not yet had.
+
+- **C** out on the merits: the device is handheld. Q17 had already reasoned that
+  "legible across the room" is the wrong criterion for something held in the hand,
+  which is why font auto-scaling lost to scrolling. Provisional → settled.
+- **D** out because Q02 fixed the audience at two expert users with
+  discoverability explicitly not a requirement. A manual in the repo is worth
+  having and changes nothing.
+- **A survives its objection.** The swallowed wake-turn is not a counterexample:
+  PCNT loses the *counts*, not the *response* — the screen comes on. It is a
+  counterexample only under "response" = "the number moves". What is defensible in
+  the objection is the word *every*.
+- **B's fallback did not survive the data model**, and removing it is what forced
+  the real argument. See the 2026-08-26 lesson: an enum's candidate list is state,
+  so a device that has lost the value has no candidates either; numeric commands
+  are absolute and need a baseline. The device declines rather than degrading into
+  a blind controller.
+- **B is two clauses joined by *or*.** A missing `state_changed` fails B only if
+  the device goes on presenting the value as good — and freeze + dim + gate *is*
+  saying it doesn't know. Propagation delay does not fail it either. What fails B
+  is being **confident and wrong**: the half-open TCP window
+  (keepalive × missed-ping) and the silent service failure (`success: true`, no
+  `state_changed`).
+- **No conflict with Q21.** Q21 bought the pending mark, so the optimistic value
+  is drawn *and labelled unconfirmed* — A's speed with B's honesty, paid for with
+  a glyph.
+- **What B now decides:** keepalive/missed-ping takes the aggressive number and
+  pays the wake-ups; the pending mark, when confirmation never arrives, resolves
+  towards "I don't know" and never quietly into a confident value.
+- **B does not reopen Q19.** Per-entity age is a false signal under push; the
+  per-connection indicator is B's instrument.
+- Asymmetry noted, not treated as decisive: A is a property of the device alone
+  and guaranteeable by construction; B is a property of a distributed system over
+  a lossy link and only ever boundable. Cuts both ways.
 
 ---
 
@@ -450,9 +528,12 @@ the room") looks unlikely, per Q17.
 
 **Design, open:**
 
-- Q24 confirm, then Q26–Q27. Q25 after the wire.
+- Q25, after the wire. Nothing else in the questionnaire.
 - The settings page: what it holds, and where it attaches in a carousel with no
-  level for something that is not a domain, entity or attribute.
+  level for something that is not a domain, entity or attribute. Known contents:
+  Wi-Fi provisioning and the sync tag.
+- A mistyped sync tag produces an empty carousel on a healthy link, and nothing
+  in the status model explains it.
 - Keepalive interval and missed-ping threshold — together the worst-case window
   for confidently displaying something untrue.
 - The pending mark's resolution rule when confirmation never arrives, and whether
