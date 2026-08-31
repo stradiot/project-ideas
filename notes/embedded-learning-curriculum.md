@@ -574,6 +574,124 @@ notices. It is what the stall is for. Its exercises run on boards already
 owned: an Arduino clone, an ESP32 devkit, a C3/C6, the T-Embed and the
 BeagleBone Green, in that order of how much each hides.
 
+### The module beside the courses
+
+**Not written yet.** Parked here with its shape and its one rejected design,
+so that the details can be settled when it is picked up rather than
+reconstructed.
+
+Choosing the platform — the decision that runs before a schematic exists.
+Given a job, does it get done on a devkit that never leaves its enclosure, on
+an off-the-shelf board, on a module soldered to a carrier I draw, on bare
+silicon with everything around it mine, or on a product somebody already
+sells? Each rung down that ladder moves cost from unit price to non-recurring
+engineering and moves risk off somebody else's engineering onto mine, and the
+rung is chosen before anything else about the hardware can be.
+
+It is a third thing, alongside reading a board and authoring one. Hardware
+design starts at capture, which is one rung past the decision — opening KiCad
+presupposes the answer was *custom*. [[reading-a-schematic]] starts at a board
+that already exists and was already chosen by somebody. Neither of them
+contains the choice, and the vault has been asserting its importance the whole
+time without teaching it: `README.md` opens by calling the build-it/buy-it
+line most of the thinking, and the criteria at the top of this note rank
+*owning the specification* third and *architecture under physical constraint*
+fourth, with bill of materials and certification named in the second of those.
+
+It is not USB-shaped, for the same reason module zero is not: USB decomposes
+into thirds that attach to three courses, and this does not decompose at all.
+All five face one identical decision with identical mechanics, so splitting it
+would teach it five times.
+
+It is not module zero either, and that is the one structural difference worth
+recording. Reading a schematic is a prerequisite — every course starts from a
+pin map, so the module has to run first. Choosing a platform is the opposite:
+it gets *better* as the courses land, because most of what does the
+eliminating is course content. What a missing board support package costs, the
+difference between mainline support and a vendor 4.9 fork, what a certified
+module buys that a bare chip does not, what an RF layout demands of a stackup
+— none of that is knowable before the courses that teach it. So this one is
+not gated in either direction. It runs alongside, an evening at a time, and
+the same exercise answered after the Linux course is a better answer than the
+one answered before it.
+
+#### The exercise, in the shape it should keep
+
+A customer-level specification, written by someone outside the field, with no
+requirements in it. The work is to derive the requirements first — with
+numbers, units and stated provenance — and only then choose a rung and defend
+it.
+
+The derivation is the exercise, not the filtering. "It should last a long time
+on batteries" eliminates nothing; 18 months on 2000 mAh, therefore a duty
+cycle, therefore a mean current under 15 µA, eliminates most of a catalogue,
+and every one of those numbers is mine to choose and mine to defend. Handing
+over a finished requirement set skips exactly that step and leaves a
+filtering task, which is the easy half.
+
+Three things it should keep:
+
+- **The trap belongs in the specification, not in the catalogue.** Each spec
+  carries a contradiction its author cannot see — a battery life that cannot
+  coexist with the always-on radio also asked for, a price ceiling that cannot
+  hold a certified module, Linux and a coin cell in the same paragraph. The
+  pass condition is then not which part was picked but whether the
+  contradiction was found and taken back as a question, which is the expensive
+  mistake in real requirements work and is checkable after the fact.
+- **The specs spread across the ladder**, so the right answer differs each
+  time, and at least one of them has an honest answer of *buy the thing that
+  exists and build nothing*. Without that one, every exercise slopes toward
+  custom hardware and the build-it/buy-it line never gets tested.
+- **One measured line.** Where the decision turns on sleep current, mean
+  current at a duty cycle, boot time or loop jitter, that number comes off
+  hardware already on the bench in an evening — a C3, an nRF DK, the
+  BeagleBone. It does not validate the choice, but it moves the load-bearing
+  sentence from claim to measurement.
+
+The unsolved part is marking. Nothing here orders a board, so nothing measures
+whether the choice was right, and the failure mode of a bad selection is
+silent and slow — it surfaces at a fab run or a certification lab, and an
+evening exercise reaches neither. That is the vault's standing problem stated
+in this module's terms, and it is sharper here than in most. The partial
+answer beyond the two above is to read what a real product in the same class
+actually shipped and account for the difference; disagreeing with a shipped
+board is not proof of error, but it is an external signal, which this module
+otherwise has none of.
+
+#### Rejected: justifying the selections already made
+
+The first exercise design was retrospective — take a part already chosen in
+this vault, reconstruct the requirement set that should have produced it, run
+the elimination blind and see whether it lands on the same part. It does not
+work, and the reason is worth keeping.
+
+The selections here were mostly not made against requirements. The dominant
+input was owning the part already, the second was wanting experience with that
+platform, and adequacy for the job was checked rather than derived. So there
+is no decision to recover: reconstructing constraints from a known answer
+fits a curve, and it would produce a satisfying result every time regardless
+of whether the method is any good.
+
+The honest consequence goes further than the exercise. **The nineteen
+selections in `projects/` are not evidence that this skill has been
+practised.** They are evidence of an inventory and a set of platform
+interests, which is a legitimate way to pick parts for a project that is
+funded by curiosity and is a different activity from the one this module
+teaches. [[ble-sensor-node-pcb]] comes closest — a certified module rather than
+bare silicon, castellated 0.5 mm rather than BGA because assembly is by hand,
+and an explicit list of what is deliberately not designed — and even there the
+losing candidates and the order the constraints were applied in are absent.
+The note records a conclusion, not a method.
+
+Against the criterion at the top of this note it sits with the highest-ranked
+items rather than the durable-but-static ones. It is criteria three and four
+together, and it is agent-resistant for the reason module zero is: the
+constraints live in a requirement set that exists in no text until somebody
+writes it, and an agent asked for a part will produce a plausible
+recommendation in prose indistinguishable from a correct one — the same
+failure as the published pin number that turned out to be an I²S clock on
+[[home-assistant-rotary-controller#2026-08-17]].
+
 ### The subject that is not a course
 
 USB has a full project note, a subject deep-dive and no course to belong to.
