@@ -8,6 +8,197 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-08-31
+
+Measured the command-to-`state_changed` latency the last session deferred, and
+it came back as three numbers rather than the two expected. The measurement
+then settled how the outbound command path is clocked: **self-clocked on the
+`result` frame, one command in flight per entity, with a per-domain period as a
+floor.** Nothing in the repo changed. `main.c` is still the stage-5 encoder jig,
+and the transport decision these numbers were supposed to inform is still not
+made, so no plan box is ticked.
+
+The harness was a zsh script driving `websocat` through a FIFO held open on a
+dedicated file descriptor — websocat closes the connection on stdin EOF, so
+writing each command with a fresh redirect would tear the socket down after the
+first one. Arrival timestamps came from one long-lived `python3 -u` reading the
+pipe; send timestamps from zsh's `$EPOCHREALTIME`, which is a shell parameter
+and costs no fork. That detail matters more than it looks: spawning `python3`
+per timestamp would have charged about 30 ms of process startup to the very
+number being measured. Both stamps are `CLOCK_REALTIME` on the same machine, so
+the two directions subtract directly and nothing depends on this machine and HA
+agreeing about time — unlike the `last_updated` fields inside the payload, which
+are HA's clock. `-B 2000000` carried over from 2026-08-30.
+
+**The first run measured nothing and was still worth having.** It went out with
+the placeholder entity id from the example line, `light.your_bulb`. Both
+`call_service` calls returned `{"success":true}` with fresh context ids, and no
+events arrived at all. Home Assistant's service layer does not validate that a
+target entity exists: an unmatched `entity_id` matches zero entities, the
+handler returns cleanly, and the success frame reports that the call was
+dispatched rather than that anything happened. It is the same shape as the SPI
+note in `board_pins.h` — a master clocks bits out and reports `ESP_OK` whether
+or not anything is listening. What made the silence readable rather than
+ambiguous was the second command, sent 8 s after the first: its `result` came
+back, so the pipe was demonstrably alive across the quiet stretch. That run also
+handed over a baseline which turned out to be load-bearing — **25 ms** for the
+round trip with nothing dispatched to any device.
+
+**The real capture, one command at a time**, against `light.kajplats_gu10_ws_575lm`,
+a single bulb rather than a group. TX to `result` was 111 ms and 112 ms; TX to
+the confirming event 223 ms and 233 ms. So three numbers, not two: 25 ms of API
+round trip, ~111 ms to the ACK, ~223 ms to the reported value. Two details in
+the payload are worth keeping. Brightness 64 was commanded and 63 confirmed,
+while 200 came back exactly — so whatever sits between the service call and the
+reported value does not round-trip every integer. And `last_changed` stayed
+pinned across both commands while `last_updated` and `last_reported` moved,
+because `state` never left `"on"`; that is the attribute-only mechanism from the
+last session visible in the payload's own timestamps.
+
+**My first reading of the 111/223 split was wrong**, and the 25 ms baseline is
+what killed it. I read the ACK as the controller's leg and the event as the
+world's, and concluded the coalescing interval should come from the ACK because
+the real-world action is not the controller's responsibility. But `call_service`
+is awaited with `blocking=True`, so the `result` frame is not sent until the
+integration's coroutine returns — which for this bulb means the device command
+was transmitted and acknowledged at the radio layer. The unmatched-entity run
+isolates that: same frame, same socket, same parse and dispatch, 25 ms, with
+nothing handed to any device. The 86 ms on top of it in a real run is the far
+side, not HA bookkeeping. The line between numbers two and three is not
+controller-versus-world; it is **commanded versus reported**.
+
+That is also why number two cannot be a firmware constant. It is a property of
+whatever sits behind one entity, and nothing on the wire names the integration —
+the event carries the entity, the domain and the attributes, never the
+transport. A `light` may be a local Thread bulb at 220 ms or a cloud-routed one
+at two seconds, so a per-domain column cannot carry the far side's speed even
+though it looks like the natural place for it.
+
+I argued for a while that the interval should instead be derived from what the
+device can afford to receive, since each command comes back as roughly 1.6 KB of
+event plus a 159 B result, and 80 commands during a two-second spin would be
+about 200 KB of JSON arriving at a 512 KiB device that is also rendering. That
+argument lost, and it lost cleanly: inbound volume is not self-controlled. A
+group's membership is invisible until its events arrive, and the other person in
+the flat, or any automation, can move a subscribed entity at any moment. The
+receive path therefore has to survive a burst it did not cause, which makes
+inbound robustness a requirement that exists independently of the send rate —
+so sizing the interval to protect it buys nothing that is not already
+mandatory. What survives from that line of reasoning is narrow but real: these
+are absolute service calls (`brightness: 200`, not a relative step), so a value
+superseded by another detent before it was ever sent is not traffic worth
+economising, it is a command nobody wanted.
+
+**The burst run** sent six commands about 116 ms apart. ACKs came back in
+101–156 ms with no upward trend, so nothing backed up over six. Five events came
+back for six commands: every commanded value was reported, in order, except
+**100**, which never appeared at all. The far side samples and drops
+intermediates on its own when it is outrun, which is worth knowing before
+designing a scheme whose whole purpose is to stream them.
+
+The burst also killed a mechanism I had offered earlier in the session. I had
+proposed `context.id` as the way to tell an event caused by one's own command
+from a foreign change — the service call returns its context, the state write
+carries it, and in the isolated captures the match was exact. Under a burst it
+is not: the event reporting brightness 20, a value only the first command asked
+for, wore the *second* command's context, and the last two events of the run
+shared the sixth's. The context stamped on a state write appears to be whichever
+service call was in flight when the report landed, not the one whose value it
+is. Q21 already recorded that nothing in the message separates a pre-command
+event from an external change mid-command; that note stands, with one fewer
+candidate.
+
+**Period against trailing edge turned out to be one mechanism, not two.**
+"Fire one request when the input stops" is the same coalescer with a
+trailing-edge fire rule instead of a periodic one, and any correct version needs
+the trailing edge regardless — a purely periodic timer can fire just before the
+last few detents arrive, leaving the value the user actually chose unsent.
+Sorting by turn speed is what separates them. Turning slowly, one detent at a
+time, trailing-edge fires a fixed delay after each detent while a period makes
+the same detent wait 0 to P depending on phase. Sweeping fast, trailing-edge
+collapses the sweep to one command while a period streams a ramp the far side is
+already dropping values from. The band where a period genuinely wins is the
+middle one — a steady turn with detents arriving just inside the idle timeout,
+where the timer never expires and nothing goes out until the backstop. That band
+is what prices the two constants against each other: if the backstop is not much
+larger than the idle timeout, it shrinks to nothing, and the two options
+converge on a throttle with a trailing flush.
+
+Before going further I read Q18 and Q21 in the spec rather than recalling them,
+because the question on the table was whether these findings reopen the
+interaction design — whether a button confirmation or a settle timeout would be
+better than firing during the turn. They do not. Q18 already put numeric level 4
+on commit-on-detent and named the reason: commit-on-detent is required exactly
+where the target cannot be known in advance and has to be felt for — brightness
+by eye, volume by ear, temperature by the room — whereas an enum's target is a
+name known before the knob is touched. Nothing measured today bears on that
+reason, so a button confirmation for a numeric would reverse Q18 rather than
+refine it. Q21 had separately rejected waiting for confirmation before showing a
+value, on the grounds that at ~300 ms confirmation and 10–30 detents/s six
+clicks pass before the first is visible. Today's numbers are that estimate
+measured: 101–156 ms to ACK, 220–260 ms to the reported value.
+
+**The decision.** The sender holds at most one command in flight per entity and
+sends the next only when the previous `result` has returned, with a per-domain
+period as a floor. Clocking on the ACK makes the far side's speed an observation
+rather than a setting: fast for the Thread bulb, slow for a cloud AC, nothing
+configured and nothing calibrated. It also collapses one of the two constants,
+because the slot's release *is* the trailing edge — when the `result` returns
+the coalescer sends the latest `desired` if it differs from the last value sent,
+whether or not another detent has arrived, so the final value always goes out
+and there is no idle timeout to size. The per-domain floor survives, but its
+meaning changes: it no longer claims to know how fast a domain's devices are,
+which it cannot, and instead says how fluent that domain should be. That is
+policy, and policy genuinely is per-domain — `climate` has no fluency
+requirement at all and every setpoint may start real HVAC action.
+
+One wrong step on the way there, corrected: the burst's attribution failure got
+carried over to the ACK, and it does not apply. Two different bindings were on
+trial. Event to command binds only through `context.id` and failed. `result` to
+command binds through the `id` the client assigned, which the API echoes by
+definition, and it held across both bursts — six results carrying ids 10 through
+15, in order, each matching its command. The binding that survives a burst is
+exactly the one the sender needs; the one that fails is needed only by the
+display path.
+
+The real gap in self-clocking is elsewhere, and it is worth carrying: **the ACK
+is only as honest as the integration's `await`.** Today's 111 ms was long
+because that integration does not return until the device has acknowledged. An
+integration that hands off to a vendor cloud and returns immediately would ACK
+in 25 ms however slow the device is, and the sender would clock at full rate
+into something that cannot keep up — degrading to a plain period exactly where
+the mechanism was supposed to help.
+
+What this costs in the cache is three fields beside `desired` and `confirmed`:
+the last value sent, the in-flight command id, and the timestamp of the last
+send. Q24's finding is untouched — still no outbound queue, still one
+latest-value slot. What it leaves open is the release rule when a `result` never
+arrives, which Q21 already lists as open for the pending mark and which is now
+also what stops a lost result wedging an entity's knob permanently; one timeout
+serving both is an argument for it being a single rule. And ids are per
+connection, so a reconnect resets the numbering: any in-flight slot has to be
+released when the socket is remade, since a command whose `result` was lost to
+the drop can never be matched and its id may be reused.
+
+Two hours of tooling cost, both self-inflicted. The capture script wrote the
+socket's output with `tee $OUT` from inside the pipeline and its own TX lines
+with `tee -a $OUT` from the shell; the long-lived pipeline `tee` holds the file
+open from offset zero and keeps its own position, so every appended TX line was
+overwritten as it wrote past it. The first burst capture came out with the
+receive half intact and the send half gone. Opening both writers `O_APPEND`
+fixes it, and the general form is that two writers on one file only compose if
+both append. The other was running the example command line verbatim with its
+placeholder entity id, which is what produced the first null run — cheap, and it
+bought the 25 ms baseline.
+
+Carried forward. The transport decision from 2026-08-30 is still unmade and is
+now fully informed: `get_states` against per-entity REST against the registry
+for the snapshot, `subscribe_events` against `subscribe_trigger` for the stream,
+and group against members. Q25 remains the one open questionnaire item and is
+blocked on that decision. Bench, unchanged: the I2C scan with the BQ25896 and
+BQ27220 as positive control, board deep-sleep current, and the encoder's resting
+levels at successive detents.
+
 ### 2026-08-30
 
 Opened plan item two — the `websocat` session against Home Assistant — and got

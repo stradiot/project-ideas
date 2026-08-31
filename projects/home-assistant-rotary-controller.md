@@ -11,21 +11,51 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-Plan item two is underway and the transport is measured everywhere except
-latency. `get_states` returns 134,043 bytes for 284 entities and takes no filter
-argument of any kind; the 22 entities across the four controlled domains weigh
-13,566 of them, about a tenth. `subscribe_events` filters by event type only, so
-the ongoing stream is unfiltered too — the entity filter is `subscribe_trigger`,
-which takes a list, runs the predicate inside HA, and does fire on the
-attribute-only changes this device lives on. A group entity re-emits its whole
-aggregate on every member report, measured at 15 events against a single
-member's 3 for one dim. What is left is the command-to-`state_changed` latency,
-which the burst data already shows is two numbers rather than one, and the
-transport decision it feeds. `main.c` is still the stage-5 encoder jig and no
-plan box is ticked.
+The latency measurement plan item two was waiting on is done, and it is three
+numbers rather than two: 25 ms of API round trip with no entity matched, ~110-155 ms
+to HA's `result`, ~220-260 ms to the reported value. The send path is decided with
+it — self-clocked on `result`, at most one command in flight per entity, with a
+per-domain period as a floor that now carries fluency policy rather than a claim
+about how fast a domain's devices are. A burst of six commands 116 ms apart came
+back as five events, the far side dropping an intermediate on its own, and showed
+that `context.id` cannot attribute an event to the command that caused it while
+the `result`'s `id` can. What is left of plan item two is the transport decision
+itself, which is what Q25 is blocked on. `main.c` is still the stage-5 encoder jig
+and no plan box is ticked.
 
 ## Lessons
 
+- **Home Assistant answers a command twice, and only one of the two answers can
+  be tied back to the command that caused it.** The `result` frame carries the
+  `id` the client assigned, which the API echoes by definition — exact even
+  through a burst of six commands 116 ms apart, which returned ids 10 to 15 in
+  order. The `state_changed` or trigger event carries no id, only a `context`,
+  and under that same burst the context was stamped by whichever service call
+  was in flight when the report landed rather than by the one whose value it
+  was: the event reporting brightness 20, a value only the first command asked
+  for, wore the second command's context, and the last two events shared the
+  sixth's. Neither answer proves effect — `call_service` against an entity that
+  does not exist returns `success: true` with a fresh context id, because the
+  service layer matches zero entities and the handler returns cleanly. So the
+  ACK is usable for clocking the sender and useless as confirmation, while the
+  event is the confirmation and cannot be attributed.
+  [[home-assistant-rotary-controller-log#2026-08-31]]
+- **`call_service` is awaited with `blocking=True`, so the `result` frame's
+  latency contains the far side's own round trip and can never be a firmware
+  constant — which is the argument for clocking the sender on it rather than
+  configuring a rate.** The same frame took 25 ms with no entity matched and
+  111 ms for a real bulb; the 86 ms between them is the integration transmitting
+  to the device and getting an acknowledgement, not HA bookkeeping. Nothing on
+  the wire names the integration, so one `light` may be local mesh and another
+  vendor cloud, and any configured send rate is wrong for some entity. Holding
+  one command in flight per entity and sending the next when its `result`
+  returns makes the far side's speed an observation instead of a setting, costs
+  nothing because Q21's pending mark is already that flag, and removes the idle
+  timeout as well, since the slot's release *is* the trailing edge that flushes
+  the final value. Its limit: the ACK is only as honest as the integration's
+  `await`, and one that hands off to a vendor cloud and returns immediately will
+  ACK in 25 ms however slow the device is.
+  [[home-assistant-rotary-controller-log#2026-08-31]]
 - **Home Assistant's WebSocket API has no entity filter on either `get_states`
   or `subscribe_events` — the entity filter is `subscribe_trigger`, and finding
   it means understanding that a trigger is not a kind of event.** `get_states`
