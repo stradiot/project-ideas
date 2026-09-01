@@ -13,21 +13,51 @@ The one project here that was built before the vault existed, so this note
 is written backwards from a finished device rather than forwards from an
 idea. Code in `d-control-400-remote`.
 
+The full URH capture-analysis procedure — every setting, what each one
+actually does, and the four traps that make them hard to get right — is
+[[urh-ook-capture-analysis]].
+
 ## Now
 
-The standalone `src/main.cpp` build has run on real hardware for the first
-time, flashed to the perfboard prototype over USB: 18/18 beeps across three
-tested configurations. It now defaults to the deadline timing engine to
-match the validated ESPHome path, and a same-geometry test showed the
-5 ms inter-burst gap does nothing on this path (it sits inside the
-suspended-scheduler region) while a fully gapless run — 126 contiguous
-frames, structurally a button hold — decoded clean, which de-risks the RMT
-migration directly. Two items remain: RMT migration, now the better-founded
-one to start next, and a differential shock/B-channel capture to begin
-decoding the protocol.
+Shock decoding has started. Channel A level 0 is transcribed from the SDR
+capture to a tick-accurate bit string — **111 ticks per frame, 89 runs,
+maximum run 2**, against the beep's 109 and 88, on the same 208.647 µs tick
+and the same 1T/2T alphabet — verified by seven byte-identical frames cut at
+that period. Levels 1 through 19 are captured and unanalysed; what the
+two-tick difference means needs them beside it. The URH procedure that took
+most of the session is written up in [[urh-ook-capture-analysis]] so it does
+not have to be rediscovered. RMT migration remains the other open item.
 
 ## Lessons
 
+- **A number that looks like a property of the signal is often a property of
+  the tool's display.** Three of the four traps in a session of URH
+  configuration had that shape. Samples/Symbol looked like a duration; it is a
+  count, and the rate converting one to the other lives in a settings box, not
+  in the `.complex` file, which has no header — so a 2 MSps capture read at
+  URH's 1 MSps default shows every duration wrong by 2× while every sample
+  count stays right. The dBm readout looked like an absolute level; it is
+  `20·log₁₀(magnitude)` plus an undocumented offset, ~19 dB here, so absolute
+  conversions into the threshold boxes failed twice while every *ratio* taken
+  from the same figures checked out — a 12.8 dB plateau separation, and a duty
+  cycle predicted to 0.16 dB that matched a bit census to a percent. The
+  Demodulated view looked broken; it draws on a fixed 0–1 scale while the
+  Analog view beside it auto-scales, so an envelope peaking near 0.05 renders
+  as a line on the floor. The defence in each case is to carry the physical
+  invariant, not the number: 208.647 µs survives a re-capture at a different
+  rate, a different tool, a different day. "417" does not.
+  [[subghz-collar-remote-clone-log#2026-09-01]]
+- **Stacking the repeated frames validates the entire analysis chain, for
+  free.** Cutting a decoded message at the frame period and checking the copies
+  are byte-identical costs nothing and needs no external ground truth, yet the
+  crop, the sample rate, the symbol slot, the centre and the noise gate would
+  each show up as divergence between copies long before anything was visible by
+  eye. Seven identical shock frames also settled a live worry — that a slot of
+  417 samples against a true 417.294 would accumulate to a couple of ticks
+  across a press — by showing URH slices on detected edges rather than a rigid
+  grid. Same self-referential check that caught the burst-contiguity bug: ask
+  whether the repeats in one recording agree with each other.
+  [[subghz-collar-remote-clone-log#2026-09-01]]
 - **The 70% was burst structure, not timing.** A real press is 7 copies of
   the frame sent back-to-back with no gap anywhere inside — URH segments a
   recording of one into a single unbroken message, not seven. Cheap
@@ -243,7 +273,7 @@ hypothesis is "the timebase is wrong".
 | Purpose | Tool | Note |
 | --- | --- | --- |
 | Capture | RTL-SDR | Tune 250 kHz low — the RTL2832U puts a DC spike dead centre |
-| Analysis | Universal Radio Hacker | Signal view covers what Inspectrum would be for |
+| Analysis | Universal Radio Hacker | Step-by-step procedure in [[urh-ook-capture-analysis]] |
 | Analysis | GNU Radio in a UTM Linux VM | Not usable natively on the Mac |
 | Pipeline | `tools/analyze_capture.py` | IQ → envelope → run lengths → base tick → frame → encoding tests |
 | Firmware | PlatformIO, and ESPHome for the HA path | Two paths, same signal |

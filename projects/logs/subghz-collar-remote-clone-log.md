@@ -8,6 +8,152 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-01
+
+Started the second open TODO — the differential shock capture — with 20
+recordings already in hand (channel A, levels 0 through 19) and no memory of how
+the URH side of the beep analysis had been done. It turned out that not
+remembering was the honest position, because the previous URH work was hand
+measurement in the signal view only: select a region, read a sample count,
+distrust every automatic feature. Twenty levels is a different job. It is not
+measuring, it is diffing, and 20 × 88 runs does not go by eye — so this session
+needed URH's demodulator, which meant trusting it, which meant configuring it
+from scratch. About two hours went into settings the data could not supply and
+the tool would not name.
+
+The four stages of the Interpretation tab are envelope, noise gate, symbol slot
+and centre slicer, and none of them is a measurement — every one is asserted,
+and the tool produces confident-looking output from wrong ones. The first
+correction was structural: in OOK the `0` symbol *is* the absence of carrier, so
+the OFF level inside a frame and the silence between presses are the same
+physical quantity. Measured, they were −24.4 dBm and −24.4 dBm. No setting of
+the noise gate can separate those, because there is nothing there to separate;
+what separates them is duration, 2 ticks against a second, six orders of
+magnitude with zero amplitude difference. Cropping each press into its own
+signal by hand does not work around that bind, it dissolves it — on a cropped
+signal the gate has no segmentation left to do and can be driven far below the
+OFF plateau and forgotten.
+
+The longest detour was a two-times factor that turned out to be a display
+setting. A `.complex` from a GNU Radio file sink is raw interleaved floats with
+no header, so URH cannot read the sample rate from the file; it holds its own
+value, defaults to 1 MSps, and uses it for exactly one thing — converting sample
+counts into times for display. It touches no bit. So a 2 MSps capture read
+through a 1 MSps setting shows every duration wrong by a factor of two while
+every sample count stays exactly right, and I spent a while arguing from the
+millisecond figures before noticing that 342446 samples were being reported as
+342.45 ms. My own first conclusion from that was wrong in the other direction —
+I read the durations as truthful and proposed halving Samples/Symbol to 209,
+when the file really was 2 MSps and the correct answer was the 417 already
+there. The mechanism worth keeping is what makes both errors impossible:
+**Samples/Symbol is a count of samples, and the sample rate does not enter into
+it.** A 208.647 µs tick occupies 417.3 samples in a 2 MSps file whatever URH
+believes the rate to be. Measuring in samples is immune to the whole class of
+mistake, and that is why the resolution was a hand measurement of run widths
+rather than an argument about rates.
+
+Hand measurement of ten to fifteen runs gave two clusters, ~417 and ~834
+samples, on both the ON and the OFF side, with nothing between and nothing
+longer — the beep's alphabet exactly, and the first fact about the shock signal
+that was measured rather than assumed. Both readings came in slightly high, 209
+and 418 µs against derived 208.647 and 417.294, which is the expected
+edge-to-edge bias: catching the rise at one end and the fall at the other. That
+consistency is a better outcome than hitting the number, because the residual is
+explained rather than lucky. Getting the precise tick by hand is not a matter of
+measuring one run more carefully — the uncertainty is in the rendering, not the
+mouse. It comes from spanning many periods and dividing, which is what the
+beep's 272910 samples across 654 ticks did: a ±10 sample endpoint error becomes
+±0.015 samples on the answer, and taking both endpoints at the same structural
+position makes the rise-time bias cancel instead of add.
+
+Setting Samples/Symbol to the shortest run rather than to a high+low pair was a
+deliberate choice and worth recording with its reason. In a real line code a
+symbol is a pair, and slotting at the pair period is right — but which line code
+is exactly the unknown this capture campaign exists to resolve. Slot at the
+shortest run and the output is an uncommitted transcription of the level
+sequence at tick resolution, against which any encoding hypothesis stays
+testable; slot at an assumed pair period and a guess has been baked into what
+gets treated as raw data afterwards. That is the same class of mistake as the
+two-bucket classifier this project spent a session suspecting.
+
+The expensive dead end was the dBm readout. The info bar reports a level for the
+current selection, the plateaus measured −11.32 and −24.15 dBm, and converting
+those into the Noise and Centre boxes felt like arithmetic. It is not: the
+readout is `20·log₁₀(magnitude)` plus an undocumented offset, about 19 dB on this
+capture, so an absolute conversion gave 0.266 for a centre whose true value was
+near 0.05. Two attempts failed, the first because I framed the choice as
+amplitude-ratio versus power-ratio when the real question is what the conversion
+targets — power goes as amplitude squared, so recovering an *amplitude* from a
+power figure is /20 regardless of the readout being labelled in dBm. That
+correction was right and still produced a wrong number, which is what finally
+pointed at the reference offset. The tell had been visible throughout: every
+*ratio* taken from those figures checked out and every *absolute* did not. The
+12.8 dB plateau separation was real. Mixing the two plateau powers at 50/50 duty
+predicted the whole-press figure of −13.95 dBm to within 0.16 dB, back-solving to
+52% ON, against 53.2% counted from the decoded bits afterwards — two independent
+measurements, one RF power and one a bit census, agreeing to about a percent.
+Ratios survive an unknown reference; absolute levels do not.
+
+Three separate things were keeping the Demodulated view blank, and I twice told
+myself to abandon it before working out that it is the only instrument in the
+window calibrated in the units the Noise and Centre boxes actually take.
+Switching the view resets the x-range, so zooming first loses it. At full
+zoom-out a press across ~1400 px is ~240 samples per pixel against a 417-sample
+tick, so every pixel column holds both levels and renders as one solid smear.
+And the Analog view auto-scales to the data while the Demodulated view spans a
+fixed 0–1 — with an envelope peaking near 0.05 the whole trace sits in the bottom
+few percent as a flat line on the floor, needing 25–50× vertical magnification
+rather than a nudge. That asymmetry is why the analog view looked healthy
+throughout while the demodulated one looked broken. It was never broken. View,
+then zoom, then Y-Scale, and two clean plateaus appeared immediately.
+
+One threshold trap is worth stating separately because it nearly repeated the
+shredding: the dBm figure for the OFF state is the mean of a distribution, not a
+floor. OFF is the envelope of thermal noise, Rayleigh distributed, straddling
+its mean broadly with roughly half its samples underneath — so a gate placed
+"just below the OFF level" lands inside that distribution and classifies a large
+fraction of OFF samples as pause. Below the distribution, not below its mean.
+Centre placement mattered less than expected, and the reason is worth knowing:
+URH decides over a run of ~417 samples rather than per sample, averaging the
+noise down by √417 ≈ 20×, so the margin is tens of standard deviations wide and
+anything in the broad middle works. The confirmation of that came for free —
+the bit string at Centre 0.0100 was byte-identical to the one at 0.0325, a
+factor of 3.25 with not one bit flipped.
+
+The decode itself then fell out in one step. Every frame opens with a preamble,
+and at tick resolution a preamble is unmistakable — the longest run of
+alternating `1010101010…` in the string. Two successive preamble starts give the
+frame period; cutting the message at that period and stacking the copies gives
+the verification. Seven byte-identical frames, which is the strongest check
+available in the chain and costs nothing: the crop, the sample rate, the slot
+width, the centre and the gate would all show up as divergence between copies
+long before anything was visible by eye. It also settled the drift question I
+had raised, that a slot of 417 against a true 417.294 would accumulate to a
+couple of full ticks across seven frames. It does not, so URH slices on detected
+edges rather than a rigid grid.
+
+Shock level 0 on channel A: **111 ticks per frame, 89 runs, maximum run 2, 53.2%
+ones**, against the beep's 109 ticks and 88 runs. Same tick, same run alphabet,
+two ticks and one run longer. The preamble came out 34 ticks against the beep's
+42, but that split is a judgement call — the alternation runs one tick further
+before `11` breaks it, and the beep's 42 was drawn by the same eye. The frame
+*period* is not a judgement call: it is fixed by copies at that spacing coming
+out identical, and it is the number to compare on. What the two-tick difference
+means is the open question, and it needs the other 19 levels beside it rather
+than more analysis of this one.
+
+Closed by writing the procedure up as `notes/urh-ook-capture-analysis.md` and
+linking it from the top of the project note, since the session's real cost was
+rediscovering settings that the transcription file cannot record. The
+transcription now carries its URH settings in a header for that reason, and was
+added to `.gitignore` rather than committed — it is a decoded shock frame for
+one physical remote in a public repo, which is the thing `signal.h` is
+sops-encrypted to avoid. Three of the four traps in that note share a shape:
+a number that looks like a property of the signal is actually a property of the
+tool's display. The defence is to carry the physical invariant rather than the
+number — 208.647 µs survives a re-capture at a different rate; "417" quietly
+becomes wrong.
+
 ### 2026-08-15
 
 Picked the smallest of the three open TODOs — flashing the standalone
