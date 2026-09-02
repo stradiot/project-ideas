@@ -8,6 +8,154 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-02
+
+Carried on with the differential shock campaign, exporting more levels out of URH
+— channel A levels 0 through 4 first, then 5, 6, 7, 10, 18 and 19 — and pasted
+the beep frame from `include/signal.h` in beside them as a reference. Almost all
+of the session went on getting those transcriptions onto a common footing.
+Comparing them was quick once they were comparable, and the interesting mechanism
+was in the "once".
+
+The first thing wrong was that some frames looked inverted, and one of them also
+had a preamble a tick shorter than the rest. Those turned out to be a single
+observation rather than two. On an alternating run, inverting and shifting by one
+tick are the *same* operation, so their composition is the identity there — the
+flip is invisible across the whole preamble, and its only trace is the point
+where the alternation breaks, which moves by one. It was also not one odd frame
+out of five: levels 0 and 4 sat in one polarity and the beep with levels 1–3 in
+the other, a 4:2 split rather than an outlier.
+
+Working out where a frame legitimately starts came from OOK physics rather than
+from the data agreeing with itself. The carrier goes from silence to HIGH, so the
+first tick of a frame is fixed. The next frame's preamble also starts HIGH, and
+two adjacent HIGH runs would merge into one, so a frame has to *end* LOW. A
+preamble is alternating single ticks by definition, so a double run cannot live
+in one and must belong to data — which means the last double before a preamble is
+the current frame's, and it cannot be halved because that would leave the frame
+ending HIGH. Those constraints pin the boundary exactly, and the result is a
+frame of **88 runs, starting HIGH, ending LOW, no run longer than 2T**. I had
+been reaching for a weaker argument first — that a correct frame is the one that
+tiles back-to-back without merging runs — which reaches the same criterion but
+justifies it by self-consistency rather than by the channel.
+
+That criterion is necessary and not sufficient, and the gap is exactly the
+polarity problem. It fixes *where the periodic stream is split* and says nothing
+about which position of the transmitter's duration cycle a given press entered
+on, which is a second, independent free parameter. The quantity that carries it
+is the count of unit runs before the first double: the first run is HIGH by
+physics and the levels alternate run by run, so run *i* is HIGH exactly when *i*
+is even, and the parity of the preamble length is what decides whether the first
+double lands on carrier or on silence. Counts came out 31 for the beep and levels
+1–3, 32 for levels 0 and 4 — same criterion satisfied, opposite phase.
+
+Normalising it took two false starts, both instructive. Moving the
+preamble/payload marker buys nothing, because the physical constraints above
+already pin the marker *given* the tick string — there is no freedom left in it,
+which is why the attempt produced a frame with implausible field lengths and a
+byte-identical bit string. Complementing every tick does nothing either, and for
+a sharper reason: complementing moves no run boundary, and the phase *is* how
+many runs precede a given run. Checked directly, `comp(L4)` still had 32 unit
+runs before its first double, and it started LOW and ended HIGH, failing both
+physical constraints. The operation that works is a rotation of the duration
+list — take the 88 durations, move the first to the end, re-render with the first
+run HIGH — which in tick terms is: drop the first tick, complement the rest,
+append one `0`. The complement is present but it is the shift doing the work.
+This is the transmitter's own degree of freedom, recorded on 2026-08-11: it emits
+durations and toggles a pin, so entering one position later is a genuinely
+different waveform carrying the same code.
+
+With every frame normalised, the encoding fell out of a census with no decoding
+at all. Levels carry nothing — two adjacent runs at the same level would merge,
+so the level sequence is fully determined by the first one — which immediately
+kills NRZ, Manchester, PWM and PPM, all of which need the level to mean
+something. That leaves biphase and run-length, and those two are separated by one
+pair of numbers: biphase fixes ticks-per-bit and lets the run count float,
+run-length does the reverse. Every frame measured came to **88 runs** with tick
+counts of 109, 111 and 113, across two functions and eleven levels, and
+`ticks = 88 + (number of 2T runs)` holds as an identity. It is run-length. The
+same counting killed a PWM-style short+long pair per bit outright: that requires
+exactly half the runs to be long — 44 of 88 — and the measured counts are 21 for
+the beep and 23–25 for the shock frames.
+
+This also corrects the headline from 2026-09-01, which had shock level 0 at 111
+ticks and **89** runs against the beep's 109 and 88. The 89 was the phase artifact
+— a cut through a double, splitting it into a leading and a trailing half. Every
+frame is 88 runs; what varies is how many of them are long.
+
+The field layout then came out of diffing the levels against each other, in run
+space rather than tick space. A tick-indexed diff is the wrong instrument here: a
+single short↔long change shifts every downstream tick by one position, so the
+comparison goes out of alignment at the first difference and reports the whole
+remainder as changed. The 88-element duration sequence has no such problem — it
+is the same length for every frame and index-aligned end to end. The layout:
+
+```
+31 preamble | 40 common | 7 value | 1 flag | 7 = ¬value | 1 = flag | 1 short
+```
+
+The complement is exact on all eleven shock frames, including three that were
+held out of the fit. Two different redundancy schemes sit side by side: the value
+is duplicated *inverted*, the flag is duplicated *identically*. A complement
+guards against a stuck slicer; a plain repeat only guards against a dropped run,
+so the transmitter is treating them as different kinds of field.
+
+The value is not the level. Fitting `value = level − 1` on levels 0–7 and holding
+19 back predicted 18 and got 104. The failure mechanism is worth keeping: levels
+0–7 produce values 0–6, which only ever exercise the bottom three bit positions
+— the top four had *zero* observations, so the rule was not wrong about them, it
+was unconstrained. Level 10 then read 10 rather than the predicted 9, killing
+`level − 1` outright. The remaining worry was whether 104 was real or a
+mislabelled capture, and the test for that is adjacency: an intensity dial has to
+be monotone and reasonably smooth between neighbouring settings, so if 104 belongs
+to the same table its neighbour must be close to it. Level 18 came in at 101. The
+map is a nonlinear lookup table — `0, 0, 1, 2, 3, 4, 5, 6, …, 10, …, 101, 104` —
+with no formula to recover, which is a real answer rather than a gap.
+
+The flag survived two readings and one reproducibility check. "Level > 0" died on
+level 18, which reads `A` like level 0. "Derived from the value" died on levels 0
+and 1, which have byte-identical value fields and different flags, so no parity or
+checksum over the value can produce it. Then five separate presses of level 18,
+recorded as raw demodulations of varying quality — 778 to 827 ticks, two opening
+with a 5-tick run of junk longer than the 2T alphabet allows, one starting
+mid-frame on a `0` — normalised to a single byte-identical frame, value `BBAABAB`
+(101), flag `A`, five for five. That check was worth doing rather than assuming,
+because this project has already found one field that varies press to press and
+not with the message: the A/B duration phase, 8 A and 5 B across 13 presses of the
+same beep button. The flag is not that; it is level-determined and unexplained.
+
+Finally, beep against shock, using data already on the table. Re-cutting the beep
+to the canonical 31-unit-run form is a rotation by **two** runs, and an even
+rotation preserves every level assignment where the odd one used for the phase fix
+flips them all. Aligned, the two differ in exactly six run positions: 67 and 68
+inside the common block, and 78, 83, 84 and 86 in the tail. Thirty-eight of the
+forty common runs are identical between a beep and a shock, so whatever selects
+the function is two runs wide and sits at the end of the common block. The
+complement relation also fails for the beep — value `AAAAAAA` against a check
+field of `BBBBAAB` rather than `BBBBBBB` — so those seventeen tail runs are not
+doing the same job in a beep frame as in a shock frame.
+
+Two things parked rather than solved. The visible alternating stretch at a frame
+boundary is not a fixed length: it is the 31 preamble runs plus however many short
+runs trail the *previous* frame, which is data-dependent — 32 when the flag is
+`B`, 34 for level 18, whose frame ends on three shorts. So "the longest
+alternating run is the preamble" gives a different answer per level, and the
+invariant to cut on is 31 unit runs immediately before the first double.
+Separately, the first frame of several recordings carries a preamble two runs
+longer than the rest, along with trailing alternating fragments after the last
+frame; a longer opening preamble for receiver acquisition is a normal design, but
+two ticks against a 6.7 ms preamble is thin, and one raw capture is exactly
+periodic from tick zero, so it may be a demodulator edge effect. It needs checking
+against the raw captures rather than the cuts.
+
+Still outstanding and not fixed: `.gitignore` has the pattern `signal_captures`,
+which matches only a path named exactly that, so `signal_captures.txt` is
+untracked and *not* ignored. It wants to be `signal_captures*` — the file now
+holds decoded shock frames for eleven levels of one physical remote, in a public
+repo. Channel B is not captured yet, and is the next axis: it is what separates
+the remote's identity, invariant across everything this handset sends, from the
+command fields, which is currently the whole content of those forty dark runs.
+
 ### 2026-09-01
 
 Started the second open TODO — the differential shock capture — with 20

@@ -19,17 +19,46 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-Shock decoding has started. Channel A level 0 is transcribed from the SDR
-capture to a tick-accurate bit string — **111 ticks per frame, 89 runs,
-maximum run 2**, against the beep's 109 and 88, on the same 208.647 µs tick
-and the same 1T/2T alphabet — verified by seven byte-identical frames cut at
-that period. Levels 1 through 19 are captured and unanalysed; what the
-two-tick difference means needs them beside it. The URH procedure that took
-most of the session is written up in [[urh-ook-capture-analysis]] so it does
-not have to be rediscovered. RMT migration remains the other open item.
+The shock frame has a layout. Every frame this remote sends, beep and shock
+alike, is **88 runs** of 1T or 2T with the levels carrying no information, and
+splits as 31 preamble + 40 common + a 7-run value + a flag + the value's exact
+complement + the flag repeated + one trailing short. Levels 0–7, 10, 18 and 19
+are transcribed. The level-to-value map is a nonlinear lookup table — 0, 0, 1…6,
+10, 101, 104 — with no formula to recover, and the flag reproduces across five
+presses of one level while not being derivable from the value. A beep differs
+from a shock in six run positions, two of them at the end of the common block.
+Channel B is not captured yet and is the next axis. RMT migration remains the
+other open item.
 
 ## Lessons
 
+- **Polarity is not a property of a run-length OOK transmission, and
+  complementing a capture cannot change its phase.** Levels alternate by
+  construction — two adjacent runs at the same level would merge into one — so
+  the level sequence is fully determined by the first one and carries nothing;
+  all the information is in the durations. The transmitter emits those durations
+  and toggles a pin, so entering the cycle one position later is a genuinely
+  different waveform carrying the same code, and it is what makes a capture look
+  inverted. The phase is *how many runs precede a given run*, so the fix is a
+  rotation of the duration list — move the first duration to the end, re-render
+  with the first run HIGH — not a complement, which moves no run boundary and
+  leaves the phase exactly where it was. The detector is the parity of the count
+  of unit runs before the first double. The same framing names the encoding for
+  free: biphase fixes ticks-per-bit and lets the run count float, run-length does
+  the reverse, and every frame here is 88 runs at 109, 111 or 113 ticks.
+  [[subghz-collar-remote-clone-log#2026-09-02]]
+- **A rule fitted where the high-order positions never move says nothing about
+  them.** Levels 0–7 map to values 0–6, which exercise only the bottom three bit
+  positions of a 7-bit field; the top four had zero observations. `value =
+  level − 1`, fitted on those eight consecutive levels and tested against a
+  held-out level 19, predicted 18 and got 104 — not a wrong rule so much as an
+  unconstrained one, and eight consecutive small values look linear under almost
+  any monotone map. Keeping one far-away capture back is what turned that into a
+  one-capture falsification rather than a fifteen-capture grind. The follow-up
+  test is adjacency: an intensity dial has to be smooth between neighbouring
+  settings, so level 18 reading 101 is what established 104 as a real table entry
+  rather than a mislabelled recording.
+  [[subghz-collar-remote-clone-log#2026-09-02]]
 - **A number that looks like a property of the signal is often a property of
   the tool's display.** Three of the four traps in a session of URH
   configuration had that shape. Samples/Symbol looked like a duration; it is a
