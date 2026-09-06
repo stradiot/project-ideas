@@ -8,6 +8,197 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-06
+
+The differential campaign closed. Beep and shock, channels A and B, all twenty
+shock levels — 42 distinct frames, and a layout in which every one of the 88 runs
+is accounted for. The decode is structural rather than a replay for the first
+time since the project started.
+
+The session opened on a channel B beep transcription and the first correction was
+mine. The recorded B frames sat in canonical form — 31 unit runs, then a double —
+and I read that as evidence the cut had needed no rotation. It is not evidence of
+anything. The canonical cut is defined on durations alone, and the levels
+alternate run by run, so the resulting A/B run string is *invariant* under exactly
+the operation I was claiming to detect: two presses of the same button entering
+the duration cycle at opposite points produce byte-identical run strings. The
+quantity that does carry it is the level the run at the cut actually held, and
+across the six presses in `beep_channel_B.cfile` that came out 3 HIGH and 3 LOW —
+so half of them had needed the rotation after all. Recognising which quantity is
+invariant under the operation in question is the whole of that check.
+
+Verifying it properly meant a second, independent path from IQ to run string:
+magnitude envelope, 20 µs boxcar, Otsu threshold per press, run lengths quantised
+at 417.294 samples per tick, then the cut. No URH anywhere in it. Run against
+`press_shock_A_0/7/18/19.complex` first, where the answers were already written
+down, it reproduced all four transcriptions character for character; only then was
+it pointed at the new captures. That order is the same guard as the synthetic
+ground truth used on `analyze_capture.py` a month ago, and it earned its keep
+immediately, because the cut criterion had a bug that would otherwise have read as
+a property of the signal. I first required the 31 unit runs to be preceded by a
+double — anchoring on the *start* of the visible alternating stretch — and got
+zero frames on every file. The stretch at a frame boundary is not 31 runs long: it
+is 31 preamble runs plus however many short runs trail the previous frame, which
+is data-dependent. The invariant is the *last* 31 unit runs before a double.
+Anchored that way it found six to nine frames in every press, byte-identical
+within each press, no interior run outside the 1T/2T alphabet across all 41
+presses, and maximum quantisation error of 0.03 T on the clean captures.
+
+With that, `press_shock_A.cfile` and `shock_channel_B.cfile` gave twenty levels on
+each channel — 21 presses on the A file, the last two byte-identical, so levels 0
+to 19 plus a repeat. The eleven A-side levels that already had hand transcriptions
+matched exactly, which also confirmed the capture order was ascending.
+
+The beep pair localised the channel first. `Be_A` and `Be_B` differ in exactly four
+run positions — 45, 46, 85 and 86 — and both pairs are adjacent transpositions,
+`AB` against `BA`, so both beeps come to 21 long runs and 109 ticks. A transposition
+conserves the tick count where a true complement of a two-run field would move it
+by two, which is worth keeping straight: "complement" in this frame already names
+the value/¬value redundancy, and using it for a transposition hides the invariant.
+Position 45 falls fourteen runs inside the 36-run block that had been the identity
+candidate, which killed "the common block is the remote's identity" as stated. That
+block was only ever *invariant under the two axes varied so far*, and channel was
+not one of them — the same shape as the `level − 1` failure, arriving on schedule.
+
+Analysing channel B from scratch, without assuming the A-family layout, then
+produced the result that made the rest fall out. The A frames satisfy a seven-run
+field complemented seven runs later with a flag repeated identically after it. The
+B frames do not. They satisfy a *six*-run complement, with the next run copied
+rather than complemented and the one after that complemented rather than copied.
+Both readings are exact on their own family and both fail on the other, across all
+twenty levels. Two mutually exclusive descriptions of the same twenty commands is
+not an ambiguity to resolve by preferring one; it is the tell that the description
+is in the wrong coordinates.
+
+The move that fixed it was to stop reading the second block as a value and start
+reading it as a relation. For each of the eight positions 79 to 86, ask whether it
+is a copy or the complement of the position eight runs earlier, and write the
+answer out as an eight-character pattern. Every shock frame on channel A gives
+`~~~~~~~=`; every shock frame on channel B gives `~~~~~~=~`; the beeps give
+`~~~~==~=` and `~~~~===~`. Four positions always complement. The next two
+complement for a shock and copy for a beep. The last two are one of each, and
+which one decides the channel. So the second block is not a check field at all —
+it is the level field re-emitted through a mask, and **the mask is where the
+command is restated**. Each command field appears twice: once outright in its own
+two runs, and once as a perturbation of the redundancy. A receiver that validates
+the two halves against each other reads the command out of the comparison itself,
+which buys error detection and addressing from the same bits. That is a genuinely
+economical design and it is the find of the session.
+
+The layout, with `A` a one-tick run and `B` a two-tick run:
+
+```
+0-30    preamble        31 short runs
+31-44   constant        handset
+45-46   channel         AB = A, BA = B
+47-66   constant        handset
+67-68   function        AB = beep, BA = shock
+69-70   constant        handset
+71-78   level           8 runs, MSB first, B = 1
+79-86   redundancy      run 79+i against run 71+i:
+                          i = 0..3  always complement
+                          i = 4,5   complement = shock, copy = beep
+                          i = 6,7   (complement, copy) = channel A
+                                    (copy, complement) = channel B
+87      constant        always short
+```
+
+Sixty-eight of the 88 runs are constant across everything this handset sends. The
+other twenty are the whole command surface.
+
+That layout overturns the reading from 2026-09-02, which had a seven-run value
+followed by a flag. The level field is eight runs and the flag is part of it. One
+observation settles it: levels 0 and 1 differ in exactly one run, the eighth, so
+if that run were a flag rather than a value bit the collar could not tell those two
+levels apart. The eight-run reading is also the only one that separates all twenty
+levels — read as seven runs the map is `0, 0, 1, 2, …`, colliding at the bottom,
+where the eight-run map is `0, 1, 3, 5, 7, 9, 11, 13, 15, 17, 21, 25, 33, 41, 57,
+77, 117, 157, 202, 209` and strictly increasing, which is what an intensity dial
+has to be. The map is still a lookup table with no formula recovered, and it lives
+in the *remote* rather than the collar: the handset decides what value to
+transmit, so the collar holds a second and separate map from value to electrical
+output.
+
+Two things stayed unconstrained rather than unknown, and the distinction matters.
+Positions 83 and 84 hold copies where every shock frame holds complements, and on
+the beeps the corresponding level runs are both `A` — so "83/84 copies 75/76" and
+"83/84 is constant `AA` on beeps" fit identically. There is exactly one observation
+of the beep tail, because the two beep frames differ only in the four channel
+positions, and the beep has no level to vary. No further beep capture can help.
+Likewise, runs 69 and 70 not moving is evidence they do not distinguish beep from
+shock, and nothing more; a third function would be needed and this handset has
+only two. A field with one observation is not weakly constrained, it is
+unconstrained, and more of the same capture will never touch it.
+
+Neither does the channel or the function field ever take `AA` or `BB` — only the
+two transposed values, in the direct fields and in the mask alike. Two readings fit
+and 42 frames cannot separate them: two-bit fields with two spare states, leaving
+room for two more functions and two more channels, or one-bit fields in a balanced
+1-of-2 code where `AA` and `BB` are invalid codewords and there is no headroom at
+all. The d-control range includes models with more channels, so a higher model in
+the family would settle it.
+
+A question that came up late is worth writing down because the obvious answer is
+wrong. It looked as though a frame could simply be rotated — move the trailing
+short run to the front so the preamble reads 32 — with no consequence. For a
+single isolated frame that is false, and visibly so: `AABBABA` and `AAABBAB` are
+different transmissions. What makes the rotation free is that the object being
+described is not a frame but a periodic stream, and a frame is a window on it.
+Repeat both and the second is the first shifted by one run, with an `A` prepended
+and an `A` dropped from the tail; every interior run boundary is in the same place.
+The assumption doing the work is therefore the burst-contiguity finding from
+2026-08-11: a single frame is never transmitted, because one frame followed by a
+gap produced zero beeps. So for analysis a rotation is free bookkeeping. For the
+firmware it is not — `signal.h` holds one frame and repeats it, so rotating the
+stored payload really would shift the emitted burst by one run at each end. Almost
+certainly harmless, and still a change to the air rather than to the description.
+
+What is left needs hardware rather than analysis, in descending order of value. A
+second remote would split the 68 constant runs into what differs between handsets
+(identity) and what agrees (protocol framing) — and that is the assumption the
+project's scope note has rested on from the start without ever being tested. It
+carries a confounder: two remotes may also differ by firmware revision, since
+remote and collar ship as a pair, and a revision field would appear in the same
+diff. A third handset disambiguates, and so does the shape, an identifier being
+likely contiguous where a revision counter sits apart and stays small. Second is
+whether a formula sits behind the level-to-value map: if the transmitted value is a
+physical quantity — pulse width being plausible for a switched source — the table
+is samples of a curve, and testing that means putting a scope on the collar's
+output rather than capturing more RF, so it needs no purchase at all. Third and
+highly optional is whether the two-collar limit is enforced by the protocol; nothing
+in the frame enforces it, so two collars paired to one channel should both fire.
+
+The repository caught up with all of this. The schema above is now in the README
+and `CLAUDE.md`; the 68 constant runs and the level table stay in
+`signal_captures.txt`, which is sops-encrypted under the same age recipient as
+`include/signal.h` rather than relying on a `.gitignore` pattern that never matched
+it. That split is deliberate: the schema is protocol structure that anyone with
+this model and an SDR can rediscover, while the constants are one handset's
+identity and are the only thing that makes a frame this remote's. Also corrected: the
+README had described the transmission as mimicking a PWM bit-stream. It does not.
+PWM requires exactly half the runs to be long and the real frames have 21 long runs
+out of 88 — the count that killed PWM on 2026-09-02 had simply never made it into
+the public document.
+
+The last piece was a `pre-commit` hook refusing to commit either encrypted file in
+plaintext, checking the staged blob rather than the working tree — a decrypted
+working copy with ciphertext staged is fine, and the reverse is the accident being
+guarded against. It detects encryption by looking for sops's own `"sops"` key and
+`ENC[AES256_GCM` envelope, so it needs no age key. Installing it caused the one
+real failure of the session, and it was a fork bomb: roughly 3000 processes in two
+minutes. A repo-local `core.hooksPath` replaces the global one rather than adding
+to it, so I wrote a `prepare-commit-msg` shim to chain through to the global
+commit-message generator. But that generator already chains the *other* way, into
+the repo's local hook, resolving it with `git rev-parse --git-path
+hooks/prepare-commit-msg` — which honours `core.hooksPath` and therefore resolved
+straight back to the shim. Shim execs global, global calls local, local execs
+global. The generator's own guard compares the resolved local hook against `$0` and
+correctly answers "that is not me", because it is not; a two-hop cycle is invisible
+to a one-hop check. An environment variable set before the exec breaks it on second
+entry. The deeper mistake was procedural rather than technical: I had tested the
+`pre-commit` half against four known cases and enabled the pair, having never
+exercised the shim at all. A partial test read as a passing one.
+
 ### 2026-09-02
 
 Carried on with the differential shock campaign, exporting more levels out of URH

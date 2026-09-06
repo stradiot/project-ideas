@@ -19,19 +19,54 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The shock frame has a layout. Every frame this remote sends, beep and shock
-alike, is **88 runs** of 1T or 2T with the levels carrying no information, and
-splits as 31 preamble + 40 common + a 7-run value + a flag + the value's exact
-complement + the flag repeated + one trailing short. Levels 0–7, 10, 18 and 19
-are transcribed. The level-to-value map is a nonlinear lookup table — 0, 0, 1…6,
-10, 101, 104 — with no formula to recover, and the flag reproduces across five
-presses of one level while not being derivable from the value. A beep differs
-from a shock in six run positions, two of them at the end of the common block.
-Channel B is not captured yet and is the next axis. RMT migration remains the
-other open item.
+The frame is decoded. All 42 commands this handset can send — beep and shock,
+channels A and B, twenty levels — are 88 runs of 1T or 2T, of which 68 are
+constant and 20 carry everything: 2 runs of channel, 2 of function, 8 of level,
+and an 8-run block that is not a checksum but the level field re-emitted through
+a mask, where the mask itself restates the channel and the function. The
+level-to-value map is a strictly increasing lookup table with no formula
+recovered, and it lives in the remote. The schema is public in the repo; the
+constant runs and the level table are sops-encrypted. What is left needs
+hardware: a second remote to tell identity from protocol framing, a scope on the
+collar to test whether a formula sits behind the level map. RMT migration remains
+the other open item.
 
 ## Lessons
 
+- **A redundancy field that almost matches is not a broken checksum. Express it
+  as a relation and the deviations turn out to be the payload.** The eight runs
+  following this frame's level field looked like a complement that failed in two
+  places. Read as *values* they were useless: the failing pattern collides with a
+  table in which 15 of 64 possible values are occupied, so looking it up matched a
+  level by chance and discriminated nothing. Read as a *relation* — for each of
+  the eight positions, is it a copy or the complement of the position eight runs
+  earlier? — it resolves completely. Four positions always complement, two encode
+  the function, two encode the channel. The block is the level field re-emitted
+  through a mask, and the mask restates the command, so each command field appears
+  twice: once outright in its own runs, once as a perturbation of the redundancy.
+  A receiver validating the two halves against each other reads the command out of
+  the comparison itself, which buys error detection and addressing from the same
+  bits. The tell that the coordinates were wrong was two mutually exclusive
+  descriptions each fitting a different slice of the same data — channel A
+  satisfying a 7-run complement plus an identically repeated flag, channel B a
+  6-run complement plus a copied run, each exact on its own family and false on
+  the other. That is not an ambiguity to settle by preferring one.
+  [[subghz-collar-remote-clone-log#2026-09-06]]
+- **Two hooks that each chain into "the other one" make a loop that neither can
+  detect.** A repo-local `core.hooksPath` replaces the global one rather than
+  adding to it, so a repository wanting its own `pre-commit` silently loses every
+  global hook — and the obvious fix, a shim that execs the global hook, is a fork
+  bomb whenever the global hook chains the other way. It finds the repo's hook
+  with `git rev-parse --git-path hooks/prepare-commit-msg`, which honours
+  `core.hooksPath` and so resolves straight back to the shim. Its own guard
+  compares that path against `$0` and correctly answers "not me", because a
+  one-hop self-check cannot see a two-hop cycle. It reached roughly 3000 processes
+  in two minutes; an environment variable set before the exec breaks it on second
+  entry. The procedural half is the more transferable one: the `pre-commit` side
+  had been tested against four known cases and the shim against none, and
+  installing the pair on the strength of that read as a passing test when half of
+  it was untested.
+  [[subghz-collar-remote-clone-log#2026-09-06]]
 - **Polarity is not a property of a run-length OOK transmission, and
   complementing a capture cannot change its phase.** Levels alternate by
   construction — two adjacent runs at the same level would merge into one — so
@@ -45,20 +80,33 @@ other open item.
   leaves the phase exactly where it was. The detector is the parity of the count
   of unit runs before the first double. The same framing names the encoding for
   free: biphase fixes ticks-per-bit and lets the run count float, run-length does
-  the reverse, and every frame here is 88 runs at 109, 111 or 113 ticks.
-  [[subghz-collar-remote-clone-log#2026-09-02]]
+  the reverse, and every frame here is 88 runs at 109, 111 or 113 ticks. The
+  corollary matters as much as the rule: because the canonical cut is defined on
+  durations alone, the run string it produces is *invariant* under that phase, so
+  it can never be evidence about it. The measurement that does carry the phase is
+  the level the run at the cut actually held — across six presses of one button
+  that came out 3 HIGH and 3 LOW.
+  [[subghz-collar-remote-clone-log#2026-09-02]],
+  [[subghz-collar-remote-clone-log#2026-09-06]]
 - **A rule fitted where the high-order positions never move says nothing about
-  them.** Levels 0–7 map to values 0–6, which exercise only the bottom three bit
-  positions of a 7-bit field; the top four had zero observations. `value =
-  level − 1`, fitted on those eight consecutive levels and tested against a
-  held-out level 19, predicted 18 and got 104 — not a wrong rule so much as an
-  unconstrained one, and eight consecutive small values look linear under almost
-  any monotone map. Keeping one far-away capture back is what turned that into a
-  one-capture falsification rather than a fifteen-capture grind. The follow-up
-  test is adjacency: an intensity dial has to be smooth between neighbouring
-  settings, so level 18 reading 101 is what established 104 as a real table entry
-  rather than a mislabelled recording.
-  [[subghz-collar-remote-clone-log#2026-09-02]]
+  them, and a field with one observation is unconstrained rather than weakly
+  supported.** The level field is 8 runs read MSB first, and levels 0–7 give
+  0, 1, 3, 5, 7, 9, 11, 13 — only the bottom four bit positions ever move, so the
+  top four had zero observations. A rule fitted on those eight consecutive levels
+  and tested against a held-out level 19 failed by a wide margin: not a wrong rule
+  so much as an unconstrained one, since eight consecutive small values look
+  linear under almost any monotone map. Keeping one far-away capture back turned
+  that into a one-capture falsification rather than a fifteen-capture grind, and
+  the follow-up test is adjacency, an intensity dial having to be smooth between
+  neighbouring settings. The same failure recurred twice on 2026-09-06 in a form
+  worth recognising: the beep's tail has exactly one observation, because the two
+  beep frames differ only in the channel runs and a beep has no level to vary, so
+  every rule of the form "these runs copy something that currently reads A" fits
+  equally and no further beep capture can separate them. Sorting open questions
+  by *which axis would have to move* is what says whether more hardware helps or
+  is wasted.
+  [[subghz-collar-remote-clone-log#2026-09-02]],
+  [[subghz-collar-remote-clone-log#2026-09-06]]
 - **A number that looks like a property of the signal is often a property of
   the tool's display.** Three of the four traps in a session of URH
   configuration had that shape. Samples/Symbol looked like a duration; it is a
