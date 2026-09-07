@@ -359,6 +359,35 @@ property as a clickable link. `github:` is optional and decorative — add it on
 to notes that already carry `repo:`, since a note with no code has no remote to
 point at.
 
+**The link runs one way: vault → repo, never repo → vault.** The `repo:` field
+above is the whole of it. Nothing inside a code repository mentions this vault
+— not its README, not its `CLAUDE.md`, not a doc, a source comment, a commit
+message, a branch name, an issue or a PR description. Not the vault's name, not
+a wikilink to a note, not a path under `~/Documents/personal/project-ideas`,
+not a github.com URL pointing at it. Where one is already there, it comes out.
+
+The stronger reason is what the repos are. Each is a standalone thing that could
+be of use to someone who has never heard of this vault — firmware for a named
+board, a case that fits a specific PCB — and it *supports* the syllabus rather
+than depending on it. A README that routes its reader into a personal planning
+vault inverts that relationship: it makes the vault a prerequisite for reading
+the code, and turns a repository somebody could pick up into an appendix to a
+curriculum that is not theirs.
+
+The second reason is mechanical. The link is maintained on one side by one
+field, and nothing checks the other side, so a pointer written into a repo goes
+stale the moment a note is renamed or a plan restructured — and a pointer in a
+commit message can never be corrected at all. It is the same argument as
+"nothing in this vault is maintained by hand": a reference that needs a human to
+keep it current will not be kept current.
+
+This is easiest to break from a session running *in* a project repo, because the
+SessionStart hook puts the note's path and its wikilinks into that session's
+context — so the vault is right there to be quoted into a comment or a commit
+message. The injected context therefore states the rule directly, which is the
+only place it binds: a session in `d-control-400-remote` never reads this file.
+Read the note, work from it, cite none of it.
+
 The machinery lives **outside this repo**, in the `claude` package of `~/dotfiles`
 — <https://github.com/stradiot/dotfiles>, private — stowed into `~/.local/bin`, so
 the entries there are symlinks and the file in the repo *is* the live hook. Read
@@ -398,7 +427,9 @@ still runs, one layer in.
   linked project note into that session's context, and states how to work here —
   the learning-before-doing instruction above, plus what the SessionEnd hook will
   write, so the session is steered toward saying the things that make a good
-  entry. It also surfaces any pending hook failure (below).
+  entry — including the rule that nothing in the repo may reference the vault,
+  which is the only place that rule is stated where a project session can read
+  it. It also surfaces any pending hook failure or advisory (below).
 
 Two gates decide whether anything is written. A session with fewer than two
 *real* user turns is skipped before any model is spawned — real excludes tool
@@ -489,7 +520,19 @@ macOS banner at the moment it happens, and a line in
 `.session-notes-state/failures.txt` that the SessionStart hook surfaces in the
 next session started in a personal repo, then drains so it reports once rather
 than nagging. Reported that way: the writer exiting non-zero, the writer being
-killed by its 15-minute timeout, and each of the vault git steps.
+killed by its 15-minute timeout, and each of the vault git steps. Every one of
+those means something was lost or is sitting unpushed.
+
+Below that sits a second, quieter channel — `.session-notes-state/advisories.txt`,
+surfaced and drained the same way but with no banner and wording that says
+nothing is broken. The case that forced the split is the `/wrap` drift check: the
+hook compares the turn count `/wrap` recorded against the count at SessionEnd,
+and any difference means the entry does not cover the whole session. It cannot
+tell post-wrap work from the commit-and-push that ends most sessions, so it fires
+when nothing at all is missing — which is exactly the kind of report that teaches
+the banner to be ignored, and the banner has to still mean something on the day
+the writer dies. Re-running `claude-session-wrap.sh mark` before stopping is what
+closes it at the source when the last turns were housekeeping.
 
 The writer's exit code used to be discarded, which is what made this worth
 building. A crashed, rate-limited or unauthenticated writer produced
