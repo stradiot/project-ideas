@@ -19,23 +19,52 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The frame is decoded and the repository now says so accurately. All 42 commands
-this handset can send are 88 runs of 1T or 2T, of which 68 are constant and 20
-carry everything: 2 runs of channel, 2 of function, 8 of level, and an 8-run
-block that is not a checksum but the level field re-emitted through a mask whose
-deviations restate the channel and the function. The level field takes 20
-monotone, strongly non-linear values; what that value *means* is unverified, and
-no capture of this remote can settle it. The schema is public in the repo, the
-constant runs and the level table sops-encrypted. A documentation pass on
-2026-09-07 rewrote the README for a stranger and retracted what had drifted —
-the beep is a prohibitive command and not a recall signal, and the claim that
-the collar holds its own value-to-output map was never measured. What is left
-needs hardware: a second remote to tell identity from protocol framing, a scope
-on the collar to learn what the level value is. RMT migration remains the other
-open item.
+The frame is decoded and the repository documents it accurately; what remains is
+one software item and two that need hardware. The software item is the RMT
+migration, now started. Reading the LOLIN C3 Mini schematic and the ESP32-C3
+datasheet established that GPIO8 carries a strapping role only until reset
+completes and is an ordinary pin afterwards, so GDO0 can take an RMT channel
+through the GPIO matrix, and an 88-run frame is 44 symbols against a 48-word
+channel block. Next is the RMT chapter of the technical reference manual, and the
+first question for it is clocking — which source clock and divider give a usable
+tick against T = 208.647 µs and a 15-bit duration field. The two hardware items
+are unchanged: a second remote to separate handset identity from protocol
+framing, and a scope on the collar to learn what the transmitted level value
+means.
 
 ## Lessons
 
+- **A strapping pin that is don't-care in the normal boot mode is the dangerous
+  one, because forcing it wrong yields a board that boots perfectly and can never
+  be reflashed.** The ESP32-C3 samples GPIO2, GPIO8 and GPIO9 during reset and
+  releases them as ordinary GPIOs afterwards. SPI Boot requires GPIO2 high and
+  GPIO9 high and does not care about GPIO8; Joint Download Boot requires GPIO2
+  high, GPIO8 high and GPIO9 low. So tying GPIO8 low breaks nothing observable —
+  the board starts normally every time — while quietly removing the only route to
+  flashing it, a failure that passes every bring-up test and appears at the next
+  firmware update. Reasoning about a strapping pin therefore has to name *which*
+  mode breaks rather than stopping at "it would break the boot", and the
+  constraint is directional: high is fine, which is what a 10 kΩ pull-up already
+  supplies weakly. The reassuring half is that firmware can never violate any of
+  it, since nothing user-written runs until the sampling window has closed — only
+  external circuitry can force a level, so the question is always about the other
+  end of the net.
+  [[subghz-collar-remote-clone-log#2026-09-08]]
+- **An LDO does not remove the need for bulk capacitance on its input, because
+  power supply rejection is a function of frequency and collapses in the band
+  that matters.** The obvious reading of the 10 µF on the ME6211C33's input is
+  smoothing that the regulator itself performs, and that reading is wrong: PSRR
+  is good at DC and useless in the MHz, and the host sits behind metres of cable
+  inductance, so a hard load step sags the input rail before anything upstream
+  can respond. The capacitor is a local energy reservoir for the transient, not a
+  filter. This explains a fix that had only ever been empirical here — Wi-Fi is
+  capped at `output_power: 8.5dBm` in the ESPHome config to stop brownout on this
+  regulator, and a Wi-Fi transmit burst is exactly that load step. The output-side
+  pairing of 10 µF with 100 nF is the same argument in reverse: a large MLCC has
+  enough parasitic inductance to self-resonate low and stop being a capacitor
+  above that point, so the small part covers the band the large one has
+  abandoned.
+  [[subghz-collar-remote-clone-log#2026-09-08]]
 - **An inference restated often enough stops being read as an inference, and the
   tell is the word joining it to what was measured.** Two claims had to be
   retracted from the repository in one pass, and both had the same shape: an

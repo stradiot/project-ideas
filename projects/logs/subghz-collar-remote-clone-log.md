@@ -8,6 +8,155 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-08
+
+No code and nothing on the air. The remaining open item on this project is moving
+transmission off the CPU and onto the RMT peripheral, and the question underneath
+that is whether GPIO8 can carry the waveform at all — GDO0 is wired there, and
+GPIO8 turned out to be one of only three pins on this board carrying a 10 kΩ
+pull-up that nothing else gets. Answering it meant reading the LOLIN C3 Mini
+schematic (v2.1.0) end to end and then the ESP32-C3 datasheet, and the entry
+follows that order because that is the order the answer assembles in.
+
+The session opened badly: the request was for the schematic link so the reading
+could be done firsthand, and what came back was the reading. Worth recording
+because it is the same failure this project has hit before, and the correction
+holds for the rest of the entry — the analysis below is mine, checked rather than
+handed over.
+
+**J1, the USB-C receptacle.** Only D+/D- are wired for data, and they appear
+twice: A6/A7 and B6/B7, shorted pairwise on the board. The reason is that a
+Type-C plug can be inserted either way up, which swaps the A and B rows. A device
+that only speaks USB 2 shorts the rows together so the differential pair reaches
+the SoC in either orientation; a USB 3 host keeps them separate because it has
+the SuperSpeed pairs to work with and needs to know which row is live. The
+absence of those SuperSpeed pairs, rather than the doubled D+/D-, is what
+actually establishes this as a USB-2-only port.
+
+CC1 and CC2 each carry a 5.1 kΩ pull-down. That is Type-C's entire negotiation
+layer in two resistors: a source presents pull-ups on its CC lines, a sink
+presents 5.1 kΩ pull-downs (Rd), and when the source sees its pull-up dragged
+down through Rd it learns both that something is attached and that it is a sink,
+so it may switch on VBUS. Which of the two CC pins moved also gives it the cable
+orientation. The value is not free — 5.1 kΩ is specified, and the source signals
+its available current (default / 1.5 A / 3 A) by varying *its* pull-up against
+that fixed number. SBU1/SBU2 are the sideband pins used for alternate modes and
+debug, and are floating here, which is consistent with USB 2 only.
+
+**SW1 on EN, and the capacitor I read backwards.** A 10 kΩ pull-up to 3V3 with
+the button shorting to ground is obvious enough. The 1 µF cap is not, and my
+first reading — that it forces the button to be held during boot — is wrong in
+its direction. The cap charges *through* the 10 kΩ, so the RC slows EN rising,
+never falling. With τ = 10 kΩ × 1 µF = 10 ms that holds the SoC in reset for
+about 10 ms after 3V3 comes up, which is a power-on reset delay giving the rail
+time to settle; on button release it stretches the reset pulse by the same
+amount. Debounce is a side effect, not the purpose. The generalisation is that
+an RC on a reset line should be read by asking which edge it slows before asking
+what it is for.
+
+**U2, the ME6211C33 regulator, and a mistake with a payoff.** VBUS in, CE tied to
+the input so the regulator is permanently enabled, 3V3 out. The 10 µF on the
+input I dismissed as smoothing that the regulator itself already does — and that
+dismissal is the error. An LDO's power supply rejection ratio is finite and falls
+as frequency rises: good at DC, useless in the MHz. Meanwhile the host is metres
+of cable inductance away, so when the load steps hard the input rail sags long
+before the host can respond. The 10 µF is a local energy reservoir for exactly
+that transient. This is not abstract here: the ESPHome config caps Wi-Fi at
+`output_power: 8.5dBm` to stop brownout on this regulator, a fix found
+empirically months ago, and a Wi-Fi transmit burst is precisely the load step
+described. The empirical hack now has a circuit behind it.
+
+The output carries 10 µF and 100 nF in parallel, which is the standard pairing
+and worth understanding rather than copying. The 10 µF is bulk and satisfies the
+LDO control loop's minimum output capacitance for stability. The 100 nF is not a
+smaller version of the same thing — a large MLCC has more parasitic inductance
+and self-resonates at a lower frequency, above which it stops behaving as a
+capacitor at all, so a small part in a small package covers the band the big one
+has abandoned. Two capacitors, two frequency ranges, one flat impedance curve.
+
+**Reference designators**, since they had never been looked up properly. IEEE 315
+and ASME Y14.44 define the class letters and they hold remarkably well across
+vendors and decades: R, C, L for passives, D for diodes including LEDs, Q for
+transistors, U for integrated circuits, Y for crystals, K for relays, F for
+fuses, TP for test points. The pair worth knowing exactly is J and P — J is a
+jack, the connector half fixed to the board, and P is the plug, the half that
+moves. Most modern boards label every connector J regardless, which is why two
+pin headers here are J2 and J3. The numbers are instance counters with no
+meaning. It is convention rather than enforcement, and the IEC 81346 scheme used
+in plant and machine drawings assigns letters by function instead and does not
+line up — connectors are X there.
+
+**The header silkscreen, and why it can be ignored.** J2/J3 label GPIO0/1/4 as
+SPI and GPIO8/10 as I2C. Those are suggestions, and this repository already
+proves it: `include/pinout.h` puts the CC1101's MOSI on GPIO3 while the
+silkscreen calls GPIO4 MOSI, and the radio works. The mechanism is the GPIO
+matrix, and the difference from the STM32 habit is real rather than cosmetic. ST
+gives each pad an alternate-function mux with a fixed menu chosen at design time.
+The ESP32 has a small IO MUX of that kind for a few fast fixed functions, plus a
+full crossbar — the GPIO matrix — through which almost any peripheral signal can
+reach almost any pad. That is why the RMT output is a routing choice and not a
+pinout constraint, which is the whole reason this matters today.
+
+**The die marking.** Legible under a lamp: `ESP32-C3`, `122022`, `FH4PPG4330`,
+`FD00PKP828`. FH4 decodes from the ordering nomenclature — F for in-package
+flash, H for the high-temperature flash grade, 4 for 4 MB. The rest does not fit
+the nomenclature, and I took that as evidence of a different variant and guessed
+ESP32-C3FH4AZ. Wrong step: the leftover does not fit because it is not part of
+the ordering code at all. The ordering code ends at FH4 and what follows is
+lot and trace marking. Had it been the AZ variant the marking would say AZ. The
+same correction kills the idea that the last string is a serial number — package
+markings are lot-level and identical across a whole reel, and the genuine unique
+per-die identifier is the base MAC in eFuse. The stronger source than a lid under
+a lamp is the chip itself: the boot ROM prints chip identity and silicon revision
+on the serial line before any firmware runs, and if the two ever disagree the
+boot log wins.
+
+**The strapping pins, which is what the session was for.** GPIO2, GPIO8 and
+GPIO9 are the three pins with 10 kΩ pull-ups, and the datasheet names exactly
+that set: strapping pins are sampled during reset to select operational settings
+and are ordinary GPIOs afterwards. GPIO9 has an internal weak pull-up active at
+reset and so needs no external resistor; GPIO2 and GPIO8 float by default, which
+is why the board supplies them. The two boot modes are SPI Boot, needing GPIO2
+high and GPIO9 high with GPIO8 don't-care, and Joint Download Boot, needing GPIO2
+high, GPIO8 high and GPIO9 low — the latter being what SW2 on GPIO9 is for.
+
+My first conclusion was that GPIO8 cannot be hard-wired because it would break
+the boot, and it is wrong in a way worth keeping. GPIO8 is don't-care in SPI
+Boot, so forcing it low breaks nothing about booting: the board starts normally,
+every time, forever. What it destroys is Joint Download Boot, which is to say the
+ability to flash it ever again. The consequence was misnamed, and the failure it
+actually produces is the quieter one. The constraint is also directional rather
+than a prohibition — tying GPIO8 high is fine, and is roughly what the 10 kΩ
+already does weakly. GPIO2 is the pin where "breaks the boot" is literally true,
+since it must be high in both modes. So all three are strapping pins and the cost
+of getting each one wrong is different.
+
+What this settles for the RMT work: nothing prevents redefining GPIO8 after
+reset. Firmware cannot violate a strapping constraint, because firmware does not
+begin running until the sampling window has closed; only external circuitry can
+force a wrong level. GPIO8 is therefore free to take an RMT channel through the
+matrix. Parked deliberately: whether the CC1101's GDO0 presents high impedance
+while the ESP is still in reset is a CC1101 question rather than an ESP one, and
+it is not blocking, since this board demonstrably boots and flashes today.
+
+What is already established about the peripheral itself, before the reading
+starts. RMT — Remote Control Transceiver, named for the infrared remote codes it
+was built to shift — is a generic pulse-train engine hanging off the APB bus with
+its own private SRAM. A symbol is one 32-bit word holding two entries of
+`{level: 1 bit, duration: 15 bits}`, durations counted in RMT ticks set by a
+per-channel divider off a selectable source clock, and a zero duration marks the
+end of a transmission. The C3 has four channels, two TX and two RX, each with a
+48-word block; the 88 runs of a frame are 44 words, so a whole frame fits in one
+block with room to spare. That is the property the entire migration rests on.
+Also noted: the WS2812B on IO7 is normally driven by RMT on ESP32, so this board
+already has an RMT consumer soldered to it, which will matter when channels get
+allocated.
+
+Next is the RMT chapter of the technical reference manual, and the first question
+to take to it is clocking — what source clocks and dividers exist, and what tick
+resolution to choose given that T is 208.647 µs, that runs are 1T and 2T, and
+that a duration field is 15 bits wide.
+
 ### 2026-09-07
 
 A documentation session, and the first with nothing measured off the air. The
