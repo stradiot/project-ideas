@@ -8,6 +8,141 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-07
+
+A documentation session, and the first with nothing measured off the air. The
+README had been written incrementally alongside the work and never read end to
+end as a stranger would read it, so the job was to check every claim in it
+against the thing it described — the source, the gerbers, the build config, the
+decode. The fixes matter less than the pattern the checks turned up, which is
+that documentation drifts in two distinct ways and only one of them looks like
+an error while it is happening.
+
+The first way is ordinary staleness, and the source settles it immediately.
+`printState()` in `main.cpp` prints `g  inter-burst us`, while the README's
+command table called `g` the inter-frame gap — the one distinction the whole
+burst-contiguity finding rests on. `t` calls `triggerTransmit()`, which runs the
+entire sequence of `TRANSMIT_REPEAT` bursts, not the single burst the table
+promised. `b` was not documented at all. `platformio.ini` carries a comment
+explaining why it deliberately sets no `upload_port`, and both the README and
+the repo's `CLAUDE.md` still instructed the reader to edit that port. And the
+README opened its FreeRTOS section by calling the ESP32-C3 a dual-core chip; it
+is single-core RISC-V. None of these are subtle. They are what happens when a
+file is edited in place for two months and never re-read against the code.
+
+The second way is more interesting: claims that were true when written and were
+overtaken by later findings, which read as authoritative precisely because they
+were once earned. The oversampling section still reasoned from "the 200 µs
+pulses" and "roughly 5.0 kBaud", both retired by the 208.647 µs measurement.
+Worse, the calibration section argued that a wrong base tick makes a receiver
+with bit synchronisation lose lock partway through a frame — but the frame is
+run-length coded, there is no bit sync to lose, and the 200 µs payload triggered
+the collar about 70% of the time, so the argument was contradicted by this
+project's own evidence sitting three sections away. "The final ON tick is cut
+short" should always have read *frame*: a press ends when the button is
+released, which truncates the last frame at an arbitrary point, and that is the
+actual reason the total period count of a message is unknowable and the
+measurement has to be taken frame-start to frame-start. The "42-period preamble"
+never existed either — the decode established the preamble as 31 short runs,
+with the visible alternating stretch being that plus however many short runs
+trail the previous frame, a data-dependent length and therefore not something to
+measure across.
+
+The PCB question was the one worth the session. I had recorded that the board
+lacked the copper cutout under the C3's antenna on the second layer, and wrote
+that into the README as a known defect of the revision before checking it. Then
+I parsed the gerbers. A gerber region is a polygon bracketed by `G36`/`G37`, and
+its polarity comes from the most recent `%LPD*%` (dark — add copper) or `%LPC*%`
+(clear — remove it), so a pour keepout is simply a clear polygon inside the
+pour. There were two large ones: X 32.893–45.000 mm present on both copper
+layers, and X 18.108–30.350 mm on the top layer only. Nothing in the file says
+which is which. A gerber is geometry with no semantics attached — no nets, no
+component identities, not even a layer's purpose beyond its filename — so
+deciding which void is the antenna keepout requires knowing the module's
+orientation, and the silkscreen would not say. It draws the C3's body at
+X 7.62–41.91 and one 6.35 × 7.62 mm rectangle at the extreme low-X end, and that
+rectangle reads equally well as a USB-C outline or an antenna marking. The two
+readings put the antenna at opposite ends of the module and each was internally
+consistent, so I stopped and asked rather than picking the one that suited the
+claim I had already written. An EasyEDA screenshot answered it in a glance: the
+antenna meander sits at high-X, the small rectangle is the USB connector
+overhanging the board edge, and the keepout is cut through both layers. The
+original README sentence was right, my correction was wrong, and the defect I
+had reported was not there.
+
+The stray top-only void resolved the next day from the other direction. Diffing
+a fresh export against the committed one showed the board outline and all 28
+drill positions byte-identical, some bottom-layer rerouting, and that void
+simply gone — a legacy artefact of an earlier revision. That is the useful half:
+one gerber cannot be read for intent, but the difference between two exports
+isolates exactly what moved, which makes a diff carry meaning that neither file
+holds on its own.
+
+Four candidate files came out of EasyEDA and three were worth keeping. The
+gerber replaced the committed one. `board-outline.dxf` was the surprise — it
+declares `$INSUNITS = 4` (millimetres) and its `BoardOutLine` polyline lands on
+X 12.827–61.087, Y 36.195–76.835, matching the gerber outline exactly, with the
+drilled holes, the pads and the module footprints on separate DXF layers. That
+makes it the export the mechanical side actually wants: an exact 2D sketch to
+build a case or a panel cutout from without opening an EDA tool. The two Photo
+View SVGs went into `doc/` as top and bottom views, and are worth having because
+they show the keepout on both layers, which is the one PCB claim in the README
+that wanted a picture. The OBJ was skipped, and the reason is a property of the
+exporter rather than a preference: its coordinates are EasyEDA canvas units
+rather than millimetres, needing a ×0.254 scale, and it extrudes to 10 units ≈
+2.54 mm against a specified 1.6 mm board, so both the scale and the thickness
+are wrong and it carries no components at all. A STEP export is the file to take
+if a PCB solid is ever wanted, matching the enclosure, which already ships as
+STEP.
+
+The manufacturing table went the same way. Grepping the whole gerber set for
+material, thickness, finish, mask colour or copper weight returns nothing, and
+`How-to-order-PCB.txt` is a two-line link to EasyEDA's documentation — gerbers
+carry geometry only, so all four rows were fab order-form settings describing
+one person's order rather than anything reproducible from the files. Two facts
+survived: 1.6 mm, because the enclosure's standoffs are dimensioned around it,
+and 1 oz copper, because the 0.5 mm power trace width was chosen against it.
+Leaded HASL and a black mask are free choice, and stating them read as a
+recommendation not meant. Checking the first of those also corrected an
+assumption of my own — I had thought board thickness was a fit constraint, but
+the enclosure render shows the board bolting onto four standoff bosses rather
+than sliding into a slot, so thickness only shifts stack height inside the case.
+
+Two claims had to be retracted outright, and they are the same failure twice.
+The README described the beep as a recall signal. It is not — it is a
+prohibitive command, used when the dog is home alone and doing something it
+should not, observed on a camera that is outside this project entirely; a recall
+over Home Assistant would serve no purpose. The motivation does not belong in
+the README in any form: the project is the integration of the beep trigger,
+irrespective of what the beep is for, and the intro now says only that. The
+second was "the level map lives in the remote, so the collar holds a second,
+different map from value to electrical output." The clause before the *so* is an
+observation. The clause after it was never measured — nothing captured
+establishes that the transmitted level value is a physical quantity rather than
+an opaque index, nor what its units are, and without that there is no basis for
+saying the collar performs any mapping of its own. Both sentences entered the
+documentation as reasonable readings and hardened into assertions by being
+restated, which is how they survived a decode session that was otherwise careful
+about exactly this.
+
+What remained was editorial. The symbol-period measurement was sitting under
+"Technical Specifics", a section otherwise devoted to why the firmware is
+configured as it is, when its only audience is someone capturing their own
+remote — and that audience was being served again two hundred lines later by a
+separate capture section that did not know it existed. Merging them left
+Technical Specifics as four sections of firmware rationale and put the
+measurement next to the analysis script. Of the three open questions, only the
+per-handset identifier survived, because the "device specific" disclaimer rests
+on it; the level-map formula concerns the shock function that the README
+declares out of scope two screens earlier, and the two-collar limit is labelled
+optional in its own text. The serial console's four "still good for" bullets
+were a to-do list, two items of which are reported as already done elsewhere in
+the same file. The README is now written for someone who has never seen the
+repo: the sops material is out of the build path entirely — a fresh clone needs
+its own `signal.h` from the template, not an age key — and what remains of it is
+the committed pre-commit guard and the `core.hooksPath` shim, which are the only
+parts that bind anyone else working here.
+
 ### 2026-09-06
 
 The differential campaign closed. Beep and shock, channels A and B, all twenty

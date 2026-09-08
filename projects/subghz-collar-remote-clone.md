@@ -19,20 +19,61 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The frame is decoded. All 42 commands this handset can send — beep and shock,
-channels A and B, twenty levels — are 88 runs of 1T or 2T, of which 68 are
-constant and 20 carry everything: 2 runs of channel, 2 of function, 8 of level,
-and an 8-run block that is not a checksum but the level field re-emitted through
-a mask, where the mask itself restates the channel and the function. The
-level-to-value map is a strictly increasing lookup table with no formula
-recovered, and it lives in the remote. The schema is public in the repo; the
-constant runs and the level table are sops-encrypted. What is left needs
-hardware: a second remote to tell identity from protocol framing, a scope on the
-collar to test whether a formula sits behind the level map. RMT migration remains
-the other open item.
+The frame is decoded and the repository now says so accurately. All 42 commands
+this handset can send are 88 runs of 1T or 2T, of which 68 are constant and 20
+carry everything: 2 runs of channel, 2 of function, 8 of level, and an 8-run
+block that is not a checksum but the level field re-emitted through a mask whose
+deviations restate the channel and the function. The level field takes 20
+monotone, strongly non-linear values; what that value *means* is unverified, and
+no capture of this remote can settle it. The schema is public in the repo, the
+constant runs and the level table sops-encrypted. A documentation pass on
+2026-09-07 rewrote the README for a stranger and retracted what had drifted —
+the beep is a prohibitive command and not a recall signal, and the claim that
+the collar holds its own value-to-output map was never measured. What is left
+needs hardware: a second remote to tell identity from protocol framing, a scope
+on the collar to learn what the level value is. RMT migration remains the other
+open item.
 
 ## Lessons
 
+- **An inference restated often enough stops being read as an inference, and the
+  tell is the word joining it to what was measured.** Two claims had to be
+  retracted from the repository in one pass, and both had the same shape: an
+  observation, the word *so*, and a consequence nobody had tested. "The level map
+  lives in the remote, **so** the collar holds a second, different map from value
+  to electrical output" — the first half is what 42 frames showed, the second
+  presumes the transmitted value is a physical quantity rather than an opaque
+  index, which no RF capture can establish and which also silently fixes its
+  units. "The beep is the useful half of that device — **a recall signal**" was
+  never even an inference from data, just an unexamined description, and it is
+  wrong: the beep is prohibitive, and calling it a recall makes the whole
+  motivation for the device read backwards. Neither survived because it was
+  argued for; both survived because they were copied forward from one revision to
+  the next until restatement felt like corroboration. Grepping documentation for
+  *so*, *therefore* and *which means* finds these cheaply, because the load-bearing
+  half is always the clause after the connective and it is the half that never
+  had a measurement behind it.
+  [[subghz-collar-remote-clone-log#2026-09-07]]
+- **A gerber is geometry with no semantics, so intent has to come from a diff
+  rather than from the file.** A pour keepout is nothing but a polygon between
+  `G36`/`G37` under a `%LPC*%` clear-polarity flag — there are no nets, no
+  component identities, and no statement of a layer's purpose beyond its
+  filename. This board had two large clear regions, one on both copper layers and
+  one on the top only, and nothing in the export said which was the antenna
+  keepout; answering that needed the module's orientation, which the silkscreen
+  would not give either, since its one small rectangle at the module's end reads
+  equally as a USB-C outline or an antenna marking and the two readings put the
+  antenna at opposite ends. One screenshot settled in a glance what the files
+  could not. What the files *do* carry is change: diffing a fresh export against
+  the committed one showed the outline and all 28 drill positions byte-identical,
+  some rerouting, and the top-only region simply gone as a legacy artefact. The
+  difference between two exports is semantically informative in a way that
+  neither export is alone, which makes committing fab output worth doing even
+  though nobody reads a gerber. Same reason the enclosure now also ships a DXF:
+  it declares `$INSUNITS = 4` and its outline matches the gerber to the micron,
+  where the OBJ export from the same tool is in canvas units needing ×0.254 and
+  extrudes 2.54 mm against a 1.6 mm board.
+  [[subghz-collar-remote-clone-log#2026-09-07]]
 - **A redundancy field that almost matches is not a broken checksum. Express it
   as a relation and the deviations turn out to be the payload.** The eight runs
   following this frame's level field looked like a complement that failed in two
@@ -247,9 +288,11 @@ the other open item.
 ## Goal
 
 Trigger the beep on a Dogtrace d-control 400 collar from Home Assistant,
-instead of only from the original handheld remote. The beep is a recall
-signal — the useful half of that device — and having it reachable from
-automation means it works when the remote is on the kitchen table.
+instead of only from the original handheld remote. The beep is the
+prohibitive command — what gets used when he is home alone and doing
+something he should not, spotted on a camera that is no part of this
+project — and having it reachable from automation means it works without
+the handheld remote being in reach.
 
 Deliberately out of scope: the shock function. Capturing that button press
 would work identically and it is not being done. Also out of scope: a
@@ -267,9 +310,8 @@ structural template that happens to be loaded with mine.
 ## Practical value
 
 Real, collected, and in daily use — the only project here that can say all
-three. The recall beep now fires from Home Assistant, which means it works
-when the handheld remote is on the kitchen table, and that was the entire
-premise.
+three. The beep now fires from Home Assistant, which means it works without
+the handheld remote being in reach, and that was the entire premise.
 
 It is worth being precise about how long that took to be true. The beep
 fired about 70% of the time for the whole period the device was in daily
