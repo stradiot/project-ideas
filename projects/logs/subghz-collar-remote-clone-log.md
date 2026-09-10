@@ -8,6 +8,214 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-10
+
+No code, nothing on the air. The session was the RMT chapter of the ESP32-C3
+technical reference manual and the ESP-IDF source that drives the peripheral,
+and it closed the question blocking everything else: what a tick is worth, and
+whether the onboard LED leaves the transmitter free to choose one.
+
+**It opened on a false premise that had already been written down as fact.** The
+project note and this repository's `CLAUDE.md` both carried a short list of
+"peripheral facts already established" — 32-bit symbols holding two entries,
+48-word channel blocks, 88 runs fitting as 44 symbols — and none of it had ever
+been read out of the manual. It was asserted in an earlier session, written into
+the documentation, and read back a week later as the project's own finding. One
+item was also wrong: "88 runs = 44 symbols against a 48-symbol block"
+double-counts, since a symbol and a word are the same object here. The correct
+statement is 88 pulses = 44 words against a 48-word block, so the default
+partition holds 96 pulses. Same conclusion, wrong units, sitting in the
+repository looking settled.
+
+**The RAM.** Four channels, two of them able to transmit (0 and 1), sharing one
+192 × 32-bit block of private SRAM. Shared is the operative word — spreading
+across channels buys no capacity. By default the RAM is partitioned 48 words per
+channel, and a channel can be configured to claim its neighbours' blocks, but
+only upward: channel 0 can take all 192 words, channel 1 can reach blocks 1
+through 3, channel 3 is stuck with its own. That asymmetry, plus channel 0 being
+a transmit channel, is what makes channel 0 the candidate. Section 33.3.2 gives
+the format: each 32-bit row holds two 16-bit pulse codes, each a 1-bit level and
+a 15-bit period counting `clk_div` cycles, and a zero period is an
+end-of-transmission marker. 88 runs is 44 words, so the default block suffices
+and the memory configuration never needs touching. Establishing the headroom and
+then declining to use it was the right order — the extension rules are known now
+if the frame ever grows.
+
+The RAM is reachable over the APB bus while the transmitter reads it, which
+looks like a concurrency hazard and is not one for a single-shot transmission out
+of a pre-filled static buffer: the transmitter only reads, and the contents do
+not change. That scoping is the part to carry, because it stops being true under
+TX wrap mode, where the CPU refills the half the transmitter has already passed
+and the threshold interrupt becomes the synchronisation primitive.
+
+**The clock, and a wrong turn worth keeping.** The C3 has three clock origins —
+PLL, crystal oscillator, and on-die RC — giving PLL_CLK at 320 or 480 MHz,
+XTAL_CLK at 40 MHz, XTAL32K_CLK at 32 kHz, RC_FAST_CLK at a nominal 17.5 MHz,
+RC_FAST_DIV_CLK at RC_FAST/256, and RC_SLOW_CLK at a nominal 136 kHz. RMT accepts
+three of them: APB, RC_FAST and XTAL.
+
+The first choice was RC_FAST, on two arguments. One was right: APB_CLK follows
+whatever the CPU clock is sourced from, so dynamic frequency scaling can move it
+underneath a transmission in flight, and a tick that changes mid-frame is not a
+tick. The other rested on "there is no external oscillator", which is false — it
+conflated the absent 32.768 kHz crystal, which this board genuinely does not
+populate, with the 40 MHz crystal, which it must have, because the C3's radio
+cannot run without one and this device runs Wi-Fi. The device working is the
+proof; no document was needed.
+
+That left the mechanism to get right rather than the fact. An RC oscillator sets
+its frequency from an on-die resistor and capacitor, both of which vary with
+process, temperature and supply voltage — which is exactly why the manual says
+"17.5 MHz **by default**" and "adjustable frequency". A crystal is a mechanical
+resonator whose frequency comes from the physical dimensions of a quartz slab and
+holds to parts per million across the same conditions. ESP-IDF can calibrate
+RC_FAST against the crystal at boot, but that only pins down where it is at boot
+and does nothing about drift afterwards. Choosing an RC source to escape a
+variable clock inverts the actual stability picture. XTAL_CLK is the answer, and
+it also happens to be immune to the frequency scaling that disqualified APB.
+
+**The fractional divider.** `rmt_sclk = clk_src / (RMT_SCLK_DIV_NUM + 1 +
+RMT_SCLK_DIV_A / RMT_SCLK_DIV_B)`, and the reason the formula reads as
+unexplained variables is that they are not derived from anything — they are
+register fields in `RMT_SYS_CONF_REG`, written directly. `DIV_NUM` is 8 bits,
+`DIV_A` and `DIV_B` 6 bits each. The `+ 1` is the standard zero-based counter
+convention: a down-counter reloaded with N takes N+1 cycles to come round, so
+writing 0 divides by 1 and the integer part spans 1 to 256.
+
+What a fractional divider physically does is the part worth understanding.
+Hardware cannot emit a clock cycle 17.5 source cycles long — a cycle is a whole
+number of edges or it is nothing. So it dithers: an accumulator adds `DIV_A` each
+output period and, when it reaches `DIV_B`, stretches that one period by a single
+extra source cycle. Out of every `DIV_B` periods, exactly `DIV_A` are long, and
+the average comes out exact. `A/B` is therefore not a magnitude but a duty ratio
+between two integer divisors. The consequence is that the long-run rate is exactly
+right while individual periods jitter by up to one source-clock period.
+
+Then a second stage: each channel has its own 8-bit `RMT_DIV_CNT`, dividing
+`rmt_sclk` again to reach that channel's counting tick. `rmt_sclk` is module-wide
+and only `DIV_CNT` is per-channel — the low-level driver makes this explicit with
+`(void)channel; // the source clock is set for all channels`. That single fact is
+what dragged the LED into a clocking decision.
+
+**Reparameterising made the search tractable.** Guessing divider fields and
+checking the result is the wrong direction. Choosing **k, the number of ticks in
+one symbol period T**, forces everything else: the tick is T/k, a 1T run is k in
+the period field and a 2T run is 2k, and the total divisor needed is D = N/k,
+where N = 40 MHz × 208.647 µs = 8345.88 source cycles per symbol. The constraint
+box is `DIV_NUM+1` ≤ 256, `DIV_A`/`DIV_B` ≤ 63 with A < B, `DIV_CNT` ≤ 256,
+2k ≤ 32767 from the 15-bit period field, and D ≥ 1 because a clock cannot be
+divided by less than one. Both ceilings on k are worth checking against each
+other; the 15-bit field is not automatically the binding one.
+
+The objective chosen was an integer D, and it needed sharpening twice. First,
+integer is not the same as exactly representable — the fractional divider
+represents any `m + a/b` with b ≤ 63 with no error at all, so what integer D
+actually buys is `DIV_A = 0` and therefore no dithering and no jitter. Second,
+integer alone is not sufficient: with `DIV_A = 0`, D = (`DIV_NUM+1`) × `DIV_CNT`,
+a product of two factors each ≤ 256, so a prime above 256 is an integer that
+cannot be expressed. And since N is not itself a whole number of source cycles,
+an exactly integer D is unreachable for every k — what is really being minimised
+is the residual after rounding.
+
+**The finding that collapsed the table.** Sweeping k and rounding D produced an
+error column with the same values repeating: +14.38 ppm on fifteen different
+rows, spanning k = 1 to k = 4173, and −225.26 ppm on a dozen more. Multiplying
+k by D on any of them gives 8346. Those rows are the same clock rate, differing
+only in how the rate is partitioned between the group divider, the channel
+divider and the period field. So **k is not a choice about accuracy at all**, and
++14.38 ppm — the residual from rounding 8345.88 to 8346 — is a floor no k can
+improve. For scale, the shipped bit-banged firmware rounds T to `BASE_TICK_US =
+209`, which is 1692 ppm; and the underlying measurement, 272910 samples over 654
+ticks, carries roughly 3.7 ppm per sample of endpoint uncertainty, so 14.38 ppm
+sits a few times above the measurement's own noise and two orders below what is
+in use today.
+
+k = 1 was the first pick, and its appeal is more than readability: with the tick
+equal to T, `SIGNAL_BEEP_TICKS` — signed run lengths already stored in T units,
+every element ±1 or ±2 — maps element-for-element onto RMT entries, sign becoming
+the level bit and magnitude the period. The encoding chosen years ago to make the
+base-tick sweep possible turns out to be the RMT entry format.
+
+**The LED, which is on the same peripheral.** The two firmware paths diverge here
+and nobody chose it: `src/main.cpp` drives the WS2812B through `Adafruit_NeoPixel`,
+which bit-bangs and takes no RMT channel, while `esphome/d-control-400.yaml` uses
+`esp32_rmt_led_strip`, which does.
+
+Worth writing down how that LED actually works, because it decides what kind of
+conflict this is. It is a latch, not a refresh. Twenty-four bits of GRB are
+clocked in at 800 kHz; the first LED keeps the first 24 and forwards everything
+after that down the chain, which is how a strip addresses itself with no
+addressing at all. Holding the line low for more than 50 µs latches. After that
+nothing is sent — the controller runs its own constant-current PWM from the
+latched value indefinitely. There is no brightness field, brightness being the
+8-bit value itself, and no duration field, duration being the host's problem. So
+the 80 ms heartbeat is one frame green, a software delay, one frame black, and
+with a single LED each frame is 24 × 1.25 µs = 30 µs. The channel is busy for
+under 100 µs a few times per five seconds. Runtime contention is nil. The
+conflict is entirely at configuration time, over a `rmt_sclk` both channels must
+live with permanently.
+
+Filtering the candidate ticks against WS2812 timings — T0H 350 ns, T1H 700 ns,
+T0L 800 ns, T1L 600 ns, each ±150 ns — killed k = 1 and k = 2 and nothing else.
+At k = 1 the fastest `rmt_sclk` any factorisation of 8346 allows gives a 975 ns
+tick, which cannot place a 350 ns interval at all.
+
+**Reading the driver mattered more than the filter.** Five facts out of the
+installed ESP-IDF and ESPHome 2026.7.4, all of which change the shape of the
+problem:
+
+- The group clock source is shared and a mismatch is fatal. In
+  `rmt_common.c:199` the first channel created sets `group->clk_src`; a later
+  channel asking for a different one is refused with `ESP_ERR_INVALID_ARG` and
+  the log line "group clock conflict".
+- `esp32_rmt_led_strip` asks for `RMT_CLK_SRC_DEFAULT`, which on the C3 resolves
+  to APB, and sets `resolution_hz` to the full source frequency
+  (`led_strip.cpp:96-97`). So it claims APB at group prescale 1.
+- The first channel also wins the group prescale, and the search that picks it
+  (`s_rmt_set_group_prescale`, `rmt_common.c:146`) starts at 1 and takes the
+  first value where the channel prescale fits in 256 — optimising for highest
+  frequency, explicitly, rather than for anyone's rounding error.
+- The driver never uses the fractional divider. It hardcodes
+  `rmt_ll_set_group_clock_src(..., group_prescale, 1, 0)`, so `DIV_A`/`DIV_B` are
+  unreachable from the public API. The integer-D objective happens to align with
+  that exactly, so it costs nothing here.
+- At ESPHome's stock settings the LED consumes both transmit channels.
+  `light.py:85` defaults `rmt_symbols` to 96 on the C3; `rmt_tx.c:115` converts
+  that to 96/48 = 2 memory blocks; and the comment at `rmt_tx.c:105` spells out
+  the consequence — "a channel can take up its neighbour's memory block, so the
+  neighbour channel won't work". With only two transmit candidates on this part,
+  a two-block LED channel leaves none. `rmt_symbols: 48` in the YAML fixes it and
+  is not optional.
+
+One aside undercuts the original reason for rejecting APB: when power management
+is enabled the driver takes an `ESP_PM_CPU_FREQ_MAX` lock per channel
+(`rmt_common.c:230`), with a comment saying it does so even for APB to keep RMT
+stable. The frequency-scaling hazard is one the driver already defends against.
+
+**Where it landed.** The priority was stated as signal precision first, with the
+LED to be taken off RMT entirely if sharing cost anything — a defensible trade,
+since one frame per LED state change is trivial to bit-bang. It turned out to
+cost nothing. With the LED holding the group clock at APB 80 MHz and prescale 1,
+only `DIV_CNT` ≤ 256 is left, which caps how coarse the transmitter's tick can
+be; and because APB at 80 MHz is exactly twice XTAL at 40 MHz, nine values of k
+give an identical tick and identical error on both firmware paths. The choice is
+**k = 78**: `DIV_CNT` 107 off XTAL on the standalone path, 214 off APB under
+ESPHome, a 2.675 µs tick either way, 1T = 78 ticks and 2T = 156 against a 32767
+ceiling, at +14.38 ppm. Both paths emit the same waveform, which is what
+`CLAUDE.md`'s rule about RF changes landing in both wants. Two conditions come
+with it besides the memory setting: APB has to be requested explicitly rather
+than inherited, since otherwise a boot failure depends on component
+initialisation order, and the driver will log a "channel resolution loss" warning
+because 80 MHz / 214 is not a whole number of hertz, which is arithmetic rather
+than a real loss.
+
+Incidental, and it closes an open question standing in `CLAUDE.md`:
+`RMT_LL_MAX_LOOP_COUNT_PER_BATCH` is 1023, so the C3 does have hardware transmit
+looping and continuous output does not necessarily need a wrap-around refill
+interrupt. What that buys, and what happens at the seam between loop iterations
+given that burst contiguity is the property this whole firmware turns on, is the
+next session.
+
 ### 2026-09-08
 
 No code and nothing on the air. The remaining open item on this project is moving

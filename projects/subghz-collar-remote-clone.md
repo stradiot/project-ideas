@@ -19,21 +19,70 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The frame is decoded and the repository documents it accurately; what remains is
-one software item and two that need hardware. The software item is the RMT
-migration, now started. Reading the LOLIN C3 Mini schematic and the ESP32-C3
-datasheet established that GPIO8 carries a strapping role only until reset
-completes and is an ordinary pin afterwards, so GDO0 can take an RMT channel
-through the GPIO matrix, and an 88-run frame is 44 symbols against a 48-word
-channel block. Next is the RMT chapter of the technical reference manual, and the
-first question for it is clocking — which source clock and divider give a usable
-tick against T = 208.647 µs and a 15-bit duration field. The two hardware items
-are unchanged: a second remote to separate handset identity from protocol
+The frame is decoded and the RMT migration now has its clock chain settled: k =
+78 ticks per symbol period, a 2.675 µs tick at +14.38 ppm, reached as `DIV_CNT`
+107 off XTAL on the standalone path and 214 off APB under ESPHome, so both paths
+emit the same waveform. It coexists with the onboard WS2812B on the same
+peripheral provided `rmt_symbols: 48` in the YAML stops the LED claiming both
+transmit channels. No RMT code is written yet. Next is transmit wrap and loop
+mode — the C3 does have hardware looping, capped at 1023 iterations per batch —
+and the question is how to build a contiguous burst from it. The two hardware
+items are unchanged: a second remote to separate handset identity from protocol
 framing, and a scope on the collar to learn what the transmitted level value
 means.
 
 ## Lessons
 
+- **A clock's rounding error is a property of the rate, not of how that rate is
+  partitioned, so sharing a clock domain costs resolution and never accuracy.**
+  Picking RMT divider settings for T = 208.647 µs looked like a trade between a
+  fine tick and the 15-bit period field, and it is not. Reparameterising on k,
+  the number of ticks per symbol, makes the required total divisor D = N/k where
+  N = 8345.88 source cycles per symbol at 40 MHz — and every k whose rounded D
+  satisfies k·D = 8346 produces the *same clock*, differing only in how the
+  division is split between the group divider, the channel divider and the
+  period field. Fifteen rows of a swept table shared one error figure, +14.38
+  ppm, for that reason. The practical payoff was that the onboard LED, which
+  holds the group clock at APB 80 MHz prescale 1 and so caps how coarse a tick
+  the transmitter can reach, turned out to constrain only which k was available
+  and not how accurate it was — two requirements that looked opposed were
+  constraints on different quantities. For scale, the shipped bit-banged tick of
+  209 µs is 1692 ppm, and the measurement behind 208.647 carries about 3.7 ppm
+  per sample of endpoint uncertainty.
+  [[subghz-collar-remote-clone-log#2026-09-10]]
+- **An RC oscillator is the wrong escape from a clock that moves, and "default"
+  plus "adjustable" in a datasheet is the tell.** Rejecting APB_CLK as an RMT
+  source was correct — it follows whatever the CPU clock is sourced from, so
+  frequency scaling can move it mid-transmission. Choosing RC_FAST_CLK instead
+  was not, and rested on "there is no external oscillator", which conflated the
+  32.768 kHz crystal this board genuinely does not populate with the 40 MHz one
+  it must have, since the C3's radio cannot run without it and the device runs
+  Wi-Fi. The device working was the proof; no document was needed. The mechanism
+  underneath is that an RC oscillator takes its frequency from an on-die
+  resistor and capacitor, both varying with process, temperature and supply,
+  which is why the manual says 17.5 MHz *by default* and *adjustable*, whereas a
+  crystal is a mechanical resonator good to parts per million. Boot-time
+  calibration against the crystal pins down where RC_FAST is at boot and does
+  nothing about drift after it. A separate half of the same reasoning also
+  turned out moot: ESP-IDF takes an `ESP_PM_CPU_FREQ_MAX` lock per RMT channel
+  specifically to hold APB still.
+  [[subghz-collar-remote-clone-log#2026-09-10]]
+- **An assertion written into project documentation is indistinguishable from a
+  finding a week later, and the tell is the absence of a source rather than the
+  presence of a connective.** `CLAUDE.md` and the project note both carried a
+  list of RMT "peripheral facts already established" — symbol format, block
+  sizes, 88 runs as 44 symbols — that had never been read out of the reference
+  manual by anyone. One was wrong: symbols and words are the same object there,
+  so 44 *words* against a 48-word block, and the stated version double-counted.
+  This is the same laundering as the retractions on 2026-09-07 but arrived at
+  from a different direction — there the load-bearing half followed a *so* and
+  had no measurement behind it, here there was no inference at all, just an
+  unsourced claim that hardened by being written down. Grepping for connectives
+  will not find this class; what finds it is that a settled fact about a
+  peripheral should be able to name a section number, a register or a header,
+  and these named nothing.
+  [[subghz-collar-remote-clone-log#2026-09-07]],
+  [[subghz-collar-remote-clone-log#2026-09-10]]
 - **A strapping pin that is don't-care in the normal boot mode is the dangerous
   one, because forcing it wrong yields a board that boots perfectly and can never
   be reflashed.** The ESP32-C3 samples GPIO2, GPIO8 and GPIO9 during reset and
