@@ -19,20 +19,55 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The frame is decoded and the RMT migration now has its clock chain settled: k =
-78 ticks per symbol period, a 2.675 µs tick at +14.38 ppm, reached as `DIV_CNT`
-107 off XTAL on the standalone path and 214 off APB under ESPHome, so both paths
-emit the same waveform. It coexists with the onboard WS2812B on the same
-peripheral provided `rmt_symbols: 48` in the YAML stops the LED claiming both
-transmit channels. No RMT code is written yet. Next is transmit wrap and loop
-mode — the C3 does have hardware looping, capped at 1023 iterations per batch —
-and the question is how to build a contiguous burst from it. The two hardware
+The frame is decoded and the RMT design is settled on paper: a 2.675 µs tick at
++14.38 ppm on both firmware paths (k = 78, `rmt_symbols: 48` under ESPHome), and
+continuous TX mode looping one frame of 88 entries plus an end marker in the 45th
+of 48 words, with the 10-bit loop count covering up to 1023 frames, about 24 s, in
+one batch. The frame survives looping, since 88 runs put a real LOW→HIGH edge at
+every seam. No RMT code is written yet. Before implementation: what the C3 does
+when the loop count is reached, which the manual leaves unsaid, and the TRM's 33.2
+and 33.3 timing relations checked against the chosen clocks. After it, the collar
+beeping reliably is the gate, and an SDR comparison of frame periods with and
+without a seam shows whether the jump back adds output time. The two hardware
 items are unchanged: a second remote to separate handset identity from protocol
 framing, and a scope on the collar to learn what the transmitted level value
 means.
 
 ## Lessons
 
+- **A transmission that ends on a LOW run loses that run, and a stored frame can
+  only be looped by the RMT if its run count is even.** A run lasts from its
+  opening edge to its closing edge, so n edges bound n − 1 runs; a LOW run is
+  closed only by a rising edge, silence never supplies one, and AAA and AAAA
+  followed by silence are the same waveform. Protocols either append a data-free
+  closing burst — NEC IR's final 562.5 µs burst exists to close the 32nd bit's
+  space — or make the last run constant, as run 87 of this frame is. Parity is a
+  separate constraint from a separate place. A receiver measuring durations cannot
+  tell an inverted copy from a straight one, so an odd-length frame is a legal
+  protocol that repeats as alternately inverted copies; but the RMT stores a level
+  bit in every entry and replays the block verbatim, so continuous TX mode can
+  only loop an even-length frame without merging two runs at the seam. The 88-run
+  frame passes, and the LOW→HIGH edge at each seam is what gives run 87 its
+  duration. The argument first reached for — a transmission must start HIGH and
+  end LOW because of the silence around it — lands on the right answer for the
+  wrong reason, because the seam has no silence next to it.
+  [[subghz-collar-remote-clone-log#2026-09-10]]
+- **A decode that passes is not a timing measurement, because a decoder is built
+  to round small errors away.** Rounding runs to 1T or 2T makes a run 87 stretched
+  by anything under half a symbol — 104.3 µs, 39 RMT channel ticks — decode
+  identically to a perfect one, so a clean decode says nothing about any seam
+  effect a peripheral could plausibly add. Timing at the µs scale comes from frame
+  start to frame start between rising edges at the same structural position, as
+  the base tick did. Two traps come with it: comparing against a captured
+  reference cancels the capture clock's fixed offset but measures, rather than
+  removes, every error on the device under test (RMT rounding +14.38 ppm and the
+  C3's ±10 ppm crystal requirement, under 0.6 µs per 113-tick frame together); and
+  across whole frames a rate error and a per-seam stretch both add a constant per
+  frame, so separating them needs a span with no seam against one that crosses a
+  seam. Whether it works is decided by the functional gate — same decode, collar
+  beeps — and the period measurement answers a narrower question about the
+  peripheral; not keeping those apart is how the rigour kept escalating past the
+  decision. [[subghz-collar-remote-clone-log#2026-09-10]]
 - **A clock's rounding error is a property of the rate, not of how that rate is
   partitioned, so sharing a clock domain costs resolution and never accuracy.**
   Picking RMT divider settings for T = 208.647 µs looked like a trade between a

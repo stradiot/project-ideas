@@ -10,6 +10,229 @@ The project note is [[subghz-collar-remote-clone]].
 
 ### 2026-09-10
 
+A second session the same day, and again no code and nothing on the air. It
+picked up where the clock chain left off — what the RMT transmitter does with its
+buffer once the tick is fixed — and settled three things: which transmit mode
+builds a burst of back-to-back frames, whether the frame's own content survives
+being looped, and how the one part the manual does not describe gets measured.
+
+**It opened by running ahead, again.** The question was only whether TX wrap
+mode came next. What came back was the whole wrap-versus-loop comparison read out
+of the ESP-IDF driver: which modes the driver treats as exclusive, where the 1023
+cap comes from, where a batch seam falls. None of that was established — the
+previous session had ended at the clock and never touched transmit behaviour —
+and every point cited a driver line and no section of the manual, which is the
+unsourced-claim shape already in Lessons. It was set aside and the transmitter
+part of TRM chapter 33 (v1.4, pages 843–865) was read first-hand instead.
+
+**The transmit modes.** Normal mode starts on `RMT_TX_START_CHn`, reads from the
+channel's lowest RAM address, and stops at a zero-period entry, the end marker,
+raising `RMT_CHn_TX_END_INT`; `RMT_TX_STOP_CHn` aborts mid-transmission. The idle
+output level comes either from the end marker's level bit or from
+`RMT_IDLE_OUT_LV_CHn`, selected by `RMT_IDLE_OUT_EN_CHn`, so idle is not
+necessarily low.
+
+Wrap mode (`RMT_MEM_TX_WRAP_EN_CHn`) exists for more pulse codes than fit in the
+channel's RAM. The read pointer runs off the end of the channel's allocation and
+back to its start until it meets an end marker; `RMT_CHn_TX_THR_EVENT_INT` fires
+after `RMT_TX_LIM_CHn` entries, and software rewrites the region already sent.
+My first reading needed two corrections. The rewritable region is the one
+*behind* the pointer, not "any address not currently being sent" — writing ahead
+of it races the transmitter. And the wrap happens within the channel's own
+`RMT_MEM_SIZE_CHn` blocks, which extend only upward, so only channel 0 could ever
+span all 192 words. One 44-word frame fits in a block, so wrap is not needed.
+ESP-IDF turns it on for every TX channel regardless (`rmt_tx.c:334`), because it
+is how ordinary long transmissions get refilled.
+
+Continuous mode (`RMT_TX_CONTI_MODE_CHn`, 33.3.4.4) restarts from the first entry
+at an end marker, or after the block's last entry if there is none. With
+`RMT_TX_LOOP_CNT_EN_CHn` set, a counter increments on each end marker and
+`RMT_CHn_TX_LOOP_INT` fires when it reaches `RMT_TX_LOOP_NUM_CHn`. That is the
+burst: one frame in RAM, repeated in hardware. The end marker is required rather
+than tidy, since it is the thing being counted. 88 runs fill 44 words exactly, so
+the marker takes the 45th, still inside the 48-word block.
+
+**The loop count, and three arithmetic slips.** I read the count as a 9-bit
+field allowing 512 frames. The width was wrong: Register 33.16 puts
+`RMT_TX_LIM_CHn` at bits 8:0 and `RMT_TX_LOOP_NUM_CHn` at 18:9, and 18:9 counted
+inclusively is ten positions, so the maximum is 1023 — which is also
+`RMT_LL_MAX_LOOP_COUNT_PER_BATCH` in `hal/esp32c3/include/hal/rmt_ll.h`. The
+value was argued wrong too: that a zero-based field makes 511 the 512th frame.
+That convention holds only where the manual writes the offset —
+`RMT_SCLK_DIV_NUM + 1`, `RMT_CARRIER_HIGH_CHn + 1`, `RMT_DIV_CNT` with 0 meaning
+256 — and for the loop count it writes none. The interrupt fires when a count of
+end markers "reaches the value set", so the value is a count, and the IDF
+low-level driver writes the requested count into the field unchanged
+(`rmt_ll_tx_set_loop_count`). Whether a field is a count or an index depends on
+what the hardware compares it against, not on a default. The duration was the
+third: 1023 × 88 × T = 18.8 s treats 88 runs as 88 ticks, when frames run 109 to
+113 ticks. At 113 ticks × 208.647 µs, 1023 frames is about 24.1 s. A beep is under
+5 s, so one batch covers it with a wide margin and the batch boundary never
+arises.
+
+**The end-marker timing constraint.** 33.3.4.4 adds a condition: in continuous
+mode the entry before a zero-period end marker must satisfy 10 × Tapb_clk + 19 ×
+Trmt_sclk < period × Tclk_div, where every other non-zero entry only needs 33.1,
+5 × Tapb_clk + 6 × Trmt_sclk < period × Tclk_div. The right-hand side is the
+entry's real duration; the left is a fixed time built from the APB clock and the
+RMT working clock. Both are minimum pulse widths. The manual never derives 5, 6,
+10 or 19, so what follows is a reading and not a finding: the RAM sits on the APB
+bus while the transmitter counts on rmt_sclk, so fetching the next entry crosses
+between the two clocks and takes a few cycles of each, and any entry has to
+outlast that. At an end marker in continuous mode there is more to do before
+output resumes — recognise the zero, count, reset the read pointer, fetch entry
+0 — hence a longer minimum on the entry before it. That would also explain why
+Tapb_clk appears on the standalone path at all, where RMT counts off XTAL.
+Neither 33.3 against run 87 nor 33.2, a relation between the two clocks (1.5 ×
+Tapb_clk < 9 × Trmt_sclk), has been checked against the clock chain chosen
+earlier today.
+
+**Modulation, and what OOK actually is.** With `RMT_CARRIER_EN_CHn` set, a square
+wave high for `RMT_CARRIER_HIGH_CHn + 1` and low for `RMT_CARRIER_LOW_CHn + 1`
+rmt_sclk cycles (16 bits each, `RMT_CHnCARRIER_DUTY_REG`) fills the high runs of
+the output, or the low runs if `RMT_CARRIER_OUT_LV_CHn` is cleared;
+`RMT_CARRIER_EFF_EN_CHn` decides whether it also runs during idle. I could not see
+what that added over normal mode, which already produces time high and time low,
+and "OOK is exactly that". That was the misconception. Time high and time low is
+the *envelope*. OOK is a carrier switched on and off by the envelope. In this
+device GDO0 carries only the envelope, and the OOK signal exists only at the
+CC1101's antenna, because the CC1101 synthesises the 869.525 MHz carrier and
+gates its power amplifier with GDO0. A fixed-frequency carrier with the pulses on
+top at a high or low amplitude is exactly what the RMT does, once a GPIO's only
+two amplitudes are applied: carrier present or carrier absent. It matters wherever
+nothing downstream makes a carrier — an IR LED emits only while current flows.
+
+Normal mode could write the carrier out cycle by cycle, and the reason the carrier
+stage exists is what that costs. An NEC IR frame at 38 kHz — a 9 ms burst, a
+4.5 ms space, 32 bits each a 562.5 µs burst plus a 562.5 µs or 1687.5 µs space,
+and a final 562.5 µs burst — is 67 envelope entries, about 34 words, one block.
+With the carrier written out, the 9 ms burst alone is 342 cycles and 684 entries,
+and the whole frame about 1050 words against 192 in the entire peripheral. The
+carrier also counts rmt_sclk directly rather than channel ticks, so it gets fine
+timing while the envelope keeps a tick coarse enough to fit 9 ms into 15 bits. Its
+ceiling is one cycle high plus one low, half of rmt_sclk, so at most 40 MHz from
+APB at 80 MHz. An antenna on the pin never reaches 869 MHz, and even where the
+frequency is reachable a square wave's odd harmonics put a driver and a tuned
+circuit between pin and radiator. Where it earns its place: IR remotes, the
+peripheral's namesake (33.1); 40 kHz ultrasonic ranging; 125 kHz inductive links
+and RFID readers driving a coil tuned to resonance, where
+`RMT_CARRIER_EFF_EN_CHn` = 0 keeps the field up between commands.
+
+**Simultaneous mode.** Starting two channels from software is two writes to
+`RMT_TX_START_CHn`, and anything scheduled between them delays the second by an
+unbounded amount. `RMT_TX_SIM_EN` starts the channels selected in
+`RMT_TX_SIM_CHn` from one trigger, with the offset between them bounded within 3 ×
+Tclk_div (33.3.4.5). The first guess, differential pairs, does not fit: a
+differential pair needs every edge aligned, the bound covers only the start — up
+to about 8 µs at a 2.675 µs tick — and differential links are normally driven from
+one single-ended signal through a transceiver. It suits relative timing that is
+coarse against 3 ticks: a quadrature pair, a setup time between two lines such as
+a stepper's DIR before STEP, or two ultrasonic transducers steered by a controlled
+delay. The C3 has only two TX channels, which caps all of it.
+
+**Whether the frame survives being looped.** Burst contiguity is the property this
+firmware turns on, so the seam between the last entry and entry 0 had two halves:
+what the peripheral does there, which nothing read so far describes, and what the
+frame's content requires, which is independent of any peripheral. My first
+argument for the content half was that a transmission has to start HIGH, since a
+leading LOW is indistinguishable from the silence before it, and has to end LOW,
+since a transmitter cannot hold HIGH forever; so every frame starts HIGH and ends
+LOW, and the seam is a LOW→HIGH edge. The conclusion was right for this frame and
+the argument did not carry it.
+
+The silence argument constrains the two ends of a whole transmission, where the
+neighbour is silence. At the seam run 87 sits directly against run 0 and there is
+no silence. And "the exact same frames repeated" assumed the rest: what was
+measured identical across frames is durations — in a run-length code that is all
+there is to measure — and whether they are identical in levels too depends on the
+run count. An 87-run frame starting HIGH ends HIGH, so the next copy has to start
+LOW or two HIGH runs merge. An odd-length frame therefore repeats as alternately
+inverted copies, and a receiver that only measures durations cannot tell those
+from identical ones: AAA AAA goes HIGH-LOW-HIGH, LOW-HIGH-LOW. So odd run counts
+are not impossible in a protocol. What is impossible is looping an odd-length
+frame out of a single RMT block, because each 16-bit entry stores its own level
+bit (33.3.2) and the transmitter outputs it verbatim, never enforcing alternation.
+The rule belongs to the peripheral, not to the code.
+
+Drawing it out exposed the next slip. I had AAA followed by silence becoming
+AAAA, "because the transmitter has to go low eventually". Counting edges gave four
+for both AAA and AAAA followed by silence, and I concluded a receiver reads both as
+AAAA. But a run is the gap between consecutive edges, so four edges bound three
+runs: AAA and AAAA followed by silence are the same waveform, and both read as AAA.
+The fourth run of AAAA is LOW, a LOW run is closed only by a rising edge, and
+silence never produces one. What falls out is not about frame parity at all — a
+transmission that ends on a LOW run always loses that run — and protocols deal
+with it in one of two ways. NEC IR carries each bit in the space after a burst, so
+its 32nd space would run straight into silence; its final 562.5 µs burst carries
+no data and exists only to close that space. The other way is to make the
+unmeasurable run carry nothing.
+
+That second way is this frame. 88 runs is even, so a frame starting HIGH ends LOW
+and looping it puts a real LOW→HIGH edge at every seam. That edge, the opening
+edge of the next frame's run 0, is what gives run 87 its duration inside a press.
+On the last frame of a press run 87 is lost to silence, and it costs nothing
+because run 87 is always short. I first put that as "run 87 carries no
+information", which was stronger than the evidence: it is constant across what
+this handset sends, and whether it is also constant across handsets is part of
+the untested question about the 68 constant runs, which needs a second remote. The
+safe statement is that it carries nothing about the command. Information is about
+variation, not length — AAAA in the level field is four real bits, because each
+of those positions takes both values across the 20 dial settings.
+
+**Measuring the peripheral half.** The manual says only that the transmitter
+"starts transmitting the first data again", so this gets measured with the
+RTL-SDR once there is RMT output to capture. The first plan was the usual decode,
+calling the seam too large if the decode changed. That cannot work as a detector.
+The decode rounds every run to 1T or 2T, so run 87 only decodes as B once stretched
+past 1.5 T — half of 208.647 µs is 104.3 µs, exactly 39 channel ticks at k = 78 —
+and every seam effect a peripheral could plausibly add, from the sub-µs scale of
+33.3's left-hand side up to a few ticks, decodes identically to a perfect seam. A
+stretch would not add a run either: time spent at the seam is LOW, run 87 is LOW,
+and the two merge. The measurement that can see µs-scale timing is the one the base
+tick came from, frame start to frame start, rising edge to rising edge at the same
+structural position, where rise-time bias cancels.
+
+Sizing what else lengthens that period took two more corrections. The SDR's sample
+clock cancels between captures on the same dongle, but only its fixed offset, not
+drift across the weeks since the reference capture. The RMT's +14.38 ppm and the
+ESP's crystal error do not cancel against the real remote at all: comparing
+against a reference measures a difference, it does not remove one. The crystal
+requirement is in Espressif's ESP32-C3 Hardware Design Guidelines (Schematic
+Checklist, Clock Source): 40 MHz, accurate within ±10 ppm, trimmed by adjusting the
+load capacitors while measuring the 2.4 GHz test tone, because the radio's carrier
+comes from the same crystal. That is a requirement on board designers, not a
+measurement of this C3 Mini. Against the longest frame, 113 ticks or 23.58 ms, the
+rounding comes to about 0.34 µs and the crystal to at most about 0.24 µs — under
+0.6 µs together, a fifth of one channel tick and roughly one sample at 2 MSps. I
+also had it wrong that a rate error grows with the span while a seam stretch is
+fixed: over whole frames both add a constant per frame, so what separates them is a
+span with no seam in it against a span that crosses one. (The guidelines' old PDF
+URL now serves an HTML page; they live on docs.espressif.com.)
+
+**Where the precision stopped.** At that point the question became whether any of
+it mattered, and mostly it does not. The acceptance test is functional — the frame
+decodes the same and the collar beeps reliably — and the collar's history suggests
+a wide timing margin: the old payload ran every run at 200 µs, 4% short of
+208.647, and still beeped about 70% of the time, a shortfall later traced to burst
+structure rather than timing. A one-tick stretch on run 87 is 1.3% of one run.
+That is an inference from history, not a measurement of the collar. The rigour
+had kept tightening past what the decision needed, and "does it work" and "what
+exactly does the peripheral do" should have been separated several steps earlier.
+What stays is a single comparison, the period across a span containing a seam
+against a span without one, to learn whether continuous mode adds output time at
+the jump back — a fact about the chip worth having for anything that later loops
+RMT output.
+
+**Still open before implementation.** What the C3 does when the loop count is
+reached: 33.3.4.4 says only that an interrupt fires, not whether output stops, and
+that decides how a beep ends and whether the IDF `loop_count` API is usable as it
+stands. The manual cannot settle it; `soc/esp32c3/include/soc/soc_caps.h` and the
+loop-end handler in `esp_driver_rmt/src/rmt_tx.c` are where it is answered. Beside
+it, the arithmetic of 33.2 against the chosen clock pairing and of 33.3 against
+run 87. Then implementation, and then the seam measurement.
+
+### 2026-09-10
+
 No code, nothing on the air. The session was the RMT chapter of the ESP32-C3
 technical reference manual and the ESP-IDF source that drives the peripheral,
 and it closed the question blocking everything else: what a tick is worth, and
