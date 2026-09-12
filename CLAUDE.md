@@ -153,7 +153,7 @@ adjacency, or "I would learn that there first". **Using a thing is not the
 same as having built it** — every Linux board has a bootloader, and that does
 not put every Linux project behind the bootloader project. Courses are never
 a `depends:` for the same reason: they teach a skill, they do not produce an
-artifact anything consumes. Six edges across nineteen projects is the current
+artifact anything consumes. Six edges across twenty projects is the current
 state, and it should stay closer to that than to one edge per note.
 
 That rule runs in both directions, and the second half is the one that is easy

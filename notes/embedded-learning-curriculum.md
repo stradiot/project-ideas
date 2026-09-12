@@ -7,7 +7,7 @@ created: 2026-08-10
 
 Reference note. The map of five courses, of which
 [[embedded-linux-course]] is the first one written. It exists because
-nineteen project notes describe *what* to build and none of them describe
+twenty project notes describe *what* to build and none of them describe
 what has to be learned first, and it turned out that gap was mostly in the
 same four or five places every time.
 
@@ -672,7 +672,7 @@ is no decision to recover: reconstructing constraints from a known answer
 fits a curve, and it would produce a satisfying result every time regardless
 of whether the method is any good.
 
-The honest consequence goes further than the exercise. **The nineteen
+The honest consequence goes further than the exercise. **The platform
 selections in `projects/` are not evidence that this skill has been
 practised.** They are evidence of an inventory and a set of platform
 interests, which is a legitimate way to pick parts for a project that is
@@ -872,3 +872,7 @@ test — that a project has to end up used, not demonstrated:
   the most reused skill set in the vault
 - [[zephyr-devicetree]] — the first reference note written here, and a good
   example of the shape the course modules take
+- [[drill-app]] — retrieval practice on item five of the ranking above and
+  deliberately none of the first four, which is also the honest limit on how
+  much of this map a phone can reach; it sits beside the courses rather than
+  being a sixth one

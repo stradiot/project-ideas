@@ -1,10 +1,12 @@
 # Project Ideas
 
 Personal vault for hardware, embedded and RF projects — what to build, why
-that one rather than an easier one, and what each is for learning.
+that one rather than an easier one, and what each is for learning. One entry
+is tooling for the learning itself rather than a build, and is grouped apart
+from the hardware tracks for that reason.
 
 Most of what follows is a plan rather than a finished thing, and `status:`
-on every note says which is which: of nineteen projects, two are built, one
+on every note says which is which: of twenty projects, two are built, one
 is being designed, one is parked with the reason written down, and the rest
 are specified and waiting. The spec comes before the build deliberately.
 Deciding where the build-it/buy-it line sits, and how far a project should
@@ -133,6 +135,7 @@ Everything whose prerequisites are already built. Derived from `depends:` and
 - `analog-am-transmitter-receiver`
 - `bare-metal-bootloader`
 - `ble-sensor-node-pcb`
+- `drill-app`
 - `embedded-linux-course`
 - `freertos-pocket-console`
 - `home-assistant-rotary-controller`
@@ -143,7 +146,7 @@ Everything whose prerequisites are already built. Derived from `depends:` and
 - `usb-device-and-linux-driver`
 - `uwb-precision-locator`
 
-Twelve of nineteen, which is the point: very little here genuinely blocks
+Thirteen of twenty, which is the point: very little here genuinely blocks
 anything else, and a list that long stops being a recommendation. Only four
 projects are actually waiting on something, and they are marked below.
 
@@ -203,6 +206,14 @@ Status in brackets, with what a project is waiting on where it is waiting.
 - `rc-car-custom-controller` *[idea]* — RC link decode, actuators, failsafe, a real PID — cheaply
 - `printed-rc-plane` *[idea]* — printed airframe flown manually, then a wing leveller of my own
 - `custom-flight-controller-drone` *[idea, waiting on `rc-car-custom-controller`]* — attitude loop and hover on a printed ducted whoop; last on purpose
+
+**Learning tooling**
+
+Not a track in the sense the others are — it builds nothing physical and
+teaches nothing the tracks above need. It is here because it practises their
+material.
+
+- `drill-app` *[idea]* — phone drills for the arithmetic and physics the other tracks assume; alongside the courses, not ahead of them
 
 Every project is chosen for what it teaches, first and above everything
 else. That is the criterion that decides what gets built, which parts are
