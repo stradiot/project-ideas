@@ -19,18 +19,19 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The frame is decoded and the RMT design is settled on paper: a 2.675 µs tick at
-+14.38 ppm on both firmware paths (k = 78, `rmt_symbols: 48` under ESPHome), and
-continuous TX mode looping one frame of 88 entries plus an end marker in the 45th
-of 48 words, with the 10-bit loop count covering up to 1023 frames, about 24 s, in
-one batch. The frame survives looping, since 88 runs put a real LOW→HIGH edge at
-every seam. No RMT code is written yet. Before implementation: what the C3 does
-when the loop count is reached, which the manual leaves unsaid, and the TRM's 33.2
-and 33.3 timing relations checked against the chosen clocks. After it, the collar
-beeping reliably is the gate, and an SDR comparison of frame periods with and
-without a seam shows whether the jump back adds output time. The two hardware
-items are unchanged: a second remote to separate handset identity from protocol
-framing, and a scope on the collar to learn what the transmitted level value
+The RMT path is written and compiles on both firmware paths, and **nothing has been
+on the air** — until a board is flashed and the collar beeps, it is untested code
+rather than a working feature. Transmission is one contiguous run of 132 frames
+looped in hardware, so `FRAMES_PER_BURST` / `TRANSMIT_GAP_US` / `TRANSMIT_REPEAT`
+collapse into `BEEP_DURATION_MS` and the radio logic is shared between the two paths
+instead of duplicated. Both paths now run APB at `DIV_CNT` 214: the status LED is the
+other RMT client and the group clock is shared, so the earlier XTAL-on-standalone
+plan would have hard-failed. The payload was also rebuilt at the canonical frame cut,
+the old array having been the same frame rotated by two runs. First hardware check is
+not RF but a boot where the LED lights *and* `rmt_beep::init()` returns `ESP_OK`;
+then the collar, then the SDR comparison of frame periods across a loop seam. The two
+hardware questions are unchanged: a second remote to separate handset identity from
+protocol framing, and a scope on the collar to learn what the transmitted level value
 means.
 
 ## Lessons
@@ -85,23 +86,46 @@ means.
   209 µs is 1692 ppm, and the measurement behind 208.647 carries about 3.7 ppm
   per sample of endpoint uncertainty.
   [[subghz-collar-remote-clone-log#2026-09-10]]
-- **An RC oscillator is the wrong escape from a clock that moves, and "default"
-  plus "adjustable" in a datasheet is the tell.** Rejecting APB_CLK as an RMT
-  source was correct — it follows whatever the CPU clock is sourced from, so
-  frequency scaling can move it mid-transmission. Choosing RC_FAST_CLK instead
-  was not, and rested on "there is no external oscillator", which conflated the
-  32.768 kHz crystal this board genuinely does not populate with the 40 MHz one
-  it must have, since the C3's radio cannot run without it and the device runs
-  Wi-Fi. The device working was the proof; no document was needed. The mechanism
-  underneath is that an RC oscillator takes its frequency from an on-die
-  resistor and capacitor, both varying with process, temperature and supply,
-  which is why the manual says 17.5 MHz *by default* and *adjustable*, whereas a
-  crystal is a mechanical resonator good to parts per million. Boot-time
-  calibration against the crystal pins down where RC_FAST is at boot and does
-  nothing about drift after it. A separate half of the same reasoning also
-  turned out moot: ESP-IDF takes an `ESP_PM_CPU_FREQ_MAX` lock per RMT channel
-  specifically to hold APB still.
-  [[subghz-collar-remote-clone-log#2026-09-10]]
+- **An RMT channel does not choose its own clock: the source and the group
+  prescale belong to the group, and the first channel created fixes both for
+  every later one.** Two thirds of a session went on picking a source, and the
+  choice was never free. On the C3 `RMT_CLK_SRC_DEFAULT` is APB, both status-LED
+  drivers here ask for the default (`Adafruit_NeoPixel` does not bit-bang on
+  ESP32 — `esp.c` calls `rmtInit`), and `rmt_common.c` returns a hard
+  `ESP_ERR_INVALID_ARG`, "group clock conflict", on any later mismatch. Asking
+  for XTAL on the standalone path would therefore have killed whichever channel
+  was created second, and since `rmtInit` is called lazily from inside
+  `espShow()` rather than at `begin()`, which one lost would have depended on
+  runtime flow. Rejecting RC_FAST_CLK stays right, for the mechanism worth
+  keeping: an RC oscillator takes its frequency from an on-die resistor and
+  capacitor that vary with process, temperature and supply — "17.5 MHz *by
+  default*, *adjustable*" is the tell — where a crystal is a mechanical
+  resonator good to parts per million, and boot-time calibration pins down where
+  RC_FAST is at boot and nothing about its drift after. Rejecting APB was wrong,
+  and moot three times over: `CONFIG_PM_ENABLE is not set`, the CPU is pinned at
+  160 MHz, and the driver takes an `ESP_PM_CPU_FREQ_MAX` lock per channel. The
+  reassuring half is that the LED does not constrain the radio — asking for
+  10 MHz off 80 MHz settles the group on prescale 1, which is the prescale the k
+  table already assumed.
+  [[subghz-collar-remote-clone-log#2026-09-10]],
+  [[subghz-collar-remote-clone-log#2026-09-12]]
+- **The ESP32-C3's RMT loop counter reports, it does not stop, and the way that
+  is discoverable is the absence of a macro rather than the presence of one.**
+  `SOC_RMT_SUPPORT_TX_LOOP_COUNT` is defined; `SOC_RMT_SUPPORT_TX_LOOP_AUTO_STOP`
+  is not defined anywhere for this part, and `#if !SOC_RMT_SUPPORT_TX_LOOP_AUTO_STOP`
+  in `rmt_tx.c` is a negation of an undefined identifier, which the preprocessor
+  evaluates as `!0` — so the workaround branch compiles in and stops the channel
+  from the driver's own ISR, under a comment admitting symbols have already
+  "sneaked out". A looped transmission therefore emits the requested frame count
+  plus interrupt latency and can be cut mid-frame. That is safe here only because
+  the driver forces the idle level from a register rather than reading it off the
+  end marker — `rmt_ll_tx_fix_idle_level(..., eot_level, true)`, where the `true`
+  is the load-bearing argument — so the pin rests low even on a mid-frame abort.
+  With `false` there, an abort during a HIGH run would leave GDO0 high and the
+  CC1101's PA gated on. The general form: a capability macro that is missing reads
+  as zero, which is what makes the idiom work and also what would make a typo
+  silently select the "unsupported" path.
+  [[subghz-collar-remote-clone-log#2026-09-12]]
 - **An assertion written into project documentation is indistinguishable from a
   finding a week later, and the tell is the absence of a source rather than the
   presence of a connective.** `CLAUDE.md` and the project note both carried a

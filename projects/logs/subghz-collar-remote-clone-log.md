@@ -8,6 +8,143 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-12
+
+The session that closed the last open question and then wrote the code. Three
+things came off the list before implementation — what the C3 does when the loop
+count is reached, and the two timing relations in TRM chapter 33 that had never
+been checked against the chosen clocks — and a fourth, which was not on the list
+at all, turned out to overturn a decision that had been treated as settled since
+2026-09-10.
+
+**The loop count reports; it does not stop.** `soc/esp32c3/include/soc/soc_caps.h`
+defines `SOC_RMT_SUPPORT_TX_LOOP_COUNT 1` and says nothing at all about
+`SOC_RMT_SUPPORT_TX_LOOP_AUTO_STOP`. In `esp_driver_rmt/src/rmt_tx.c` the outer
+`#if SOC_RMT_SUPPORT_TX_LOOP_COUNT` compiles the loop-end handler in, and the
+inner `#if !SOC_RMT_SUPPORT_TX_LOOP_AUTO_STOP` is a negation of an *undefined*
+identifier, which the C preprocessor evaluates as `!0` — so the workaround branch
+is live, and it calls `rmt_ll_tx_stop()` under a comment admitting that "some rmt
+symbols have sneaked out". That settles the design question the manual could not:
+`RMT_CHn_TX_LOOP_INT` fires, software stops the channel, and the number of frames
+actually emitted is the requested count plus however long the interrupt took to be
+serviced. The transmission can therefore be cut mid-frame. Worth carrying past this
+project: `#if` on a macro that does not exist is not an error, it is zero, which is
+what makes the idiom work and also what would make a misspelled capability macro
+silently take the "unsupported" branch.
+
+**Where the pin rests after an abort, and the step I stopped one short of.** My
+first answer was that the level is user-configurable, pointing at `eot_level` in
+`rmt_transmit_config_t` and `init_level` in the channel config. True of the config
+struct, and it did not answer the question, which was about an abort rather than a
+clean end. The mechanism is at `rmt_tx.c:759`:
+`rmt_ll_tx_fix_idle_level(hal->regs, channel_id, t->flags.eot_level, true)` — that
+last argument sets `RMT_IDLE_OUT_EN_CHn`, so the driver never takes the TRM's other
+option of reading the level from the end marker. The resting level is a register
+override applied whenever the channel is not transmitting, which is exactly why it
+survives being stopped in the middle of a HIGH run. Had the driver passed `false`
+there, an abort mid-frame would have left GDO0 high and the CC1101's power
+amplifier gated on — an unmodulated carrier on 869.525 MHz until something else
+touched the pin.
+
+**The two arithmetic checks, and a direction I had backwards.** Equation 33.2 is
+`1.5 x Tapb < 9 x Trmt_sclk`; substituting periods for frequencies gives
+`f_rmt < 6 x f_apb`. That is an **upper** bound on the RMT working clock, not a
+lower one: it stops the counting side outrunning the APB side that feeds it, so
+dividing down — which is all the k-table work ever did — can never violate it. The
+standalone pairing (XTAL 40 MHz against APB 80) clears it 12x, and the ESPHome
+pairing is degenerate, since rmt_sclk *is* APB and the inequality reduces to
+`f < 6f`. Equation 33.3, against run 87, is `10 x Tapb + 19 x Trmt_sclk` — 600 ns
+on the XTAL pairing, 362.5 ns on the APB one — against 78 ticks of 2.675 us, which
+is 208.65 us. Margins of 348x and 576x. Both relations get *easier* as rmt_sclk
+speeds up relative to APB, because they bound a cross-domain handshake; the
+intuition that a faster clock is the risky choice is the wrong way round here.
+
+**Why the two paths were about to use different clocks, and why they must not.**
+The 2026-09-10 clock chain had the standalone path on XTAL with `DIV_CNT` 107 and
+the ESPHome path on APB with `DIV_CNT` 214, on the reasoning that the LED claims
+the group clock under ESPHome and the standalone path has the peripheral to
+itself. That second half was never checked and is false. `Adafruit_NeoPixel` does
+not bit-bang on ESP32: `esp.c:81` calls
+`rmtInit(pin, RMT_TX_MODE, RMT_MEM_NUM_BLOCKS_1, 10000000)`, the Arduino wrapper at
+`esp32-hal-rmt.c:587` sets `tx_cfg.clk_src = RMT_CLK_SRC_DEFAULT`, and
+`clk_tree_defs.h:188` defines that as APB on the C3. Meanwhile `rmt_common.c:199`
+stores the first channel's source on the *group* and returns `ESP_ERR_INVALID_ARG`,
+"group clock conflict", for any later mismatch. So asking for XTAL on the standalone
+path would have hard-failed whichever channel was created second — and `rmtInit` is
+called lazily from inside `espShow()`, meaning on the first `strip.show()` rather
+than at `strip.begin()`, so which one lost would have depended on runtime flow. The
+worst possible shape for a failure.
+
+The only thing XTAL bought was immunity to APB moving underneath a transmission,
+and that is moot three times over: `CONFIG_PM_ENABLE is not set` in the Arduino
+sdkconfig, the CPU is pinned at 160 MHz so APB is a fixed 80, and the driver takes
+an `ESP_PM_CPU_FREQ_MAX` lock per non-DMA channel anyway. There is a bonus in the
+group *prescale*, which is shared by the same mechanism: the first channel searches
+upward from 1 and takes the highest group resolution that yields a workable channel
+divider, and the LED asking for 10 MHz off 80 MHz settles on prescale 1 immediately
+— which is the prescale the whole k table assumed. So the LED does not constrain
+the radio here, it hands it the clock it wanted. One divider on both paths, 214, a
+2.675 us tick, and a bit-identical waveform by construction rather than by
+arithmetic coincidence.
+
+**The implementation, which I handed over.** The three things worth doing by hand
+were the buffer builder, the first bring-up observation, and one design decision;
+I took the decision and gave away the rest. The decision was retrigger policy:
+ignore-while-busy, because this device exists to emit one precise 3 s beep per
+press and not to reproduce the original remote's press-and-hold. That was already
+the ESPHome behaviour by accident — `mode: single` drops a second execution — and
+is now deliberate on both paths.
+
+What came out: a shared `include/rmt_beep.h` holding the whole transmit core, and
+for the first time the radio logic is not duplicated. Every documented difference
+between the two paths — who suspends the scheduler and for how long, who feeds the
+watchdog, which timing engine runs — existed only because the CPU generated the
+waveform, so all of it evaporated together. `FRAMES_PER_BURST`, `TRANSMIT_GAP_US`
+and `TRANSMIT_REPEAT` collapse into `BEEP_DURATION_MS`, which the firmware rounds
+to 132 frames of 22.743 ms. `BASE_TICK_US` 209 becomes `SYMBOL_TICKS` 78, which
+moves the scalar the payload is parameterised by out of whole microseconds and into
+channel ticks, from 1692 ppm to 14.38 ppm without touching a single run length.
+
+One invariant broke in the other direction. `rmt_transmit()` returns immediately, so
+the beep now runs in hardware while `loop()` keeps turning, and the standalone
+heartbeat needs the same `strip.show()` guard the ESPHome one has always had —
+previously unnecessary because `triggerTransmit()` blocked `loop()` and the two were
+mutually exclusive by construction. Both ends of the pulse need it: guarding only
+the start still lets a pulse that began just before a trigger blank the LED for the
+whole beep.
+
+**The payload was a rotation, and rebuilding it checked itself.** Verifying the
+frame arithmetic showed the stored array's last element was `-2`, a long OFF run,
+where the decode says run 87 is always short. The array was the canonical frame
+rotated left by two runs — `canonical[j] == stored[(j+2) % 88]` — which tiles to the
+same waveform and is why nothing ever noticed. I rebuilt it from the `Be_A` row of
+the frame worksheet. That row gives run *lengths* only; the levels come from "run 0
+is RF ON" plus alternation, so the assumption is load-bearing and untested by the
+reconstruction itself. What tested it was reading the fields back: channel 45-46
+`AB`, function 67-68 `AB`, level 71-78 `AAAAAAAA` (the worksheet says beep carries
+value 0), redundancy 79-86 `BBBBAABA` (complement x4, copy x2 for beep, then `BA`
+for channel A), run 87 short. Inverting the level assumption would have read the
+level field as `BBBBBBBB` and broken the redundancy mask. Four independent
+constraints agreeing is what makes the rebuilt frame trustworthy, not that it
+happened to match what was already in the file.
+
+Honest accounting of what the change buys, because it is less than it looks. For
+131 of 132 frames the collar receives bit-identical RF. The last frame's truncated
+run becomes canonical 87, which carries nothing about the command, instead of
+redundancy position i = 6, which does — a real argument, but speculative, since
+nothing establishes that the collar examines the trailing partial frame. And the
+first frame now presents 31 leading unit runs rather than 33, because the old cut
+started two runs into the preamble and picked up two short constant runs after it;
+that is very slightly *worse* lead-in. The actual payoff is that the payload and
+the documented field offsets now describe the same object.
+
+**Nothing has been on the air.** Both paths compile and the working tree is
+re-encrypted, and that is the whole claim. The first hardware check is not RF: a
+boot where the LED still lights *and* `rmt_beep::init()` returns `ESP_OK` proves the
+group clock source, the group prescale, the channel count and the block size all
+agree in practice — the entire stack of assumptions from the last three sessions, in
+one observation.
+
 ### 2026-09-10
 
 A second session the same day, and again no code and nothing on the air. It
