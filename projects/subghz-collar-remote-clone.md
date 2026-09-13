@@ -19,7 +19,7 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-**Finished, deployed and in daily use, with nothing open in firmware.** The beep
+Finished, deployed and in daily use, with nothing open in firmware. The beep
 fires from Home Assistant and from the button, reliably, at range — the 70% era
 ended in August 2026 once the fault turned out to be burst structure rather than
 timing. The frame was decoded in September 2026 and the transmit path deliberately
@@ -33,11 +33,6 @@ value means. Neither blocks anything; the device is done.
 
 ## Lessons
 
-Newest first, and long — this is the project that generated most of them. Roughly:
-measurement discipline and how tools lie about signals (the largest group), the
-ESP32-C3's RMT and its shared clock, documentation claims that harden into facts,
-and the run-length protocol itself.
-
 - **An instrument has to report its own reference, because the reference is the part
   that fails silently.** Measuring what the RMT loop wrap costs meant timestamping a
   transmission on-chip, and the first version used `esp_cpu_get_cycle_count()` — which
@@ -50,7 +45,7 @@ and the run-length protocol itself.
   it was being used to look for, and it produced an answer that was not merely wrong but
   impossible — a *negative* per-seam cost. `getCpuFrequencyMhz()` says 160 and is no
   evidence, reporting the configured frequency rather than anything about the counter.
-  Use `esp_timer_get_time()`: the C3's systimer has one clock source only
+  What works instead is `esp_timer_get_time()`: the C3's systimer has one source only
   (`SYSTIMER_CLK_SRC_XTAL`), which is the same crystal the PLL behind the RMT's APB clock
   is locked to — so error and drift stay common-mode between the measurement and the
   thing measured — and it is a free-running peripheral counter, indifferent to the CPU
@@ -431,8 +426,8 @@ and the run-length protocol itself.
   Capture several presses in one recording, not one — the whole validation
   below depends on having repeats to compare.
   [[subghz-collar-remote-clone-log#2026-08-09]]
-- **An overloaded receiver invents signals, and distorts the edges you came
-  to measure.** With the remote held a few centimetres from the dongle and
+- **An overloaded receiver invents signals, and distorts the edges it was
+  pointed at.** With the remote held a few centimetres from the dongle and
   the gain up, the waterfall showed three marks, not one: the real burst at
   +245 kHz, its I/Q image at exactly −245 kHz (the tuner's I and Q paths are
   never perfectly balanced, so a ghost appears mirrored about the tuned
@@ -441,12 +436,13 @@ and the run-length protocol itself.
   linear range. None of it is a harmonic; those are integer multiples and sit
   hundreds of MHz away. The generic test is to **retune and see what moves**:
   real transmissions stay put on an absolute axis, images and distortion
-  products are manufactured relative to your tuning and follow it. So gain is
+  products are manufactured relative to the tuning and follow it. So gain is
   a trade, not a level — early (LNA/RF) gain buys sensitivity because Friis
   makes the first stage dominate the noise figure, late gain preserves
-  linearity — and with a transmitter in the hand you want the lowest RF gain
-  that clears the noise floor, Gain Mode on Manual so an AGC cannot modulate
-  the amplitudes being measured. Check the tuner rather than assuming it:
+  linearity — and with a transmitter in the hand the right setting is the
+  lowest RF gain that clears the noise floor, Gain Mode on Manual so an AGC
+  cannot modulate the amplitudes being measured. The tuner is worth checking
+  rather than assuming:
   `rtl_test -t` reported an Elonics E4000, where librtlsdr's per-stage IF
   gain is real, not the R820T2 where it is a no-op.
   [[subghz-collar-remote-clone-log#2026-08-09]]
@@ -533,16 +529,50 @@ remote — see [[#Now]].
 
 ## Learning value
 
-- Capturing a real transmission on an SDR and turning IQ into timings
-- Driving a CC1101 in OOK direct mode, first by bit-banging and then by
-  clocking the waveform out of the ESP32-C3's RMT peripheral
-- Decoding an undocumented fixed-code frame from a differential campaign,
-  after shipping a replay that could not be diagnosed without one
-- Measuring rather than assuming: a symbol period, a peripheral's clock, and
-  an instrument's own reference
-- ESPHome as an integration path, against bare PlatformIO firmware
-- Keeping a captured signal out of a public repo without breaking the build
-- Taking one thing all the way: firmware, PCB, enclosure, deployed
+The project that has taught the most here, largely because it went wrong in
+more ways than it went right. What it covers that nothing else does:
+
+- **Turning an SDR recording into timings by hand.** Capture settings that the
+  data cannot supply and the tool will not name — tuning off-centre because
+  the receiver puts a DC spike at its own centre, manual gain because an
+  overloaded front end invents images and intermodulation products that look
+  like signals, and a symbol period measured frame-start to frame-start rather
+  than fitted by a tool that got it wrong by 9%.
+- **Establishing ground truth before believing anything.** A hand measurement
+  before the script, a script validated against synthetic captures with known
+  answers before it is pointed at real ones, and repeated frames stacked
+  against each other so the analysis chain checks itself with no external
+  reference. Three bugs in the script were caught this way, any one of which
+  would have read as a property of the signal.
+- **Recognising an encoding from its statistics.** Why run-length coding rules
+  out NRZ, Manchester, PWM and PPM in one stroke — the levels carry nothing —
+  and why a block that almost matches the field before it is a redundancy mask
+  rather than a broken checksum.
+- **Driving a CC1101 in OOK direct mode**, first by bit-banging against a
+  suspended scheduler and then by clocking the waveform out of the ESP32-C3's
+  RMT peripheral: reading a peripheral's reference manual and its driver source
+  well enough to predict behaviour, and then checking the prediction on
+  hardware rather than trusting it.
+- **Clocks, and why a measurement is only as good as its reference.** A group
+  clock shared between two peripherals that the first one to initialise wins, a
+  requested rate realised as the nearest whole divider, and a CPU "cycle
+  counter" that is a performance counter running 2370 ppm slow.
+- **Two runtimes over one radio**, and the judgement of what to share. A
+  constant whose divergence would be invisible belongs in a shared header; one
+  whose divergence is obvious the moment anyone looks at the board does not.
+- **The electrical and mechanical half**, which no firmware project reaches:
+  strapping pins that are only dangerous in a boot mode this board never enters,
+  an LDO still needing bulk capacitance on its input, an antenna keepout,
+  and a gerber that carries geometry with no statement of intent.
+- **Keeping captured data out of a public repository without breaking the
+  build**, and making that guarantee enforceable by a committed hook rather
+  than by remembering.
+- **Documentation that stays true.** An inference restated often enough reads
+  as a finding, an unsourced assertion hardens the same way, and a workaround
+  outlives the condition it worked around because the change that makes it
+  redundant is never the change that removes it.
+- **Taking one thing all the way**: firmware, PCB, enclosure, deployed, and
+  then lived with for a year while it only worked 70% of the time.
 
 ## Practical value
 
@@ -707,7 +737,12 @@ both paths, so a change to RF behaviour lands once:
 - [x] Run `analyze_capture.py` on the real capture, check it against the hand
       measurements rather than the other way round
 - [x] Confirm or kill the clamping hypothesis
-- [x] If confirmed: re-capture without the two-bucket classifier, rebuild the payload
+- [x] If confirmed: re-capture without the two-bucket classifier, rebuild the
+      payload — **closed unfired, not performed.** The hypothesis was killed on
+      2026-08-13, so the condition was never true and this work was never called
+      for. The payload was rebuilt later, on 2026-09-12, but at the canonical
+      frame cut and for an unrelated reason.
+      [[subghz-collar-remote-clone-log#2026-08-13]]
 - [x] Sweep `BASE_TICK_US` from the calibration mode, find where reliability peaks
       — **closed as overtaken, not performed.** Written while the timing
       hypothesis was still alive. The tick was since measured directly at
