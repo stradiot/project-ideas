@@ -19,25 +19,56 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The RMT path is **validated on hardware** as of 2026-09-13: both firmware paths
-flashed, the collar beeps, 6/6 presses on the standalone path with transmit windows
-of 3.002 s against a predicted 3.00206 s, and a mid-beep press dropped without
-queueing or extending. Reaching `System Ready` is itself the proof that the group
-clock, the prescale and the channel count agree, since both init failures halt behind
-a red LED. Bring-up also turned up three constants still being obeyed after their
-cause had gone: an ESPHome `delay: 500ms` that was a yield for a call that no longer
-blocks, an inherited `gamma_correct: 2.8` under which the Wi-Fi-down heartbeat emitted
-`(1, 0, 0)` and amber had never been on screen, and two `platformio.ini` comments
-arguing from a bit-banged loop. The radio config, the reset-reason decode and the LED
-palette are now shared headers; LED *policy* deliberately is not, because ESPHome
-refuses `!lambda` on `interval:`. What remains is the loop-seam measurement — and the
-figures `printState()` reports cannot be its reference, being 37 ppm short through
-truncation. The two hardware questions are unchanged: a second remote to separate
-handset identity from protocol framing, and a scope on the collar to learn what the
-transmitted level value means.
+The RMT path is validated on hardware and the loop-seam question is **closed** as of
+2026-09-13: the wrap costs nothing, bounded at ±2 ns per frame where one APB clock
+would be 12.5 ns, so a beep is one contiguous run of frames with no penalty at the
+boundaries and the manual's "starts transmitting the first data again" is literally
+true. Getting there needed the measurement moved on-chip and then rescued from its own
+reference clock — `esp_cpu_get_cycle_count()` reads a performance counter on the C3 and
+runs 2370 ppm slow, which is twenty times the effect. The same run confirms the realised
+channel rate to better than 0.1 ppm, so the +14.38 ppm symbol period is real rather than
+arithmetic. Nothing in the firmware TODO is open. What remains is the two hardware
+questions: a second remote to separate handset identity from protocol framing, and a
+scope on the collar to learn what the transmitted level value means.
 
 ## Lessons
 
+- **An instrument has to report its own reference, because the reference is the part
+  that fails silently.** Measuring what the RMT loop wrap costs meant timestamping a
+  transmission on-chip, and the first version used `esp_cpu_get_cycle_count()` — which
+  is not a clock on the ESP32-C3. `rv_utils_get_cycle_count()` branches on
+  `SOC_CPU_HAS_CSR_PC`, defined as 1 for this part, and reads CSR 0x7e2 `PCCR`,
+  Espressif's performance counter under `PCER`/`PCMR`, rather than the architectural
+  RISC-V `mcycle`. It counts a selected event under configurable conditions and loses
+  about one count in 422: measured against the systimer it runs 2370 ppm slow,
+  reproducibly, 159.62 MHz against a nominal 160. That is twenty times the 118 ppm effect
+  it was being used to look for, and it produced an answer that was not merely wrong but
+  impossible — a *negative* per-seam cost. `getCpuFrequencyMhz()` says 160 and is no
+  evidence, reporting the configured frequency rather than anything about the counter.
+  Use `esp_timer_get_time()`: the C3's systimer has one clock source only
+  (`SYSTIMER_CLK_SRC_XTAL`), which is the same crystal the PLL behind the RMT's APB clock
+  is locked to — so error and drift stay common-mode between the measurement and the
+  thing measured — and it is a free-running peripheral counter, indifferent to the CPU
+  stalls and clock gating that broke the other one. The instrument now prints the cycle
+  counter's measured rate beside the microseconds, which is the line that would have
+  caught this on the first run instead of the second.
+  [[subghz-collar-remote-clone-log#2026-09-13]]
+- **To measure a rate when neither endpoint is the event, vary the workload and take the
+  slope — the offsets fall into the intercept.** Both timestamps around a transmission
+  sit a fixed, unknown distance from the real edges: the start after `rmt_transmit()`
+  enables the channel but before the first edge reaches the pin, the end after the
+  interrupt, the vector, the driver's prologue, and the channel overrunning because the
+  C3 has loop count but no auto-stop. A fixed offset added to one elapsed time is
+  indistinguishable from a fixed per-seam cost summed over that beep — same sign, same
+  magnitude, same on every repetition — so no number of repeated presses separates them,
+  which is exactly how an earlier 3.002 s serial-window measurement looked like
+  confirmation and was not. Sweeping the frame count from 22 to 1011 separates them in
+  one pass, because the offsets do not scale with it and the per-seam cost does. The
+  residual then came out flat at +5 µs across a 46× range, which both gives the answer
+  (slope −0.66 ns/frame, ±2 ns) and proves the model, since a non-flat residual would
+  have meant one of the "fixed" costs was not fixed. Two points cannot show that; the
+  endpoint slope printed by the firmware is a sanity check and not the result.
+  [[subghz-collar-remote-clone-log#2026-09-13]]
 - **Share a constant only where a divergence would be invisible; where it would be
   obvious, duplication costs less than a partial abstraction.** Unifying the two
   firmware paths looked like one job and is two. The six RadioLib calls were worth

@@ -981,6 +981,146 @@ its own `signal.h` from the template, not an age key — and what remains of it 
 the committed pre-commit guard and the `core.hooksPath` shim, which are the only
 parts that bind anyone else working here.
 
+**The last item in the TODO was what the RMT's loop wrap costs, and the obvious
+way to measure it was the wrong way.** In loop mode the frame sits in the
+channel's 48-word memory block and the hardware replays it from the top when the
+reader meets the end marker, which is why contiguity stopped being something the
+firmware maintains. The reference manual's entire statement about that moment is
+that the transmitter "starts transmitting the first data again"; it does not say
+whether the jump back costs any output time. The cheapest non-zero hypothesis is
+that the address reset eats one clock — one channel tick is 2.675 µs, or 118 ppm
+of a 22.743 ms frame — and a decode cannot see that, because any decoder rounds a
+deviation under half a symbol away and half a symbol here is 104 µs.
+
+**The SDR route was abandoned once it became clear there is no seam-free span to
+compare against.** One beep captured at 2 Msps read "3.00 s" in URH against
+6003640 samples selected, which is the first thing worth not being misled by: the
+seconds field is a two-decimal display and the sample count is the measurement,
+so the resolution was never 10 ms but 0.5 µs. What actually limits an SDR here is
+elsewhere. An OOK edge arrives smeared through the receiver's filter chain, so a
+threshold crossing is uncertain by several samples no matter what rate is used —
+raising the rate describes the same ramp with more points rather than sharpening
+it. And the sample count converts to seconds only through the dongle's
+uncompensated 28.8 MHz crystal, good to tens of ppm and drifting as it warms,
+which is the same size as the effect. Both problems are cured by taking a ratio
+of two spans inside one capture: the crystal cancels because both spans ride it,
+and a long span divides the edge uncertainty by the number of frames it covers.
+That is how the 208.647 µs symbol period was measured in the first place. It
+fails here for a reason particular to the RMT — the whole beep is one frame
+played 132 times, so *every* frame boundary is a wrap and no multi-frame span is
+seam-free. The reference would have had to come from inside a single frame, about
+22.7 ms, where ±1 µs of edge uncertainty is 44 ppm against a 118 ppm effect:
+enough to see one tick at under 3σ, not enough to tell one tick from two.
+
+**Moving the measurement on-chip fixed the clock problem and left the endpoint
+problem, and the endpoint problem has a standard shape.** The RMT channel divides
+APB, APB comes from the PLL, and the PLL is locked to the same 40 MHz crystal that
+clocks the CPU and the systimer — so an on-chip timestamp and the waveform are
+counting one oscillator through different integer dividers, and crystal error and
+drift are common-mode. The SDR by contrast introduces a second, independent,
+uncalibrated crystal and makes its error inseparable from the answer. What on-chip
+timestamps cannot do is land on an edge: the start falls after `rmt_transmit()`
+has enabled the channel but before the first edge reaches the pin, and the end
+falls after the peripheral raised its interrupt, the CPU took the vector, the
+driver ran its prologue, and the channel overran slightly because the C3 has loop
+count but no loop auto-stop. Every one of those is fixed and unknown, and a fixed
+offset added to one elapsed time has precisely the signature of a fixed per-seam
+cost summed over that beep — same sign, same magnitude, same on every press. That
+is what had already disqualified the morning's 3.002 s serial window. The frame
+count is the lever that separates them, because the offsets do not scale with it
+and the seam does: fit elapsed time against frame count, let the intercept absorb
+every fixed cost, and read the slope.
+
+**The first instrument produced a confident, reproducible, impossible answer.**
+The `m` command sweeps nine beeps from 22 to 1011 frames — the ceiling being the
+ten-bit loop counter's 1023 — timestamps each, and prints raw pairs for fitting
+off-device rather than a derived period, since a single point cannot give one.
+The first version timestamped with `esp_cpu_get_cycle_count()`, chosen because
+the prediction is then an exact integer with no rounding anywhere: 8502 ticks ×
+214 APB cycles × 2 = 3,638,856 CPU cycles per frame. The three consecutive
+176-frame steps agreed with each other to 1 ppm at 3,630,197 cycles — 2369 ppm
+*below* prediction. A wrap can only add time, so the measurement was not merely
+wrong but impossible, which is the useful kind of wrong.
+
+**The monitor's own timestamps convicted the instrument rather than the
+hardware.** Those come from the host, an entirely separate clock. Each interval
+between consecutive `TX done` lines should be the 2 s sweep gap plus about 5 ms
+of settle plus N × 22.74285 ms, and all eight matched inside a millisecond, the
+longest of them 25 s — which pins the frame period to roughly 40 ppm and says the
+divider is 214 and the frame is 22.74285 ms. Dividing the cycle counts by those
+durations then reads the counter's rate off directly: 159.621 MHz across the
+clean middle of the range, stable to 1 ppm, against a nominal 160.
+
+**`esp_cpu_get_cycle_count()` is not a clock on this part.** It dispatches to
+`rv_utils_get_cycle_count()`, which branches on `SOC_CPU_HAS_CSR_PC` — defined as
+1 for the C3 in `soc_caps.h` — and on that branch reads CSR 0x7e2, `PCCR`,
+Espressif's performance counter governed by `PCER` (which event) and `PCMR` (under
+what conditions). The architectural RISC-V `mcycle` path is compiled out. So what
+comes back counts a selected event under configurable conditions, not a guaranteed
+tick of the CPU clock, and it loses roughly one count in 422. I did not pin down
+which event or condition is responsible — that needs the TRM's PCER/PCMR tables —
+and it does not change what follows. Dynamic frequency scaling was the first guess
+and the data rules it out: a switch between 160 and 80 MHz cannot produce a 0.24%
+deficit stable to 1 ppm across three consecutive steps, and no power-management
+config is enabled. `getCpuFrequencyMhz()` reported 160 throughout, because it
+reports the *configured* frequency and is no evidence at all about the counter.
+
+**The replacement is `esp_timer_get_time()`, for reasons that are properties of
+the silicon rather than preferences.** The C3's systimer has exactly one clock
+source — `clk_tree_defs.h` declares `SYSTIMER_CLK_SRC_XTAL` and nothing else, with
+`DEFAULT` aliased to it — and that is the same crystal the PLL behind the RMT's
+APB clock is locked to, so the common-mode cancellation survives the swap. It is
+also a free-running peripheral counter, which makes it indifferent to stalls,
+clock gating and CPU power state: the entire class of thing that broke the other
+one. At 1 µs granularity it resolves 0.04 ppm over a 23 s batch against a 118 ppm
+effect. The cycle counter stayed in as a diagnostic printed beside the
+microseconds, so the sweep now reports its own reference's rate rather than
+assuming it — which is the part worth copying, and exactly what the first version
+lacked.
+
+**The wrap is free.** Residuals against the predicted 22,742.85 µs per frame came
+out flat — +5.30, +5.60, +6.20, +5.40, +3.80, +4.20, +4.60, +4.85, +4.65 µs across
+22 to 1011 frames, a 46× range with no ramp in it. The endpoint slope is −0.66 ns
+per frame, and with ±1 µs of quantisation at each end the bound is about ±2 ns.
+One APB clock is 12.5 ns, so it is excluded six times over: the peripheral reloads
+its read pointer with no bubble and the manual's sentence turns out to be literally
+true. The +5 µs common to every point is the fixed software cost at the two ends,
+which is where the design intended it to land. Waveform shape at the seam needed
+no separate check, because 88 runs starting ON and ending OFF always puts an OFF
+run against an ON run there, and two same-level runs merging is the only shape
+failure that could hide inside an unchanged duration. The same run also confirms
+the realised channel rate at runtime to better than 0.1 ppm, a far sharper check
+on the divider than the morning's 3.002 s window, and it settles that the
++14.38 ppm claimed for `SYMBOL_TICKS` is the real figure rather than an arithmetic
+one.
+
+**One bug was mine, and it was in the worst place for one.** The first sweep's
+summary printed `endpoint dcycles : -704521101` because `Serial.print()` has no
+64-bit overload and I had cast a 3.59e9-count span to `int32_t`. The raw pairs
+were fine, so nothing was lost — but the only line in the output that looked like
+a *result* was the one that was garbage, inside an instrument whose entire job is
+to be trusted. Everything wide goes through a `printI64()` helper now, and the
+prediction moved to nanoseconds, since 22742.85 µs is a whole number of
+nanoseconds and is not one of microseconds: the same divide-last discipline that
+disqualified `printState()` as a reference.
+
+**Reviewing the documentation turned up four stale claims rather than the one I
+went looking for.** `triggerTransmit()` was renamed `startTransmit()` in the
+migration and left standing in the LED section, pointing at a symbol that greps to
+nothing. The safety gate described a standalone "flag" that does not exist:
+ESPHome keeps running with `is_ready()` false and genuinely needs new trigger
+paths put behind it, whereas all three standalone init failures halt in
+`while (true)` so `loop()` is never reached and there is no trigger path to guard
+— the same guarantee by opposite means. The heartbeat was documented as gated on
+`is_ready()` on both paths; only ESPHome's is, and only ESPHome's needs to be. And
+the gamma rescaling was documented as having preserved emitted levels, 50%→15% and
+80%→54%, while the committed YAML uses 20% everywhere: those figures are the ones
+that *would* have preserved the old appearance, and the choice actually taken
+unified both solid states onto `LED_LEVEL_SOLID` and moved two levels doing it,
+the transmitting blue from 135 to 51. The doc described a decision that was
+considered and not made.
+
+
 ### 2026-09-06
 
 The differential campaign closed. Beep and shock, channels A and B, all twenty
