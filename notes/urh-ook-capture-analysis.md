@@ -292,9 +292,14 @@ that copies cut at that spacing come out identical.
 ## What this note deliberately does not cover
 
 Turning the tick transcription into protocol bits — the encoding, the field
-layout, the checksum. That needs the differential family (all 20 levels, then
-channel B), not a better procedure, and it is
-[[subghz-collar-remote-clone]]'s next open item.
+layout, the redundancy. That needed the differential family (all 20 levels,
+then channel B) rather than a better procedure, and it was done on 2026-09-06:
+the layout is in [[subghz-collar-remote-clone]]. Two things from it are worth
+carrying back here. The encoding is **run-length**, so the levels hold no
+information at all and every standard line code is ruled out on that alone.
+And the block that looks like a checksum is not one — it is a field re-emitted
+through a mask that varies with the command, so a receiver reads the command
+out of comparing the two halves.
 
 ⚠️ Capturing shock frames implies being able to transmit them. The collar must
 not be worn by an animal during this work. Decoded transcriptions stay out of

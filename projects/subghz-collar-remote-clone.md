@@ -19,21 +19,24 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The RMT path is validated on hardware and the loop-seam question is **closed** as of
-2026-09-13: the wrap costs nothing, bounded at ±2 ns per frame where one APB clock
-would be 12.5 ns, so a beep is one contiguous run of frames with no penalty at the
-boundaries and the manual's "starts transmitting the first data again" is literally
-true. Getting there needed the measurement moved on-chip and then rescued from its own
-reference clock — `esp_cpu_get_cycle_count()` reads a performance counter on the C3 and
-runs 2370 ppm slow, which is twenty times the effect. The same run confirms the realised
-channel rate to better than 0.1 ppm, so the +14.38 ppm symbol period is real rather than
-arithmetic. Nothing in the firmware TODO is open. What remains is the two hardware
-questions: a second remote to separate handset identity from protocol framing, and a
-scope on the collar to learn what the transmitted level value means. A full review
-closed the repo out — docs corrected, `pinout.h` given the include guard it never had,
-and RadioLib pinned exactly on both paths instead of one.
+**Finished, deployed and in daily use, with nothing open in firmware.** The beep
+fires from Home Assistant and from the button, reliably, at range — the 70% era
+ended in August 2026 once the fault turned out to be burst structure rather than
+timing. The frame was decoded in September 2026 and the transmit path deliberately
+ignores it, still replaying a stored payload. Transmission moved off the CPU onto
+the RMT peripheral, validated on hardware on both paths, and the last question
+about that peripheral — what its loop wrap costs — was measured and is nothing.
+Two questions remain and both need hardware rather than more capture: a second
+remote, to test whether the 68 constant runs are this handset's identity or just
+protocol framing, and a scope on the collar, to find what the transmitted level
+value means. Neither blocks anything; the device is done.
 
 ## Lessons
+
+Newest first, and long — this is the project that generated most of them. Roughly:
+measurement discipline and how tools lie about signals (the largest group), the
+ESP32-C3's RMT and its shared clock, documentation claims that harden into facts,
+and the run-length protocol itself.
 
 - **An instrument has to report its own reference, because the reference is the part
   that fails silently.** Measuring what the RMT loop wrap costs meant timestamping a
@@ -519,15 +522,24 @@ something he should not, spotted on a camera that is no part of this
 project — and having it reachable from automation means it works without
 the handheld remote being in reach.
 
-Deliberately out of scope: the shock function. Capturing that button press
-would work identically and it is not being done. Also out of scope: a
-universal remote — each handheld carries its own identifier, so this is a
-structural template that happens to be loaded with mine.
+Deliberately out of scope: the shock function. Since the decode that is no
+longer a limitation but a policy — the frame is understood well enough to
+construct a shock command, and neither the repository nor this note carries
+what would be needed to. Also out of scope: a universal remote. 68 of the 88
+runs are constant across everything my handset can send, and those are
+*assumed* to be its identity, which makes this a structural template loaded
+with mine. That assumption has never been tested and cannot be from one
+remote — see [[#Now]].
 
 ## Learning value
 
 - Capturing a real transmission on an SDR and turning IQ into timings
-- Driving a CC1101 by bit-banging OOK, with no formal protocol decode
+- Driving a CC1101 in OOK direct mode, first by bit-banging and then by
+  clocking the waveform out of the ESP32-C3's RMT peripheral
+- Decoding an undocumented fixed-code frame from a differential campaign,
+  after shipping a replay that could not be diagnosed without one
+- Measuring rather than assuming: a symbol period, a peripheral's clock, and
+  an instrument's own reference
 - ESPHome as an integration path, against bare PlatformIO firmware
 - Keeping a captured signal out of a public repo without breaking the build
 - Taking one thing all the way: firmware, PCB, enclosure, deployed
@@ -553,18 +565,24 @@ because the 70% version is what shipped first and was lived with.
 | MCU | Wemos LOLIN C3 Mini — ESP32-C3 |
 | Radio | CC1101, 868 MHz part with the 26 MHz crystal |
 | Carrier | 869.525 MHz, OOK |
-| Payload | Captured fixed-code frame, as run-length ticks × `BASE_TICK_US` |
-| Modulation | Bit-banged asynchronous timings — no packet engine, no sync word |
+| Payload | Captured fixed-code frame, as signed run lengths in symbol periods |
+| Timebase | `SYMBOL_TICKS` = 78 RMT channel ticks of 2.675 µs = 208.65 µs |
+| Modulation | Asynchronous direct OOK — no packet engine, no sync word, no CRC |
+| Waveform | Clocked by the RMT peripheral out of channel memory, looped in hardware |
 | Trigger | BOOT button on GPIO 9, or Home Assistant over ESPHome |
-| Secrets | `include/signal.h` encrypted with sops |
+| Secrets | `include/signal.h` and `signal_captures.txt`, both sops + age |
 | Physical | Own PCB (gerbers) and a 3D printed case and lid |
 
-### Replay, not decode — and what that costs
+### Replay before decode — and what that cost
 
-The protocol is not published, so nothing here is reverse engineered. The
-frame was captured with an SDR, cleaned up, and is re-emitted as raw
-timings. That was the fast route to a working device, and it worked: the
-collar beeps.
+*Historical: this is the account of the first year of the project, before the
+September 2026 decode. The frame is now understood — see [[#Now]] — but the
+firmware still replays a stored payload verbatim and uses none of it.*
+
+The protocol is not published, so the device was built without reverse
+engineering it. The frame was captured with an SDR, cleaned up, and
+re-emitted as raw timings. That was the fast route to a working device, and
+it worked: the collar beeps.
 
 It also turned out to be the expensive route, and that is the most useful
 thing this project has produced. The beep fired about 70% of the time on
@@ -578,6 +596,14 @@ the decoder by hand, arrived at from the other direction and at the cost of
 a device that was unreliable in the hands for as long as it was. Recognition
 is what this project skipped, and it is the thing every later sub-GHz build
 starts from.
+
+The decode arrived eventually, in September 2026, and the ordering is the
+point: it came a year after the device shipped and months after the
+reliability fault was found by other means. Having it earlier would have
+turned three sessions of diagnosis into one check against a known frame. It
+has still changed no firmware — the transmit path replays the stored payload
+and always has — which is the cleanest statement of what a decode is
+actually for here. It buys diagnosis, not function.
 
 ### Where the 70% came from
 
@@ -604,13 +630,20 @@ is the first entry under [[#Lessons]], and the reason the section exists.
 ### The refactor that made it testable
 
 `signal.h` moved from absolute microseconds to run-length ticks plus a
-single `BASE_TICK_US` scalar, verified lossless by round trip. The payload
-became `tick × {1,2}` and one number — and that number can be swept from a
-serial calibration mode at runtime, without reflashing between attempts.
+single scalar, verified lossless by round trip. The payload became
+`tick × {1,2}` and one number — and that number can be swept from a serial
+calibration mode at runtime, without reflashing between attempts.
 
 Trading a slightly more abstract payload for the ability to test a
 hypothesis in seconds instead of minutes is the right trade whenever the
 hypothesis is "the timebase is wrong".
+
+The scalar has since changed identity twice and the payload never moved,
+which is the refactor paying out a second time. `BASE_TICK_US` was 209 whole
+microseconds, the finest step a bit-banged loop had, and 1692 ppm off the
+measured 208.647 µs. It is now `SYMBOL_TICKS` = 78 RMT channel ticks of
+2.675 µs — 208.65 µs, +14 ppm — because moving the scalar into the
+hardware's own units was what bought roughly two orders of magnitude.
 
 ## Tools
 
@@ -622,7 +655,7 @@ hypothesis is "the timebase is wrong".
 | Pipeline | `tools/analyze_capture.py` | IQ → envelope → run lengths → base tick → frame → encoding tests |
 | Firmware | PlatformIO, and ESPHome for the HA path | Two paths, same signal |
 | Console | pyserial against `/dev/cu.usbmodem101` | The C3 speaks native USB CDC-ACM, so the baud rate is decorative and DTR/RTS are control requests — [[usb-protocol-and-linux-stack]] |
-| Secrets | sops | `include/signal.h` is never committed in plaintext |
+| Secrets | sops + age | `include/signal.h` and `signal_captures.txt`, guarded by a committed pre-commit hook |
 | Enclosure | Fusion 360 | Same tool noted for enclosures in [[ble-sensor-node-pcb]] |
 
 `analyze_capture.py` was validated against two synthetic captures with
@@ -646,12 +679,25 @@ Already spent.
 
 ## Software / firmware
 
-- `src/main.cpp` — button handling, LED feedback, transmit sequence, and
-  the serial calibration mode for sweeping the base tick
+Two runtimes, one shared core. Everything in `include/` is used verbatim by
+both paths, so a change to RF behaviour lands once:
+
+- `include/rmt_beep.h` — the transmission core. Packs the payload into RMT
+  words, creates the channel, loops the frame in hardware, reports completion
+  from the ISR. ESP-IDF driver only: no Arduino, no ESPHome, no logging
+- `include/cc1101_config.h` — the six RadioLib calls that are the radio's
+  entire RF personality
 - `include/signal.h` — RF parameters and the captured payload, sops encrypted
-- `include/pinout.h` — pin map for the custom SPI routing on the C3
+- `include/led_policy.h` — the status LED palette as levels *emitted*, which
+  is the only unit the two paths share
+- `include/pinout.h`, `include/reset_reason.h` — pin map, and
+  `esp_reset_reason()` as a string
+- `src/main.cpp` — the standalone path: button, LED, and a serial console
+  that sweeps the symbol period, power, carrier and beep length, plus the
+  loop-seam measurement
 - `esphome/d-control-400.yaml` + `cc1101.h` — the Home Assistant path
 - `tools/analyze_capture.py` — the whole analysis pipeline in one script
+- `.githooks/` — the guard that keeps the two encrypted files encrypted
 
 ## Plan
 
@@ -671,6 +717,12 @@ Already spent.
       single scalar at all, and that refactor is what made the timing hypothesis
       testable in seconds. [[subghz-collar-remote-clone-log#2026-08-13]]
 - [x] Get the beep to fire every time, in the hand, at range
+- [ ] Diff a second handset against this one, to test whether the 68 constant
+      runs are identity or protocol framing — the assumption the "device
+      specific" scope rests on, and unanswerable from one remote
+- [ ] Put a scope on the collar's output to find what the transmitted level
+      value means. Needs no new remote, only the hardware already here; the
+      collar comes off the dog first
 
 Same dog as [[lora-dog-collar-telemetry]] and
 [[thread-matter-noise-sensor]] — this is the only one of the three he

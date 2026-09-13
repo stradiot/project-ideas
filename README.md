@@ -78,8 +78,10 @@ Two, and the second one is smaller than it sounds. Both are in use.
 - `subghz-collar-remote-clone` — an ESP32-C3 and a CC1101 that replay a
   captured 869.525 MHz frame to beep a dog collar from Home Assistant.
   Firmware, own PCB, printed case, deployed. It is also the most honest
-  thing here: the signal is replayed rather than decoded, and the note says
-  what that costs. The beep fired ~70% of the time for most of the device's
+  thing here: the device shipped replaying a signal it had not decoded, and
+  the note says what that cost. The frame was decoded a year later and the
+  firmware still does not use it — which is the clearest statement of what
+  the decode was actually worth, namely diagnosis rather than function. The beep fired ~70% of the time for most of the device's
   life; `projects/logs/subghz-collar-remote-clone-log.md` has the three
   sessions that took it apart, including the wrong answer — a damaged
   capture — that survived a whole session before hand measurement killed

@@ -385,11 +385,13 @@ figure, sampling and complex baseband, the modulations, the receive chain
 that recovers timing and carrier, error coding, then chipset radios at
 register level, spread spectrum, and the 802.15.4 and BLE link layers.
 
-It also finishes the open problem in [[subghz-collar-remote-clone]]
-properly, since the encoding that fits none of the standard schemes is
-exactly what the receive-chain and coding modules are for. What the module
-takes from that project is its captures, which already exist — the direction
-is source material, not a build to be completed first.
+What the module takes from [[subghz-collar-remote-clone]] is its captures,
+which already exist — the direction is source material, not a build to be
+completed first. That project's own encoding question is closed: it turned
+out to be run-length coded, which is why none of the standard line codes
+fitted, and the frame was decoded in September 2026. What is left there is
+not analysis but two measurements needing hardware, so the receive-chain and
+coding modules inherit the recordings rather than an open problem.
 
 **The capture-and-replay module**, which absorbed a project that used to
 stand on its own. Take an arbitrary signal off the air with the RTL-SDR,
