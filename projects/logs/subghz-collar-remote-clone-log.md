@@ -1120,6 +1120,38 @@ unified both solid states onto `LED_LEVEL_SOLID` and moved two levels doing it,
 the transmitting blue from 135 to 51. The doc described a decision that was
 considered and not made.
 
+**A full end-of-project review found more prose rot than the targeted pass did, and
+two latent defects underneath it.** The documentation half was the same class of
+thing again: `esphome/README.md` had never been touched since the migration and
+still described "a custom C++ loop that locks the CPU to guarantee microsecond-accurate
+pulses", listed three LED states rather than five — omitting the heartbeat and the
+Wi-Fi-down amber that the LED work exists for — showed a `cc1101_is_ready` flag that
+does not exist, and gave a `secrets.yaml` example without `api_encryption_key`, which
+makes `esphome config` fail outright. That last one is the worst kind of stale doc,
+because it does not merely mislead: anyone following it hits a wall on step one. The
+root README still gave the symbol period as "stored as 209", which was `BASE_TICK_US`,
+deleted in the migration.
+
+The two real defects were quieter. `include/pinout.h` was the only header in the repo
+without `#pragma once`, and it is included twice on both paths — `main.cpp` then
+`rmt_beep.h` on one, `cc1101.h` then `rmt_beep.h` on the other. It compiles only
+because the file contains nothing but object-like macros with identical replacement
+lists, which C permits; the first `const`, `enum` or `inline` anyone adds there breaks
+both builds at once. And the ESPHome path asked for RadioLib `^6.0.0` while
+`platformio.ini` pins `6.6.0` exactly, with a comment explaining that RadioLib sits
+directly in the transmit path so a silent minor bump is a silent change to RF
+behaviour. The argument was written down, agreed with, and then not applied to the
+other path — and a caret there additionally lets the two firmwares drift apart with
+nothing saying so, which defeats the point of sharing `cc1101_config.h` in the first
+place. Both now resolve 6.6.0, verified by compiling the ESPHome target and reading
+the version back out of the resolved package rather than trusting the spec.
+
+The vault-isolation check came back clean across tracked content, full history, commit
+messages and ref names, with the only `[[...]]` hit in the repo being a Python list
+literal. Worth recording that `main` and `origin/main` carry only the personal email:
+the work address survives solely on a local, unpushed `pre-email-rewrite` tag, which is
+the only thing keeping those objects alive.
+
 
 ### 2026-09-06
 

@@ -29,7 +29,9 @@ runs 2370 ppm slow, which is twenty times the effect. The same run confirms the 
 channel rate to better than 0.1 ppm, so the +14.38 ppm symbol period is real rather than
 arithmetic. Nothing in the firmware TODO is open. What remains is the two hardware
 questions: a second remote to separate handset identity from protocol framing, and a
-scope on the collar to learn what the transmitted level value means.
+scope on the collar to learn what the transmitted level value means. A full review
+closed the repo out — docs corrected, `pinout.h` given the include guard it never had,
+and RadioLib pinned exactly on both paths instead of one.
 
 ## Lessons
 
