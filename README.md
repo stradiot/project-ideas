@@ -68,7 +68,7 @@ does not. That check is partial: it only covers what the build exercises,
 and it can be slow. `subghz-collar-remote-clone` beeped about 70% of the
 time for months, and the first explanation for why was convincing and
 wrong. So "it works" and "I understand why it works" are kept as separate
-claims throughout, which is what `## Lessons` and the recorded dead ends are
+claims throughout, which is what `## Lessons learned` and the recorded dead ends are
 for.
 
 ## Built
@@ -87,7 +87,7 @@ Two, and the second one is smaller than it sounds. Both are in use.
   capture — that survived a whole session before hand measurement killed
   it. The cause was burst structure, and it is 6/6 on hardware now. That
   log is the best evidence in the vault of how a problem here actually gets
-  worked, and its `## Lessons` section is where the reusable half ended up.
+  worked, and its `## Lessons learned` section is where the reusable half ended up.
 - `beaglebone-green-case` — a parametric printed mounting tray for the
   BeagleBone Green, on the bench and holding the board. Walls and a lid
   wait until the board has a job that decides which connectors matter.
@@ -246,13 +246,13 @@ are worth reading precisely because the others do not.
 This vault is written, not edited. Working on a linked repo in Claude Code is
 what updates it: on session start it pulls; on session end it rewrites that
 project's `## Now`, ticks any `## Plan` item the session finished, adds a dated
-entry at the top of `projects/logs/<slug>-log.md`, records a `## Lessons`
+entry at the top of `projects/logs/<slug>-log.md`, records a `## Lessons learned`
 bullet if the session produced one worth keeping, adds one line to
 `journal/<date>.md`, then commits and pushes. An unlinked repo gets the
 daily-note line only.
 
 Reading order on a phone: `## Now` is the first thing in every note, so the
-current state of a project is above the fold, and `## Lessons` follows it —
+current state of a project is above the fold, and `## Lessons learned` follows it —
 what the project has already taught, one bullet each, linking into the log
 entry that holds the working. The long build-log prose lives in its own file
 so it never buries the spec, and its entries run newest first so the top of

@@ -15,7 +15,7 @@ Skeleton tray is printed and in use on the bench. The full case — walls,
 lid, considered openings — is not started, and waits until the board has
 a job that decides which connectors it must expose.
 
-## Lessons
+## Lessons learned
 
 No session log yet — the tray was designed and printed before the vault
 existed, so these come from the note itself rather than from dated entries.

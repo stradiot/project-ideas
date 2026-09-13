@@ -23,7 +23,7 @@ the `result`'s `id` can. What is left of plan item two is the transport decision
 itself, which is what Q25 is blocked on. `main.c` is still the stage-5 encoder jig
 and no plan box is ticked.
 
-## Lessons
+## Lessons learned
 
 - **Home Assistant answers a command twice, and only one of the two answers can
   be tied back to the command that caused it.** The `result` frame carries the

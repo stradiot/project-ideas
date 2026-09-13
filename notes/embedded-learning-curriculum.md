@@ -66,7 +66,7 @@ the way — [[subghz-collar-remote-clone]] beeped about 70% of the time for
 months, and the first explanation for why fitted everything visible on
 screen and was wrong, killed a session later by a hand measurement. **"It
 works" and "I understand why it works" are separate claims, and only the
-first one checks itself.** Keeping them apart is what `## Lessons` is for,
+first one checks itself.** Keeping them apart is what `## Lessons learned` is for,
 and why a killed hypothesis is written down next to the answer that
 replaced it.
 

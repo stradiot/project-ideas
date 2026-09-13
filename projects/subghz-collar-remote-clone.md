@@ -31,7 +31,7 @@ remote, to test whether the 68 constant runs are this handset's identity or just
 protocol framing, and a scope on the collar, to find what the transmitted level
 value means. Neither blocks anything; the device is done.
 
-## Lessons
+## Lessons learned
 
 - **An instrument has to report its own reference, because the reference is the part
   that fails silently.** Measuring what the RMT loop wrap costs meant timestamping a
@@ -655,7 +655,7 @@ transmitter only emits those. The capture was honest; the payload was
 mistimed and misaligned, not damaged.
 
 The real cause was in a dimension nobody had measured: burst structure. That
-is the first entry under [[#Lessons]], and the reason the section exists.
+is the first entry under [[#Lessons learned]], and the reason the section exists.
 
 ### The refactor that made it testable
 

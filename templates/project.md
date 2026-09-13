@@ -11,7 +11,7 @@ created: {{date}}
 
 Not started. Nothing here is in progress — the plan below is the whole of it.
 
-## Lessons
+## Lessons learned
 
 What was learned here that is still worth knowing in a year, one bullet
 each: the finding as a claim, the mechanism that makes it true, and a link

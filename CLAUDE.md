@@ -189,7 +189,7 @@ finished. It never rewrites the *wording* of an item — inventing or editing pl
 text is how a plan stops being the plan. An unticked box therefore means not
 done, rather than merely unrecorded.
 
-`## Lessons` sits directly under `## Now` and is the other thing the hook
+`## Lessons learned` sits directly under `## Now` and is the other thing the hook
 maintains. It exists because the reusable half of a project ends up buried in
 its log: how the capture was actually measured, which tool lied and by how
 much, which hypothesis was convincing and wrong. Finding that again means
@@ -322,7 +322,7 @@ half was theirs, and it does not matter: the work was one piece of work. **The
 entry has exactly one voice. Everything either participant did is "I".** Never
 "you" or "your" for the vault's owner, never "the user", and no imperative
 aimed at a reader — "do not trust it for base-tick work" is "it is not to be
-trusted for base-tick work". The same holds for `## Now` and `## Lessons`.
+trusted for base-tick work". The same holds for `## Now` and `## Lessons learned`.
 
 **Never claim progress that did not happen.** Do not tick a `## Plan` item
 that was not finished, do not promote `status:`, and do not describe a
@@ -438,7 +438,7 @@ transcript records as user turns — and the writer is told to reply
 `NOTHING SIGNIFICANT` and write nothing when the session produced nothing
 durable. Most sessions end one of those two ways, and an empty diff produces no
 commit. The writer runs `sonnet` where there is journal prose and `haiku`
-otherwise: deciding a finding belongs in `## Lessons`, noticing that today's
+otherwise: deciding a finding belongs in `## Lessons learned`, noticing that today's
 result overturns a bullet already there, and holding one voice across a
 two-party transcript are judgement work, and `haiku` wrote entries that split
 the session into "your measurements" and "my automated one".
@@ -460,7 +460,7 @@ What it writes, per session in a linked repo:
   `[[<slug>-log#YYYY-MM-DD]]` link on a repeated date resolves to the newer one;
 - the note's `## Now` paragraph, replaced with where the project stands;
 - a tick on any `## Plan` item the session actually finished — wording untouched;
-- a `## Lessons` bullet, added or revised, when the session produced a finding
+- a `## Lessons learned` bullet, added or revised, when the session produced a finding
   still worth knowing in a year — most sessions do not, and then nothing changes;
 - one line in `journal/<date>.md`: `- [[note-slug]] — one-line summary`, likewise
   above what is already there.
@@ -503,7 +503,7 @@ pushed on your behalf here — commit deliberately.
 
 When editing from a session in some other personal repo, do not touch the vault
 mid-session; the SessionEnd hook owns those writes, and they are limited to the
-log file, `## Now`, `## Lessons`, plan ticks and the daily note. Frontmatter, Goal,
+log file, `## Now`, `## Lessons learned`, plan ticks and the daily note. Frontmatter, Goal,
 Architecture and the *wording* of plan items are never rewritten by automation —
 a change to those is a deliberate human (or explicitly requested) edit.
 
