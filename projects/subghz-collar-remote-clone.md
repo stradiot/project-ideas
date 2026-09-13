@@ -19,23 +19,78 @@ actually does, and the four traps that make them hard to get right — is
 
 ## Now
 
-The RMT path is written and compiles on both firmware paths, and **nothing has been
-on the air** — until a board is flashed and the collar beeps, it is untested code
-rather than a working feature. Transmission is one contiguous run of 132 frames
-looped in hardware, so `FRAMES_PER_BURST` / `TRANSMIT_GAP_US` / `TRANSMIT_REPEAT`
-collapse into `BEEP_DURATION_MS` and the radio logic is shared between the two paths
-instead of duplicated. Both paths now run APB at `DIV_CNT` 214: the status LED is the
-other RMT client and the group clock is shared, so the earlier XTAL-on-standalone
-plan would have hard-failed. The payload was also rebuilt at the canonical frame cut,
-the old array having been the same frame rotated by two runs. First hardware check is
-not RF but a boot where the LED lights *and* `rmt_beep::init()` returns `ESP_OK`;
-then the collar, then the SDR comparison of frame periods across a loop seam. The two
-hardware questions are unchanged: a second remote to separate handset identity from
-protocol framing, and a scope on the collar to learn what the transmitted level value
-means.
+The RMT path is **validated on hardware** as of 2026-09-13: both firmware paths
+flashed, the collar beeps, 6/6 presses on the standalone path with transmit windows
+of 3.002 s against a predicted 3.00206 s, and a mid-beep press dropped without
+queueing or extending. Reaching `System Ready` is itself the proof that the group
+clock, the prescale and the channel count agree, since both init failures halt behind
+a red LED. Bring-up also turned up three constants still being obeyed after their
+cause had gone: an ESPHome `delay: 500ms` that was a yield for a call that no longer
+blocks, an inherited `gamma_correct: 2.8` under which the Wi-Fi-down heartbeat emitted
+`(1, 0, 0)` and amber had never been on screen, and two `platformio.ini` comments
+arguing from a bit-banged loop. The radio config, the reset-reason decode and the LED
+palette are now shared headers; LED *policy* deliberately is not, because ESPHome
+refuses `!lambda` on `interval:`. What remains is the loop-seam measurement — and the
+figures `printState()` reports cannot be its reference, being 37 ppm short through
+truncation. The two hardware questions are unchanged: a second remote to separate
+handset identity from protocol framing, and a scope on the collar to learn what the
+transmitted level value means.
 
 ## Lessons
 
+- **Share a constant only where a divergence would be invisible; where it would be
+  obvious, duplication costs less than a partial abstraction.** Unifying the two
+  firmware paths looked like one job and is two. The six RadioLib calls were worth
+  sharing because a frequency or bandwidth changed in one path alone yields two
+  firmwares that both build, both transmit, and differ only at range — nothing short
+  of a range test finds it. The LED policy is the opposite and the mechanics say so:
+  ESPHome accepts `!lambda` on `brightness`, on the colour channels and on `delay:`,
+  but answers one on `interval:` with "This option is not templatable!". So the
+  shareable fields are exactly the ones whose divergence is visible the moment anyone
+  looks at the board, and the unshareable one — the heartbeat period — is the only one
+  whose divergence is invisible, two devices at 5 s and 7 s being indistinguishable
+  unless they are side by side. Wiring the rest through lambdas would have bought
+  coverage where it was not needed, missed the only place it was, and left a single
+  source of truth with one silent hole in it, which is the same shape as the inherited
+  gamma default that caused the trouble in the first place. The residue is that the
+  two paths do not share a unit either — a float multiplier against float ratios on one
+  side, an 8-bit scale against 8-bit components on the other — so the only thing that
+  can be stated once is the level actually emitted.
+  [[subghz-collar-remote-clone-log#2026-09-13]]
+- **Gamma correction applied before 8-bit quantisation deletes the minor channel of a
+  dim colour, so a colour written in a config is not the colour emitted.** ESPHome
+  computes `(raw x max_brightness x local_brightness) ^ gamma` and applies brightness
+  *linearly to the 8-bit value* before the table lookup, which means brightness chooses
+  the index into a table whose bottom entries are crushed together. At `brightness: 15%`
+  with `gamma_correct: 2.8`, red 1.0 emitted 1/255 and green 0.35 emitted 0/255: the
+  configured amber was pure red at the dimmest possible level, and had been for as long
+  as it had existed. The curve also crushes ratios rather than only levels — green 0.35
+  against red 1.0 emits 0.05, so no amount of extra brightness would have made it amber —
+  which is why the fix was to remove the curve rather than to raise the numbers under it.
+  Gamma exists to make a dimming sweep perceptually smooth; a status LED showing three
+  fixed colours never sweeps, so it pays the entire cost and collects none of the
+  benefit. The general form: an output pipeline with a non-linear stage and a narrow
+  integer type has a floor below which colour does not exist, and a config value cannot
+  be trusted as a description of behaviour when something between it and the hardware is
+  allowed to have an opinion. `gamma_correct: 2.8` appeared nowhere in the YAML — it was
+  a component default, visible only in the generated code.
+  [[subghz-collar-remote-clone-log#2026-09-13]]
+- **A workaround outlives the condition it worked around, and the change that makes it
+  redundant is never the change that removes it.** Three turned up in one session. The
+  ESPHome `delay: 500ms` before every transmission existed because the light component
+  writes the LED from a main-loop pass and the bit-banged transmit held that loop for
+  the whole burst under `vTaskSuspendAll()`; once `begin_transmission()` returned in
+  5 ms and `wait_until` yielded continuously, it bought nothing and cost half a second
+  between the press and the air — the most visible property of the device, spent on a
+  condition that had stopped existing. Two `platformio.ini` comments still justified
+  their pins by a timing-critical loop, and the platform pin's real justification had
+  quietly become stronger than the one written down: IDF 4.4 has no `rmt_new_tx_channel`
+  at all, so the wrong platform now fails to compile rather than silently misbehaving.
+  The common mechanism is that a workaround is written in terms of the symptom and the
+  cause is removed somewhere else, so nothing links them; what finds this class is
+  re-reading the *reason* attached to a constant whenever the subsystem it names is
+  rewritten, rather than re-reading the constant.
+  [[subghz-collar-remote-clone-log#2026-09-13]]
 - **A transmission that ends on a LOW run loses that run, and a stored frame can
   only be looped by the RMT if its run count is even.** A run lasts from its
   opening edge to its closing edge, so n edges bound n − 1 runs; a LOW run is

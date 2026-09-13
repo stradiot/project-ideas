@@ -8,6 +8,127 @@ project: subghz-collar-remote-clone
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[subghz-collar-remote-clone]].
 
+### 2026-09-13
+
+The session where the RMT code finally met hardware. It worked, on both paths, on
+the first flash — and then almost everything else the day produced was the same kind
+of finding: a constant that had outlived the thing that justified it and gone on
+being obeyed.
+
+**The bring-up observation was not RF, and it proved itself.** The plan was to check
+that the LED still lights and that `rmt_beep::init()` returns `ESP_OK`, because those
+two together settle the whole stack the migration rests on: the group clock source,
+the group prescale and the channel count. The LED claims the RMT group first — not at
+`strip.begin()`, which touches no peripheral, but at the first `strip.show()`, since
+`Adafruit_NeoPixel` calls `rmtInit()` lazily from inside `espShow()` — and asks for
+`RMT_CLK_SRC_DEFAULT` at 10 MHz, which settles the group on APB with prescale 1.
+`rmt_beep::init()` then asks for APB and `RMT_RESOLUTION_HZ` into a group whose clock
+and prescale are already frozen, and each way it could fail has its own code: a source
+mismatch is `ESP_ERR_INVALID_ARG` ("group clock conflict"), a missing memory block is
+`ESP_ERR_NOT_FOUND`, and a prescale other than 1 puts the channel divider somewhere
+other than 214. The serial log started after the boot lines had scrolled past, which
+turned out not to matter: both init failures end in `while (true)` behind a red LED,
+so reaching `System Ready` at all is the proof. Then the collar, 6/6.
+
+**The transmit window is a clock measurement, not a formality.** `TX ...` to `TX done`
+spanned 3.002 s against a predicted 3.00206 s, inside the 1 ms granularity of the
+monitor's timestamps. That elapsed time is `frames x 109 x k / f_channel` with every
+term known except the last, so it reads the achieved clock back off the board: a
+channel divider of 107 would have shown 1.5 s and a group prescale of 2 would have
+shown 6 s. The divider is 214 at runtime, not merely by inference from what the LED
+asked for. The busy rejection is as clean: a press at 1.096 s into a beep was dropped,
+and `TX done` still arrived 3.002 s after the *start* rather than after the press, so
+nothing was queued, restarted or extended.
+
+**The figures the firmware prints cannot be the seam reference.** `frame_duration_us()`
+does the division last-but-one and truncates — 8502 ticks x 2.675 us is 22742.85,
+printed as 22742 — and `beep_duration_actual_us()` then multiplies that already
+truncated value by 132. The error accumulates to 112 us over a 3 s beep, which is
+37 ppm: larger than the +14.38 ppm the symbol period itself carries, and therefore
+larger than the effect the seam measurement exists to look for. Harmless as a display
+and disqualifying as a reference, which is an easy distinction to miss when the number
+is right there in the log.
+
+**A yield for a call that no longer blocks.** The ESPHome path fired with a constant
+half-second lag the standalone path did not have, and a constant lag is the signature
+of a fixed script step rather than scheduler jitter. It was `delay: 500ms`, commented
+as letting ESPHome "physically push the Blue color to the LED" — a yield, not a settle.
+ESPHome's light component does not write the LED inline; it sets a target state and the
+RMT write happens on a later main-loop pass. Under the bit-banged firmware the very next
+step took the main loop away for the whole burst under `vTaskSuspendAll()`, so without
+that delay the blue would not have appeared until after the beep. `begin_transmission()`
+now returns in about 5 ms and the step after it is `wait_until`, which suspends the
+script and hands control back, so the light component gets loop passes throughout the
+3 s beep and the write lands within one iteration. Deleting the step cost nothing and
+returned half a second between the press and the air. Nothing announced that the
+workaround had become redundant; the migration that made it redundant is what wrote the
+code that made it invisible.
+
+**The amber that was never amber.** The Wi-Fi-down heartbeat read as dim red on the
+bench, which looked like a colour-choice problem and was not. ESPHome emits
+`(raw x max_brightness x local_brightness) ^ gamma` and applies brightness *linearly to
+the 8-bit channel* before the gamma lookup, so brightness selects the index into a table
+whose bottom entries are crushed. At `brightness: 15%` local brightness is 38: red 1.0
+gives 255, `scale8(255,38)` = 38, table[38] = 317, `(317+128)/257` = **1**; green 0.35
+gives 89, `scale8(89,38)` = 13, table[13] = 16, `(16+128)/257` = **0**. The pulse emitted
+`(1, 0, 0)` — pure red at one count out of 255, with the green channel quantised away
+before it reached the LED. Amber had never once been on screen, and `gamma_correct: 2.8`
+appears nowhere in the YAML: it is ESPHome's default, inherited silently, and visible
+only in the generated `main.cpp`. The tempting fix was to drop to two colours, which
+would have adopted the artefact as the design and discarded the one thing the LED reports
+that nothing else can — a dropped Wi-Fi link, where the device is alive and transmitting
+but invisible to Home Assistant and to `esphome logs` alike.
+
+Gamma attacks the ratio as well as the level, which is the half that is easy to miss: at
+2.8, green 0.35 against red 1.0 emits 0.05 and still reads red, and even at generous
+brightness it never becomes amber. Raising brightness alone would not have fixed it.
+The choice was between raising both numbers under the curve and removing the curve, and
+removing it won: gamma correction exists to make a *dimming sweep* perceptually smooth,
+this LED shows three fixed colours and never sweeps, so the curve bought nothing and
+cost the entire bottom of the range. With `gamma_correct: 1.0` a brightness percentage
+is very nearly the emitted fraction and a colour ratio survives at any level. The
+percentages were then rescaled so that removing the curve changed no emitted level
+except the broken one — 50% to 20% and 80% to 20% stay within a count of where they
+were, while the heartbeat went from 1 to 23, which is exactly what the standalone path
+emits from `120` through `setBrightness(50)`.
+
+**What is worth sharing, and the criterion that decides it.** Three things moved into
+shared headers. `include/cc1101_config.h` holds the six RadioLib calls — frequency,
+power, bit rate, RX bandwidth, OOK, standby — that had been duplicated verbatim in both
+paths, with carrier and power as parameters defaulting to `signal.h` so the standalone
+serial sweep still works. `include/reset_reason.h` turns `esp_reset_reason()` into a
+string for both; the standalone path had never reported it at all, which is backwards
+given that it is the path used for development. `include/led_policy.h` states the
+palette as levels *emitted* by the WS2812, that being the only unit the two paths share:
+ESPHome applies a float multiplier to float ratios, `Adafruit_NeoPixel` an 8-bit scale to
+8-bit components, so a percentage means different light in the two and a level does not.
+Consuming it made `strip.setBrightness(255)` the right call, which disables Adafruit's
+scaling rather than maximising it — `b + 1` rolls a `uint8_t` to 0 and `show()` skips the
+scaling pass at 0 — so components are now written literally and there is one scaling step
+instead of two.
+
+The LED *policy* was deliberately not shared, and working out why produced the more
+useful result. ESPHome accepts `!lambda` on `brightness`, on the colour channels and on
+`delay:`, all verified by putting one in and validating; it refuses one on `interval:`
+with a flat "This option is not templatable!". So the coverage available is exactly
+inverted. The three fields that can be shared are the ones whose divergence announces
+itself — a wrong colour is visible the first time anyone looks at the board, which is
+the LED's whole job — and the one that cannot be shared is the only one whose divergence
+is invisible, since two devices pulsing at 5 s and 7 s look identical unless they are
+side by side. That is the opposite of the case for `cc1101_config.h`, where a wrong
+bandwidth cannot be seen without a range test. So the header is the specification, the
+standalone path consumes it, and the YAML repeats the numbers as literals and cites it;
+the enforcement is a comment rather than a compiler, which is acceptable only because
+this particular failure reports itself.
+
+**Housekeeping that nearly went wrong.** `include/signal.h` turned up in the diff with a
+fresh data key, a fresh MAC and `lastmodified` a few minutes old — a full-file diff with
+byte-identical plaintext, which is what a `sops -e -i` round trip always produces. It was
+caught before the commit and reverted to HEAD's blob, and the plaintext had been verified
+identical against a decrypt of HEAD beforehand. The pre-decrypt snapshot that would have
+made this a non-event was never taken, which is the second time that step has been the
+one skipped.
+
 ### 2026-09-12
 
 The session that closed the last open question and then wrote the code. Three
