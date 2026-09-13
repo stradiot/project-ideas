@@ -1152,6 +1152,31 @@ literal. Worth recording that `main` and `origin/main` carry only the personal e
 the work address survives solely on a local, unpushed `pre-email-rewrite` tag, which is
 the only thing keeping those objects alive.
 
+**A second review pass, from scratch, found the worst defect of the day in the one
+file nobody had opened.** `tools/analyze_capture.py` was checked by running it against
+the repository's own committed payload rather than by reading it, which is the only
+reason it was found at all. Two things were wrong. It could not read the current
+`signal.h` — it looked for `BASE_TICK_US`, deleted in the RMT migration — and instead
+of saying so it fell back to a 1 µs base tick, reporting a 22742.85 µs frame as
+"total duration 109 µs" with every number downstream wrong by the symbol period and
+nothing on screen to indicate it. And its verdict on that healthy frame was "the
+capture is very likely CLAMPED": the hypothesis this project spent a session killing
+in August, still being handed to anyone who ran the tool. The real explanation is the
+one the September decode established — run-length coding, where the levels carry no
+information, which is exactly why runs cap at 2T and why NRZ, Manchester, PWM and PPM
+all fail together. Both now read that way, with clamping named as the alternative and
+the honest statement that the two are indistinguishable in the script's own tables and
+separated by one hand measurement against the tick grid rather than by argument.
+
+There is a pattern in which files rot, and it is not the one I would have guessed.
+Everything with a reader stayed current; `CLAUDE.md` and the project note were revised
+every session. What rotted was anything only a machine reads — a script nobody runs
+because the answer is already known, a `libraries:` line in a YAML, an include guard
+that was never missed because macros happen to tolerate double inclusion. The tool
+that exists to stop a confident wrong answer had been sitting on one for a month, and
+the repo's own lesson — that a tool not run against a known answer is not evidence —
+turned out to apply to the tool itself once the known answer changed underneath it.
+
 
 ### 2026-09-06
 

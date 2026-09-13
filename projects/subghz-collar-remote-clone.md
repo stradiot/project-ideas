@@ -652,7 +652,7 @@ hardware's own units was what bought roughly two orders of magnitude.
 | Capture | RTL-SDR | Tune 250 kHz low — the RTL2832U puts a DC spike dead centre |
 | Analysis | Universal Radio Hacker | Step-by-step procedure in [[urh-ook-capture-analysis]] |
 | Analysis | GNU Radio in a UTM Linux VM | Not usable natively on the Mac |
-| Pipeline | `tools/analyze_capture.py` | IQ → envelope → run lengths → base tick → frame → encoding tests |
+| Pipeline | `tools/analyze_capture.py` | IQ → envelope → run lengths → symbol period → frame → encoding tests |
 | Firmware | PlatformIO, and ESPHome for the HA path | Two paths, same signal |
 | Console | pyserial against `/dev/cu.usbmodem101` | The C3 speaks native USB CDC-ACM, so the baud rate is decorative and DTR/RTS are control requests — [[usb-protocol-and-linux-stack]] |
 | Secrets | sops + age | `include/signal.h` and `signal_captures.txt`, guarded by a committed pre-commit hook |
