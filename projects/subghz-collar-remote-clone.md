@@ -635,27 +635,9 @@ has still changed no firmware — the transmit path replays the stored payload
 and always has — which is the cleanest statement of what a decode is
 actually for here. It buys diagnosis, not function.
 
-### Where the 70% came from
-
-The first answer was wrong, and it is worth keeping because of how
-convincing it was. Decrypting the stored payload showed that every one of
-the 224 elements was exactly 200 or 400 µs — a genuine SDR capture is never
-that clean — and that the payload fit none of PWM, Manchester, biphase
-FM0/FM1, PPM or NRZ, with run lengths capping at two ticks that no standard
-line code explains. Both pointed at a two-bucket short/long classifier
-applied during capture, throwing away symbols that were neither. Every
-encoding test was expected to pass and none did, which felt like it had
-ruled out an entire category of explanation in one pass.
-
-Hand measurement in URH killed it. Every run quantised at the true
-417.75-sample grid, 0% off-grid across 13 presses, with σ/mean of 0.6% — if
-symbols had been discarded there would be rounding errors scattered through
-the frame rather than a perfect fit. Only 1T and 2T runs exist because the
-transmitter only emits those. The capture was honest; the payload was
-mistimed and misaligned, not damaged.
-
-The real cause was in a dimension nobody had measured: burst structure. That
-is the first entry under [[#Lessons learned]], and the reason the section exists.
+Those three sessions, including the wrong answer that survived one of them,
+are in [[subghz-collar-remote-clone-log#2026-08-13]]; what they taught is
+under [[#Lessons learned]].
 
 ### The refactor that made it testable
 
