@@ -11,17 +11,18 @@ github: https://github.com/stradiot/t-embed-ha-controller
 
 ## Now
 
-The latency measurement plan item two was waiting on is done, and it is three
-numbers rather than two: 25 ms of API round trip with no entity matched, ~110-155 ms
-to HA's `result`, ~220-260 ms to the reported value. The send path is decided with
-it — self-clocked on `result`, at most one command in flight per entity, with a
-per-domain period as a floor that now carries fluency policy rather than a claim
-about how fast a domain's devices are. A burst of six commands 116 ms apart came
-back as five events, the far side dropping an intermediate on its own, and showed
-that `context.id` cannot attribute an event to the command that caused it while
-the `result`'s `id` can. What is left of plan item two is the transport decision
-itself, which is what Q25 is blocked on. `main.c` is still the stage-5 encoder jig
-and no plan box is ticked.
+The stream half of the transport decision is closed: **`subscribe_trigger`,
+naming group entities**, measured against `subscribe_events` on one socket for
+the same events — half the messages on a dim, well under half on a toggle, about
+3% more bytes each, and the filter demonstrated with a positive control rather
+than assumed. The measurement also reframed the reason: ambient chatter in this
+instance is one message in an entire idle window, so what the filter removes is
+self-inflicted — the member reports a group re-emits and the automation a toggle
+provokes — rather than the instance growth the argument had rested on. What is
+left of plan item two is the snapshot half, `get_states` against per-entity
+REST, whose topology consumer needs the entity registry rather than state and is
+not measured yet; Q25 stays blocked on it. `main.c` is still the stage-5 encoder
+jig and no plan box is ticked.
 
 ## Lessons learned
 
@@ -69,25 +70,41 @@ and no plan box is ticked.
   bus subscription plus a predicate — so `subscribe_trigger` is HA letting a
   client instantiate one with no automation attached and take the firings
   directly. The predicate exists either way; the only question is which side of
-  the network it runs on. It is not cheaper per event, since the payload wraps
-  everything in `event.variables.trigger` on top of full `from_state` and
-  `to_state`, so the whole saving is in the events never sent and its value is
-  exactly the ratio of instance to interest.
-  [[home-assistant-rotary-controller-log#2026-08-30]]
-- **A group entity multiplies the push stream by its member count, because it
-  has no state of its own and recomputes its whole aggregate on every single
-  member report.** One brightness drag on a five-bulb group produced 15 group
+  the network it runs on. It is not cheaper per event: measured like for like on
+  the same group events, a trigger frame ran 1,827 B against 1,779 B for the
+  `state_changed` equivalent, about 3% dearer for the extra wrapping. The whole
+  saving is in the events never sent — and the first guess about where those
+  come from was wrong. Instance-to-interest is the term that grows without
+  bound, but on a real instance it was *one* message in an entire idle window,
+  while one dim of a three-member group spent half its messages on member
+  reports the device never named and a toggle spent four more on an automation
+  it provoked. The saving is dominated by the fan-out a device's own commands
+  cause, not by the instance's accumulated chatter. Comparing the two is also
+  easy to get wrong: a per-subscription peak message size is only like for like
+  when the same entity produced both peaks, and a member frame measured against
+  a group frame reversed the sign of the per-event cost for a whole session.
+  [[home-assistant-rotary-controller-log#2026-08-30]],
+  [[home-assistant-rotary-controller-log#2026-09-14]]
+- **A group entity emits one event per member report, because it has no state of
+  its own and recomputes its whole aggregate every time any one member reports —
+  so the multiplier is the number of reports the members produce, not the size of
+  the membership.** One brightness drag on a five-bulb group produced 15 group
   events against 3 from one member subscribed alongside it — exactly 3 reports
-  times 5 members — and 34,914 bytes for one dim of one lamp. The group's
-  messages are also the fatter ones, since each carries the member list twice, in
-  `from_state` and `to_state`. The tell that separates this from a chatty slider
-  is the interleaved zeros, `192 -> 0 -> 96 -> 0`, all with `state: "on"`: no
-  slider produces those, an average recomputed over members mid-transition does.
-  The consequence is that command flooding is not only an outbound problem —
-  roughly 15 messages of ~2.5 KB inside 400 ms arrive for one human gesture, and
-  the `desired`/`confirmed` pair has to survive rendering a confirmed zero during
-  a change the device itself initiated.
-  [[home-assistant-rotary-controller-log#2026-08-30]]
+  times 5 members — and 34,914 bytes for one dim of one lamp. Reading that as
+  "times the member count" is the trap: dimming a *single* member of a
+  three-bulb group produced 5 group events for its 5 member reports, a doubling
+  rather than a tripling, while commanding the group produced 10 group events for
+  member reports of 4, 4 and 2. That unevenness is the mechanism behind the
+  interleaved zeros, `192 -> 0 -> 96 -> 0`, all with `state: "on"` — members do
+  not report in lockstep, so the aggregate is recomputed from partial state; no
+  slider produces those. The group's messages are also the fatter ones, since
+  each carries the member list twice, in `from_state` and `to_state`. The
+  consequence is that command flooding is not only an outbound problem, and no
+  entity filter removes this half of it: the events come from the entity the
+  device itself named, so the `desired`/`confirmed` pair has to survive ~N
+  non-monotonic reports, including a confirmed zero, for a value the device set.
+  [[home-assistant-rotary-controller-log#2026-08-30]],
+  [[home-assistant-rotary-controller-log#2026-09-14]]
 - **A refusal is only worth writing into a specification if the code is already
   pulling towards the thing being refused — everything else on the list is either
   already violated or not enforceable by the firmware at all.** Sorting five

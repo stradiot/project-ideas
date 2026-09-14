@@ -8,6 +8,171 @@ project: home-assistant-rotary-controller
 Session entries, newest first. Written by the SessionEnd hook.
 The project note is [[home-assistant-rotary-controller]].
 
+### 2026-09-14
+
+Closed the stream half of the transport decision: **`subscribe_trigger`, naming
+group entities.** It is measured rather than argued, twice, and the second
+capture was needed because the first one measured the wrong workload.
+
+The question is not which of two API calls to use. It is **which side of the
+wire the entity filter runs on**, and the 2026-08-30 entry had already
+established why the choice exists at all — HA's core is an event bus,
+`subscribe_events` is a raw tap on it and filters by event *type*, while a
+trigger is a listener specification the automation engine compiles into a bus
+subscription plus a predicate. The predicate exists either way. `subscribe_trigger`
+only decides that it runs on HA's side, where the events it rejects are never
+serialised and never sent.
+
+Before measuring I argued for the trigger from instance growth: `subscribe_events`
+traffic is a function of how many entities exist, so it rises every time a bulb
+is paired, and nothing in the firmware can push back. That is a property of the
+mechanism rather than of this flat, which made it the durable form of the
+argument. **The data agreed with the conclusion and disagreed with the
+reasoning**, which is the most useful thing either capture produced.
+
+The harness is `tools/ha-stream-capture.sh`, in the repo now rather than in a
+scratch directory, because this is the third capture script the project has
+written and lost. It opens **both subscriptions on one socket at once** —
+`subscribe_trigger` for one entity, `subscribe_events` for `state_changed`
+across the instance — instead of running two separate captures. Two runs would
+have compared two different physical gestures, since a hand-dragged brightness
+slider is never the same twice, and a difference in message count would then be
+confounded with a difference in the drag. Concurrently subscribed, both
+subscriptions observe the identical event stream and every frame carries the
+`id` of the subscription it belongs to, so attribution is exact rather than
+inferred. That is the same property the send path is clocked on: the `id` is the
+one field the API echoes by definition.
+
+Two things in the design exist to keep a null result readable. **The firehose is
+the positive control for the trigger's silence** — when an unsubscribed entity
+moves it must appear under one id and be absent under the other, in the same
+second on the same socket, so absence is a filter rather than a dead
+subscription. And **every subscribe is ACK-checked before any gesture is
+requested**, because a rejected subscribe produces exactly the silence a working
+filter produces. The trigger config is sent as `platform: state` with a fallback
+to the newer `trigger: state` spelling on a failed ACK, rather than assuming
+which one this version takes. The capture runs four phases bounded by
+timestamped markers: an idle window, an attribute-only dim, a toggle, and a
+move of an entity the trigger did not name.
+
+**The first capture, against a single bulb**, answered the disqualifying
+question first. A state trigger carrying only an `entity_id`, with no `to` or
+`from`, fired five times for a dim with no toggle — so it sees attribute-only
+changes, which is mandatory here because everything this device controls lives
+in attributes and `state` never leaves `"on"`. Had that come back empty the
+comparison would have ended there. Phase D then moved a cover: four events on
+the firehose, zero on the trigger. Filter demonstrated, with a control that
+could have caught it failing.
+
+The numbers were 5 messages and 8,194 B on the trigger against 11 and 17,973 B
+on the firehose for the same drag — but the per-entity table carried a tell
+worth more than the ratio. `light.hallway_lights` appeared exactly 5 times in
+the dim phase and exactly 2 in the toggle phase, matching the subscribed bulb's
+5 and 2 in both. Exact count parity across two different gestures is not
+coincidence, and the candidate explanation was already in the vault: a group
+recomputes its whole aggregate on every member report. Checking the group's
+`attributes.entity_id` in the raw capture confirmed it — a group of three, with
+the bulb inside it.
+
+**That is when the capture turned out to be measuring a proxy.** In practice
+nothing here controls a single bulb; a lamp *is* a group of three, so the
+controller will name groups and the events multiply. Re-ran the same script
+with the group as the subscribed entity, commanding the group.
+
+The mechanism came out exact. The dim produced member reports of 4, 4 and 2 —
+ten in total — and **ten group events**, with the firehose delivering all twenty.
+So the group's re-emission count equals the *total number of member reports*,
+not the membership figure: one member moving inside a group of three produces a
+doubling, and it is commanding the group that produces the ~2N. The uneven
+4/4/2 is the more valuable half of that. Members do not report in lockstep, so
+the group recomputes from partial state, which is the cause of the interleaved
+zeros seen on 2026-08-30 rather than another instance of them.
+
+The toggle phase turned up something about this instance rather than about the
+API: `script.light_set_mode` four times and `input_select.hallway_light_mode`
+once, on the firehose only. Toggling that group provokes an automation, so the
+device's own commands generate traffic from entities it will never name — 27
+firehose messages against 10, and a 2.35× byte ratio, the widest measured.
+
+One anomaly is unresolved. The toggle phase had twelve member reports but only
+ten group events, where the dim phase matched exactly. Two recomputes emitted
+nothing. Either an unchanged recomputed state object fires no event, or two
+member reports collapsed into one recompute; the capture does not separate them
+and `rx-raw.jsonl` still holds the timestamps if it ever matters.
+
+**The idle window is what reframed the argument.** One message in the whole
+phase — a phone battery sensor, 1,205 B. Ambient chatter in this instance is
+effectively nil, so the instance-growth term I had leaned on is currently near
+zero, and the measured 2× is almost entirely **self-inflicted**: the N member
+reports and the automation churn provoked by the device's own commands. Both
+arguments point at the same primitive, but the dominant term is the one caused
+rather than the one accumulated. Worth noting the tally cannot produce a rate
+from a single event, since its span is the difference between first and last
+arrival and is therefore zero; the window length is the gap between two rows of
+`markers.tsv`.
+
+**One prediction was wrong, then wrongly retracted, then reinstated.** I
+expected the trigger frame to be fatter per message, since its payload wraps
+`from_state` and `to_state` inside `event.variables.trigger`. The first
+capture's peaks said otherwise — 1,647 B on the trigger against 1,779 on the
+firehose — and I withdrew the prediction on that basis. **That retraction was
+wrong, because those two peaks were different messages**: the trigger's peak was
+a member-bulb frame and the firehose's a group frame, which carries the member
+list twice. The second capture gives the like-for-like comparison, since the
+same group events arrive on both subscriptions: 1,827 B as a trigger frame
+against 1,779 as a `state_changed` frame, **+48 B, about 3%**. The general form
+is that a per-subscription peak is only comparable when the same entity produced
+both peaks, and nothing in a tally enforces that.
+
+So the decision, with what it rejected. `subscribe_events` loses because its
+filter runs after the bytes have crossed the wire, been framed and been parsed
+far enough to learn they were unwanted — a `strstr` pre-scan of the receive
+buffer would be a mitigation, not a fix. Naming **members** instead of the group
+loses for a subtler reason: it delivers the same event count, N member reports
+and no group events, but it makes the device owe HA's aggregation logic and
+creates a new class of disagreement, where the panel shows a value HA does not
+agree with. Naming the group keeps HA's aggregate authoritative. The trigger
+wins on every axis measured except ~3% per message: half the messages on a dim,
+well under half on a toggle, ambient and automation churn gone entirely, and a
+filter that was demonstrated rather than assumed.
+
+What no transport choice removes is the N near-identical events per commanded
+value, because they come from the entity the device itself named. That lands on
+the payload side: `desired`/`confirmed` has to absorb ~N non-monotonic reports,
+including zeros, for a value the device set. The send path is untouched, since it
+clocks on `result`, which arrives once per command however many events follow.
+
+Three self-inflicted tooling failures, all in the harness. The help text used
+`<<USAGE` as its heredoc delimiter and then contained `USAGE` as a section
+heading, so the heredoc ended early and the remainder of the help text was
+executed as commands — and `zsh -n` passed it, because the result was still
+valid shell, just not the shell that was written. A quoted delimiter has to be a
+token that cannot begin a line of the body, and self-documenting help text is
+the body most likely to contain the obvious word. Then the reader died at
+startup on `KeyError: 'RAW'`: the three output paths were passed as an inline
+environment prefix, `VAR=x websocat | python3 reader.py`, and an environment
+prefix binds to **one** command while each element of a pipeline is its own
+process, so websocat got variables it never reads and the reader got none.
+`export` before the pipeline is the fix. That one failed instructively — the
+consumer died, websocat carried on into a broken pipe, and the script marched on
+to its auth wait, so a dead reader and a socket that never answers looked
+identical from the shell's side. Third, one of my own checks lied: in zsh,
+`cmd 2>&1 >/dev/null | wc -l` does not isolate stderr the way it does in bash,
+because `MULTIOS` sends stdout to both targets, so help output appeared to be
+going to stderr when separate files showed 61 lines on stdout and none on
+stderr.
+
+Still open, and unchanged in shape: the snapshot half of the transport decision,
+`get_states` against per-entity REST. It has two consumers that may not want the
+same mechanism — the initial value snapshot for entities already known, and the
+topology sync that discovers which entities carry the tag — and the second has
+an unverified prerequisite, since labels live in the entity registry rather than
+in state, so no size of `get_states` can answer which entities carry a tag.
+Q25 is the reconnect case of the first and stays blocked on it. Plan item two is
+therefore not ticked. Bench, unchanged: the I²C scan with the BQ25896 and BQ27220
+as positive control, board deep-sleep current, and the encoder's resting levels
+at successive detents.
+
 ### 2026-08-31
 
 Measured the command-to-`state_changed` latency the last session deferred, and
