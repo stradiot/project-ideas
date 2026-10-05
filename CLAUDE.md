@@ -477,7 +477,7 @@ note is what switches that repo to the wikilink form.
 Note names and repo names are independent on purpose — `subghz-collar-remote-clone`
 carries `repo: d-control-400-remote`, and that frontmatter field is the only thing
 connecting them. Two repos are linked: that one and `beaglebone-green-case`. The
-rest under `~/Documents/personal` — `homepage`, `office_clock` — are deliberately
+rest under `~/Documents/personal` — `office_clock` — are deliberately
 not vault projects and journal under their own names.
 
 A project can also opt out of the vault altogether by putting a `.no-vault-journal`
