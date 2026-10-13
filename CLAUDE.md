@@ -237,6 +237,18 @@ education-only phase"). Suggestions that optimise away the hard part are
 usually the wrong advice here; alternatives belong in the note as rejected
 options with reasons.
 
+There is one exception, and it is deliberate: `vag-uds-coding-tool`, a tool
+for configuring my own car. It exists for use, and its `## Learning value`
+says so first — what it teaches is taken where it falls, not organised into a
+track, a course or an automotive curriculum, and none should be built around
+it. It sits outside the tracks in `README.md` under "Standalone" for that
+reason. The exception is narrow. On that project the instructive route does
+not automatically win over the practical one, but everything else still
+holds: the division of labour above and the conventions for recording what
+was learned. A future project
+earns the same exception only by being declared standalone in the same way,
+not by drifting into it.
+
 Both halves of that are explicit sections in every project note rather than
 something a reader has to infer from the prose. `## Learning value` is why
 the project exists and is the section to write first. `## Practical value`
