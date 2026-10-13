@@ -213,3 +213,6 @@ Specifically probed:
   capture, one abstraction layer higher
 - [[analog-am-transmitter-receiver]] — transmit power and filtering as the
   same species of legal constraint as the regulatory domain, one layer down
+- [[vag-uds-coding-tool]] — SocketCAN, where a CAN controller is a
+  `net_device` configured over rtnetlink with `ip link`; the subsystem this
+  module describes, already written by someone else and used on a car

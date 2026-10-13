@@ -1,12 +1,13 @@
 # Project Ideas
 
 Personal vault for hardware, embedded and RF projects — what to build, why
-that one rather than an easier one, and what each is for learning. One entry
-is tooling for the learning itself rather than a build, and is grouped apart
-from the hardware tracks for that reason.
+that one rather than an easier one, and what each is for learning. Two
+entries are grouped apart from the hardware tracks: one is tooling for the
+learning itself rather than a build, and one is the exception to the rule
+below — a tool for my own car, built for use first.
 
 Most of what follows is a plan rather than a finished thing, and `status:`
-on every note says which is which: of twenty projects, two are built, one
+on every note says which is which: of twenty-one projects, two are built, one
 is being designed, one is parked with the reason written down, and the rest
 are specified and waiting. The spec comes before the build deliberately.
 Deciding where the build-it/buy-it line sits, and how far a project should
@@ -147,8 +148,9 @@ Everything whose prerequisites are already built. Derived from `depends:` and
 - `subghz-linux-router`
 - `usb-device-and-linux-driver`
 - `uwb-precision-locator`
+- `vag-uds-coding-tool`
 
-Thirteen of twenty, which is the point: very little here genuinely blocks
+Fourteen of twenty-one, which is the point: very little here genuinely blocks
 anything else, and a list that long stops being a recommendation. Only four
 projects are actually waiting on something, and they are marked below.
 
@@ -209,6 +211,13 @@ Status in brackets, with what a project is waiting on where it is waiting.
 - `printed-rc-plane` *[idea]* — printed airframe flown manually, then a wing leveller of my own
 - `custom-flight-controller-drone` *[idea, waiting on `rc-car-custom-controller`]* — attitude loop and hover on a printed ducted whoop; last on purpose
 
+**Standalone**
+
+Outside the tracks on purpose. Built for use first, and what it teaches is
+taken where it falls rather than made into a track of its own.
+
+- `vag-uds-coding-tool` *[idea]* — SocketCAN and UDS to switch off the alarm's interior monitoring and fix the service interval on my own Touran
+
 **Learning tooling**
 
 Not a track in the sense the others are — it builds nothing physical and
@@ -217,8 +226,9 @@ material.
 
 - `drill-app` *[idea]* — phone drills for the arithmetic and physics the other tracks assume; alongside the courses, not ahead of them
 
-Every project is chosen for what it teaches, first and above everything
-else. That is the criterion that decides what gets built, which parts are
+Every project but one is chosen for what it teaches, first and above
+everything else — `vag-uds-coding-tool` is the exception, and its note says
+so. That is the criterion that decides what gets built, which parts are
 bought as finished blocks, and how far each one goes — where an easier
 route and a more instructive one disagree, the instructive one wins, and
 the reasoning gets written down in the note.

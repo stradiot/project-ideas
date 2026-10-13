@@ -461,5 +461,8 @@ nothing about speed, and "USB 3.1" says nothing about power.
 - [[linux-char-drivers-and-irqs]] — the `file_operations` a USB driver ends
   up presenting upward
 - [[ble-sensor-node-pcb]] — the board the design checklist is aimed at
+- [[vag-uds-coding-tool]] — the CAN row of the bus table in use; a
+  candleLight adapter is a vendor-specific USB device whose host driver,
+  `gs_usb`, registers a `net_device` rather than a char device
 - [[embedded-learning-curriculum]] — where this fits among the five courses,
   which is awkwardly, because USB belongs to three of them
