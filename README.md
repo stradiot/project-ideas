@@ -216,7 +216,7 @@ Status in brackets, with what a project is waiting on where it is waiting.
 Outside the tracks on purpose. Built for use first, and what it teaches is
 taken where it falls rather than made into a track of its own.
 
-- `vag-uds-coding-tool` *[idea]* — SocketCAN and UDS to switch off the alarm's interior monitoring and fix the service interval on my own Touran
+- `vag-uds-coding-tool` *[idea]* — SocketCAN and UDS from a BeagleBone Green on my own Touran: fault codes, alarm interior monitoring off, start-stop last-mode memory, service interval, battery registration; two family Škodas later
 
 **Learning tooling**
 
